@@ -12,10 +12,9 @@ Thanks for helping. Bug reports, fixes and small improvements are welcome.
 ## Development setup
 
 ```bash
-npm ci
-cp .env.example .env.local
-supabase start          # local database with schema and catalogue
+npm run setup           # tools check, local database with schema and catalogue, .env.local
 npm run dev
+npm run demo            # optional: made-up results for your account
 ```
 
 AI features need an `ANTHROPIC_API_KEY`. Tests do not: they mock the AI.

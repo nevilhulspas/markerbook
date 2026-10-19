@@ -6,7 +6,7 @@ import { PageContainer } from '@/components/layout/page-container'
 import { Button } from '@/components/ui/button'
 import { RmrForm } from '@/components/body/rmr-form'
 
-export const metadata: Metadata = { title: 'New RMR test | Blood Markers Tracker' }
+export const metadata: Metadata = { title: 'New RMR test | Bloodmarkers' }
 
 export default function NewRmrTestPage() {
   return (

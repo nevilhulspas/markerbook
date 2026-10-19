@@ -15,7 +15,7 @@ import type { BloodTestFormValues } from '@/lib/validations/blood-test'
 import { notFoundOrAuthOutage } from '@/lib/supabase/session'
 
 export const metadata: Metadata = {
-  title: 'Edit Blood Test | Blood Markers Tracker',
+  title: 'Edit Blood Test | Bloodmarkers',
 }
 
 export default async function EditTestPage({

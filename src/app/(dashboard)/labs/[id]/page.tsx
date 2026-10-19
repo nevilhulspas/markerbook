@@ -15,7 +15,7 @@ import { PageContainer } from '@/components/layout/page-container'
 import { notFoundOrAuthOutage } from '@/lib/supabase/session'
 
 export const metadata: Metadata = {
-  title: 'Lab Detail | Blood Markers Tracker',
+  title: 'Lab Detail | Bloodmarkers',
 }
 
 export default async function LabDetailPage({

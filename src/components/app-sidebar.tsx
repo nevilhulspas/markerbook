@@ -152,7 +152,7 @@ export function AppSidebar({ user, badgeOverrides }: AppSidebarProps) {
                 </div>
                 <div className="grid flex-1 text-left text-sm leading-tight">
                   <span className="truncate font-semibold">
-                    Blood Markers Tracker
+                    Bloodmarkers
                   </span>
                   <span className="truncate text-xs text-muted-foreground">
                     Dashboard

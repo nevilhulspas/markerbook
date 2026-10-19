@@ -4,9 +4,10 @@ import { redirect } from 'next/navigation'
 import { sanitizeNextPath } from '@/lib/auth/next-path'
 import { LoginForm } from '@/components/auth/login-form'
 import { getRequestUser } from '@/lib/supabase/request-user'
+import { isGoogleSignInEnabled } from '@/lib/auth/providers'
 
 export const metadata: Metadata = {
-  title: 'Login | Blood Markers Tracker',
+  title: 'Login | Bloodmarkers',
 }
 
 export default async function LoginPage({
@@ -24,5 +25,5 @@ export default async function LoginPage({
   } = await getRequestUser()
   if (user) redirect(nextPath)
 
-  return <LoginForm next={nextPath} />
+  return <LoginForm next={nextPath} googleEnabled={await isGoogleSignInEnabled()} />
 }

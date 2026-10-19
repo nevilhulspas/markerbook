@@ -174,24 +174,33 @@ limit that you set, because the AI costs go to your own API key.
 
 ## Quick start
 
-You need **Node 22+**, the **[Supabase CLI](https://supabase.com/docs/guides/cli)**,
-Docker (for the local database) and an **[Anthropic API key](https://console.anthropic.com)**.
+You need **Node 22+**, **[Docker](https://www.docker.com/products/docker-desktop/)**, the
+**[Supabase CLI](https://supabase.com/docs/guides/cli)** and an
+**[Anthropic API key](https://console.anthropic.com)**.
+
+### With Claude Code (easiest)
 
 ```bash
 git clone https://github.com/nevilhulspas/bloodmarkers-public.git bloodmarkers
 cd bloodmarkers
-npm ci
-supabase start                 # local database with schema + biomarker catalogue
-cp .env.example .env.local     # add the URL and keys that supabase start printed, plus your Anthropic key
-npm run dev                    # http://localhost:3000
+claude
 ```
 
-Sign up in the app, then make yourself admin:
+Then type **`/setup`**. Claude checks your tools, asks for your e-mail address and API
+key, starts the local database and the app, and tells you where to sign up.
+
+### By hand
 
 ```bash
-set -a; source .env.local; set +a
-npx tsx scripts/set-admin-role.ts you@example.com
+git clone https://github.com/nevilhulspas/bloodmarkers-public.git bloodmarkers
+cd bloodmarkers
+npm run setup      # checks your tools, starts the database, writes .env.local
+npm run dev        # http://localhost:3000
 ```
+
+Sign up with the e-mail address you gave the setup: that account becomes admin
+automatically. Want to look around first? `npm run demo` loads made-up results into
+your account.
 
 ### Run it for real
 
@@ -224,6 +233,8 @@ docker run -p 3000:3000 --env-file .env.local bloodmarkers
 
 | Command | What it does |
 |---|---|
+| `npm run setup` | First-time local setup: database, catalogue, `.env.local` |
+| `npm run demo` | Made-up demo results for your account |
 | `npm run dev` | Dev server |
 | `npm run build` / `npm start` | Production build / serve |
 | `npm run lint` | ESLint |

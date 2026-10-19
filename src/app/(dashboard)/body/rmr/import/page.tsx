@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { PageContainer } from '@/components/layout/page-container'
 import { RmrImportClient } from '@/components/body/rmr-import-client'
 
-export const metadata: Metadata = { title: 'Import RMR test | Blood Markers Tracker' }
+export const metadata: Metadata = { title: 'Import RMR test | Bloodmarkers' }
 
 export default function RmrImportPage() {
   return (

@@ -9,7 +9,7 @@ const inter = Inter({
 })
 
 export const metadata: Metadata = {
-  title: 'Blood Markers Tracker',
+  title: 'Bloodmarkers',
   description:
     'Track your blood test results over time and get personalized AI-powered interpretation and recommendations.',
 }

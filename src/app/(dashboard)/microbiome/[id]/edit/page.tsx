@@ -8,7 +8,7 @@ import { MicrobiomeEditForm } from '@/components/microbiome/microbiome-edit-form
 import { notFoundOrAuthOutage } from '@/lib/supabase/session'
 
 export const metadata: Metadata = {
-  title: 'Edit Microbiome Test | Blood Markers Tracker',
+  title: 'Edit Microbiome Test | Bloodmarkers',
 }
 
 export default async function EditMicrobiomeTestPage({

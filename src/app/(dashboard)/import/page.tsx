@@ -4,7 +4,7 @@ import { getBiomarkers, getBloodTests } from '@/actions/blood-tests'
 import { MultiImportClient } from '@/components/import/multi-import-client'
 
 export const metadata: Metadata = {
-  title: 'Import Lab Reports | Blood Markers Tracker',
+  title: 'Import Lab Reports | Bloodmarkers',
 }
 
 export default async function ImportPage() {

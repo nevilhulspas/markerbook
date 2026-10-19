@@ -1,6 +1,13 @@
-// Usage: npx tsx scripts/set-admin-role.ts <email-or-user-id>
+// Usage: npm run make-admin -- <email-or-user-id>
+// (Usually not needed: set ADMIN_EMAIL and that account becomes admin when it signs up.)
 
 import { createClient } from '@supabase/supabase-js'
+
+try {
+  process.loadEnvFile('.env.local')
+} catch {
+  // no .env.local: rely on the environment
+}
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
 const serviceRoleKey = process.env.SUPABASE_SECRET_KEY ?? process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -15,7 +22,7 @@ if (!supabaseUrl || !serviceRoleKey) {
 const arg = process.argv[2]
 
 if (!arg) {
-  console.error('Usage: npx tsx scripts/set-admin-role.ts <email-or-user-id>')
+  console.error('Usage: npm run make-admin -- <email-or-user-id>')
   process.exit(1)
 }
 

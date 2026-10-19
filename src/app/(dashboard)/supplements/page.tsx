@@ -7,7 +7,7 @@ import { matchesSupplementMode } from '@/lib/supplements/mode'
 import { WishlistTable } from '@/components/wishlist/wishlist-table'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 
-export const metadata: Metadata = { title: 'Stack | Blood Markers Tracker' }
+export const metadata: Metadata = { title: 'Stack | Bloodmarkers' }
 
 export default async function SupplementsPage() {
   const [{ data: supplements }, { data: wishlist }] = await Promise.all([

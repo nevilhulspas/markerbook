@@ -16,19 +16,22 @@ your own AI keys. Plan about an hour.
 - An [Anthropic API key](https://console.anthropic.com)
 - Optional: an OpenAI API key, only for voice input in the nutrition log
 
-## 2. Get the code
+## 2. Try it locally first (optional)
 
 ```bash
 git clone <this repository> bloodmarkers
 cd bloodmarkers
-npm ci
-cp .env.example .env.local
+npm run setup
+npm run dev
 ```
 
-Fill in `.env.local`. Each variable is explained in [.env.example](../.env.example).
-You find the Supabase values under **Project Settings → API**.
+`npm run setup` checks your tools, starts a local Supabase stack with the schema and
+the biomarker catalogue, and writes `.env.local`. With Claude Code, type `/setup`
+instead. The steps below are for a real installation on a server.
 
 ## 3. Create the database
+
+In your Supabase project:
 
 ```bash
 supabase login
@@ -39,8 +42,9 @@ supabase db push --include-seed
 This creates all tables, access rules (row-level security), storage buckets,
 and loads the shared biomarker catalogue from `supabase/seed.sql`.
 
-To work on a local database instead, run `supabase start`. It applies the
-same schema and seed.
+Then fill in your settings, based on [.env.example](../.env.example). You find the
+Supabase values under **Project Settings → API**. Set `ADMIN_EMAIL` to your own
+address.
 
 ## 4. Set up sign-in (Supabase dashboard)
 
@@ -54,7 +58,7 @@ Under **Authentication → Sign In / Providers**:
 - Email sign-in works without more setup. Decide if you want e-mail
   confirmation on.
 - Google sign-in is optional: add a Google OAuth client and enable the
-  provider.
+  provider. The "Continue with Google" button only appears once it is enabled.
 
 Anyone who can open your site can create an account. If you want a private
 installation, turn off **Allow new users to sign up** after you created your
@@ -90,14 +94,11 @@ Put a reverse proxy with HTTPS in front of it (Caddy, Traefik, nginx).
 
 ## 6. Make yourself admin
 
-Sign up in the app, then run:
+Sign up with the address in `ADMIN_EMAIL`. After you confirm your e-mail address,
+that account is admin and the **Admin** section appears in the sidebar.
 
-```bash
-set -a; source .env.local; set +a
-npx tsx scripts/set-admin-role.ts you@example.com
-```
-
-Sign out and in again. The **Admin** section appears in the sidebar.
+Without `ADMIN_EMAIL`, run `npm run make-admin -- you@example.com` with the
+production settings in `.env.local`.
 
 ## 7. Optional data
 

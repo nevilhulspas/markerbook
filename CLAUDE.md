@@ -2,6 +2,14 @@
 
 Project conventions for this Next.js + Supabase blood markers app. They apply to people and to AI coding assistants working in this repo.
 
+## First-time setup
+
+If the user asks to install, set up or run Bloodmarkers on a new machine, follow
+[.claude/commands/setup.md](.claude/commands/setup.md) (the `/setup` command). Short
+version: `npm run setup -- --yes --admin-email=<their e-mail> [--anthropic-key=<their key>]`,
+then start the app with `env -u ANTHROPIC_API_KEY -u ANTHROPIC_BASE_URL npm run dev`,
+because Claude Code's own Anthropic variables would otherwise override `.env.local`.
+
 ## Git workflow
 
 PRs target `main` directly. Branch as `<type>/<short-desc>` (e.g. `feat/sibo-import`). The required gate is the CI job (`lint · typecheck · test · build`). See [CONTRIBUTING.md](CONTRIBUTING.md).

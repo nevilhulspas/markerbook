@@ -1,11 +1,12 @@
 import type { Metadata } from 'next'
 
 import { RegisterForm } from '@/components/auth/register-form'
+import { isGoogleSignInEnabled } from '@/lib/auth/providers'
 
 export const metadata: Metadata = {
-  title: 'Register | Blood Markers Tracker',
+  title: 'Register | Bloodmarkers',
 }
 
-export default function RegisterPage() {
-  return <RegisterForm />
+export default async function RegisterPage() {
+  return <RegisterForm googleEnabled={await isGoogleSignInEnabled()} />
 }

@@ -8,6 +8,7 @@ import { createClient } from '@/lib/supabase/server'
 import { resolveOrigin } from '@/lib/auth/site-origin'
 import { sanitizeNextPath } from '@/lib/auth/next-path'
 import { loginSchema, registerSchema } from '@/lib/validations/auth'
+import { promoteIfAdminEmail } from '@/lib/auth/admin-email'
 
 export async function login(values: unknown, next?: string) {
   const parsed = loginSchema.safeParse(values)
@@ -16,7 +17,7 @@ export async function login(values: unknown, next?: string) {
   }
 
   const supabase = await createClient()
-  const { error } = await supabase.auth.signInWithPassword({
+  const { data, error } = await supabase.auth.signInWithPassword({
     email: parsed.data.email,
     password: parsed.data.password,
   })
@@ -24,6 +25,7 @@ export async function login(values: unknown, next?: string) {
   if (error) {
     return { error: error.message }
   }
+  if (await promoteIfAdminEmail(data.user)) await supabase.auth.refreshSession()
 
   revalidatePath('/', 'layout')
   redirect(sanitizeNextPath(next))
@@ -36,7 +38,7 @@ export async function register(values: unknown) {
   }
 
   const supabase = await createClient()
-  const { error } = await supabase.auth.signUp({
+  const { data, error } = await supabase.auth.signUp({
     email: parsed.data.email,
     password: parsed.data.password,
   })
@@ -44,6 +46,7 @@ export async function register(values: unknown) {
   if (error) {
     return { error: error.message }
   }
+  if (await promoteIfAdminEmail(data.user)) await supabase.auth.refreshSession()
 
   revalidatePath('/', 'layout')
   redirect('/dashboard')

@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { MicrobiomeTestCard } from '@/components/microbiome/microbiome-test-card'
 
 export const metadata: Metadata = {
-  title: 'Microbiome Tests | Blood Markers Tracker',
+  title: 'Microbiome Tests | Bloodmarkers',
 }
 
 export default async function MicrobiomeTestsPage() {

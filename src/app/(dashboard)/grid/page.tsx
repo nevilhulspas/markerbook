@@ -25,7 +25,7 @@ import { throwIfAuthOutage } from '@/lib/supabase/auth-outage'
 import { getRequestUser } from '@/lib/supabase/request-user'
 
 export const metadata: Metadata = {
-  title: 'Marker Grid | Blood Markers Tracker',
+  title: 'Marker Grid | Bloodmarkers',
 }
 
 export default async function GridPage() {
@@ -40,7 +40,7 @@ export default async function GridPage() {
   // Independent reads, so fetch them together (they used to run one after
   // another). Only the LOINC display map below depends on the catalog.
   const [
-    { data: tests },
+    { data: tests, error: testsError },
     { data: profile },
     { data: enrichedBiomarkers, error: enrichError },
     analyzedTestIds,
@@ -74,6 +74,12 @@ export default async function GridPage() {
     getSupplements(),
     getUnitPreferences(),
   ])
+
+  // A failed read must not look like "no tests yet": show the error page
+  // (with its retry button) instead of the empty state.
+  if (testsError) {
+    throw new Error(`Could not load your blood tests: ${testsError.message}`)
+  }
 
   if (enrichError) {
     console.error('Failed to load enriched biomarkers:', enrichError.message)

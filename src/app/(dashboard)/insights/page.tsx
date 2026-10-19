@@ -43,7 +43,7 @@ import { InsightsClient } from '@/components/insights/insights-client'
 import { getRequestUser } from '@/lib/supabase/request-user'
 
 export const metadata: Metadata = {
-  title: 'Insights | Blood Markers Tracker',
+  title: 'Insights | Bloodmarkers',
 }
 
 function computeAge(dateOfBirth: string): number {

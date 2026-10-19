@@ -1,15 +1,36 @@
 /**
- * Seed script: creates 10 blood tests with ~40 unique markers spread across them.
- * Run with: npx tsx scripts/seed-test-data.ts
+ * Demo data: 10 made-up blood tests (~45 markers over two years), a few
+ * supplements and the profile fields the biological-age card needs, for the
+ * account with the given e-mail address.
+ *
+ *   npm run demo -- --email you@example.com      (default: the first ADMIN_EMAIL)
+ *
+ * Safe to run more than once: it only replaces its own demo tests (matched by
+ * name), adds demo supplements that are not there yet, and fills empty
+ * profile fields only. Your own tests and profile values stay as they are.
  */
 
-import { config } from 'dotenv'
 import { createClient } from '@supabase/supabase-js'
 
-config({ path: '.env.local' })
+try {
+  process.loadEnvFile('.env.local')
+} catch {
+  // no .env.local: rely on the environment
+}
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!
+const SERVICE_ROLE_KEY = (process.env.SUPABASE_SECRET_KEY ?? process.env.SUPABASE_SERVICE_ROLE_KEY)!
+
+if (!SUPABASE_URL || !SERVICE_ROLE_KEY) {
+  console.error('Missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SECRET_KEY (run npm run setup first).')
+  process.exit(1)
+}
+
+const DEMO_SUPPLEMENTS = [
+  { name: 'Vitamin D3', dose: '2000 IU', frequency: 'daily' },
+  { name: 'Magnesium glycinate', dose: '300 mg', frequency: 'daily' },
+  { name: 'Omega-3 (EPA/DHA)', dose: '1 g', frequency: 'daily' },
+]
 
 const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY)
 
@@ -105,14 +126,21 @@ const MARKER_DATA: [string, ...(number | null)[]][] = [
 ]
 
 async function main() {
-  // Get user ID (first user in the system)
-  const { data: users, error: usersErr } = await supabase.auth.admin.listUsers()
-  if (usersErr || !users.users.length) {
-    console.error('No users found:', usersErr)
+  const emailArg = process.argv.find((a) => a.startsWith('--email='))?.slice('--email='.length)
+    ?? (process.argv.includes('--email') ? process.argv[process.argv.indexOf('--email') + 1] : undefined)
+    ?? (process.env.ADMIN_EMAIL ?? '').split(',')[0]?.trim()
+  if (!emailArg) {
+    console.error('Which account? Run: npm run demo -- --email you@example.com')
     process.exit(1)
   }
-  const userId = users.users[0].id
-  console.log(`Using user: ${userId} (${users.users[0].email})`)
+  const { data: users, error: usersErr } = await supabase.auth.admin.listUsers({ perPage: 1000 })
+  const user = users?.users.find((u) => u.email?.toLowerCase() === emailArg.toLowerCase())
+  if (usersErr || !user) {
+    console.error(`No account found for ${emailArg}. Sign up in the app first, then run this again.`)
+    process.exit(1)
+  }
+  const userId = user.id
+  console.log(`Loading demo data for ${user.email}`)
 
   // Get biomarkers lookup
   const { data: biomarkers, error: bmErr } = await supabase
@@ -124,16 +152,16 @@ async function main() {
   }
   const bmByShortName = new Map(biomarkers.map(b => [b.short_name, b]))
 
-  // Delete existing test data for this user
+  // Replace only earlier demo tests (same names); never the user's own tests.
   const { error: delErr } = await supabase
     .from('blood_tests')
     .delete()
     .eq('user_id', userId)
+    .in('name', TESTS.map((t) => t.name))
   if (delErr) {
-    console.error('Failed to delete existing tests:', delErr)
+    console.error('Failed to remove earlier demo tests:', delErr)
     process.exit(1)
   }
-  console.log('Cleared existing test data')
 
   // Create tests
   const { data: createdTests, error: testErr } = await supabase
@@ -145,7 +173,6 @@ async function main() {
     console.error('Failed to create tests:', testErr)
     process.exit(1)
   }
-  console.log(`Created ${createdTests.length} blood tests`)
 
   // Build marker results
   const results: { blood_test_id: string; biomarker_id: string; value: number; unit: string }[] = []
@@ -153,10 +180,7 @@ async function main() {
 
   for (const [shortName, ...values] of MARKER_DATA) {
     const bm = bmByShortName.get(shortName)
-    if (!bm) {
-      console.warn(`Biomarker not found: ${shortName}`)
-      continue
-    }
+    if (!bm) continue // not in this catalogue
     for (let i = 0; i < values.length; i++) {
       const val = values[i]
       if (val != null) {
@@ -180,25 +204,40 @@ async function main() {
     process.exit(1)
   }
 
-  console.log(`Inserted ${markerCount} marker results across ${createdTests.length} tests`)
-  console.log(`Unique markers: ${new Set(MARKER_DATA.map(m => m[0])).size}`)
+  console.log(`Added ${createdTests.length} demo blood tests with ${markerCount} results`)
 
-  // Ensure profile has date_of_birth and sex (needed for PhenoAge)
-  const { error: profErr } = await supabase
-    .from('profiles')
-    .upsert({
-      id: userId,
-      date_of_birth: '1989-05-15',
-      sex: 'male',
-      height_cm: 182,
-      weight_kg: 78,
-      activity_level: 'moderate',
-    })
-  if (profErr) {
-    console.warn('Failed to update profile:', profErr)
-  } else {
-    console.log('Profile updated: DOB=1989-05-15, sex=male')
+  // Fill empty profile fields only (date of birth and sex drive the
+  // biological-age card); values the user already set stay.
+  const demoProfile = {
+    date_of_birth: '1989-05-15',
+    sex: 'male',
+    height_cm: 182,
+    weight_kg: 78,
+    activity_level: 'moderate',
+  } as const
+  const { data: profile } = await supabase.from('profiles').select('*').eq('id', userId).maybeSingle()
+  const missing = Object.fromEntries(
+    Object.entries(demoProfile).filter(([k]) => (profile as Record<string, unknown> | null)?.[k] == null)
+  )
+  if (Object.keys(missing).length > 0) {
+    const { error: profErr } = await supabase.from('profiles').update(missing).eq('id', userId)
+    if (profErr) console.warn('Could not fill the profile:', profErr.message)
   }
+
+  // Demo supplements, once.
+  const { data: existing } = await supabase.from('supplements').select('name').eq('user_id', userId)
+  const have = new Set((existing ?? []).map((r) => r.name))
+  const toAdd = DEMO_SUPPLEMENTS.filter((s) => !have.has(s.name)).map((s) => ({
+    ...s,
+    user_id: userId,
+    start_date: '2025-06-01',
+  }))
+  if (toAdd.length > 0) {
+    const { error: supErr } = await supabase.from('supplements').insert(toAdd)
+    if (supErr) console.warn('Could not add demo supplements:', supErr.message)
+  }
+
+  console.log('Done. Open the Marker Grid to see the demo results.')
 }
 
 main()

@@ -24,7 +24,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { OAuthButton } from '@/components/auth/oauth-button'
 
-export function RegisterForm() {
+export function RegisterForm({ googleEnabled = false }: { googleEnabled?: boolean }) {
   const [serverError, setServerError] = useState<string | null>(null)
 
   const {
@@ -53,7 +53,7 @@ export function RegisterForm() {
       <CardHeader className="text-center">
         <CardTitle className="text-2xl">Create an account</CardTitle>
         <CardDescription>
-          Get started with Blood Markers Tracker
+          Get started with Bloodmarkers
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -116,18 +116,22 @@ export function RegisterForm() {
           </Button>
         </form>
 
-        <div className="relative my-6">
-          <div className="absolute inset-0 flex items-center">
-            <span className="w-full border-t" />
-          </div>
-          <div className="relative flex justify-center text-xs uppercase">
-            <span className="bg-card px-2 text-muted-foreground">
-              or continue with
-            </span>
-          </div>
-        </div>
+        {googleEnabled && (
+          <>
+            <div className="relative my-6">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-card px-2 text-muted-foreground">
+                  or continue with
+                </span>
+              </div>
+            </div>
 
-        <OAuthButton />
+            <OAuthButton />
+          </>
+        )}
       </CardContent>
       <CardFooter className="justify-center">
         <p className="text-sm text-muted-foreground">

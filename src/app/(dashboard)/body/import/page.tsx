@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { PageContainer } from '@/components/layout/page-container'
 import { DexaImportClient } from '@/components/body/dexa-import-client'
 
-export const metadata: Metadata = { title: 'Import DEXA scan | Blood Markers Tracker' }
+export const metadata: Metadata = { title: 'Import DEXA scan | Bloodmarkers' }
 
 export default function DexaImportPage() {
   return (

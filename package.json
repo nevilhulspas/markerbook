@@ -7,6 +7,9 @@
     "node": ">=22"
   },
   "scripts": {
+    "setup": "node scripts/setup.mjs",
+    "demo": "tsx scripts/seed-test-data.ts",
+    "make-admin": "tsx scripts/set-admin-role.ts",
     "dev": "next dev",
     "build": "next build",
     "start": "next start",

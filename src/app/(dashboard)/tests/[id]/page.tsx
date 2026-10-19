@@ -36,7 +36,7 @@ import { notFoundOrAuthOutage } from '@/lib/supabase/session'
 import { getRequestUser } from '@/lib/supabase/request-user'
 
 export const metadata: Metadata = {
-  title: 'View Blood Test | Blood Markers Tracker',
+  title: 'View Blood Test | Bloodmarkers',
 }
 
 function formatDate(dateString: string): string {
