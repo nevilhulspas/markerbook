@@ -6,8 +6,7 @@ import { Pencil } from 'lucide-react'
 
 import type { BiomarkerUnit, ReferenceRange } from '@/lib/database.types'
 import type { TrendData, TrendDataPoint } from '@/lib/analytics/marker-trends'
-import { convertValue, normalizeUnit } from '@/lib/grid/unit-conversion'
-import { formatConverted } from '@/lib/grid/unit-conversion'
+import { convertValue, formatConverted, normalizeUnit } from '@/lib/grid/unit-conversion'
 import { setUnitPreference } from '@/actions/unit-preferences'
 import {
   Select,
@@ -35,7 +34,9 @@ import { UserHistory } from '@/components/biomarker/user-history'
 
 interface UnitConversionWrapperProps {
   biomarkerId: string
+  /** The catalogue unit (`biomarkers.unit`): shown when there is no preference. */
   defaultUnit: string
+  loincCode?: string | null
   availableUnits: BiomarkerUnit[]
   initialPreference: string | null
   // Reference ranges data
@@ -49,13 +50,10 @@ interface UnitConversionWrapperProps {
   childBiomarkers?: Array<{ id: string; name: string; short_name: string | null }>
 }
 
-function round1(value: number): number {
-  return Math.round(value * 10) / 10
-}
-
 export function UnitConversionWrapper({
   biomarkerId,
   defaultUnit,
+  loincCode,
   availableUnits,
   initialPreference,
   ranges,
@@ -67,57 +65,76 @@ export function UnitConversionWrapper({
   childBiomarkers,
 }: UnitConversionWrapperProps) {
   const [selectedUnit, setSelectedUnit] = useState(initialPreference ?? defaultUnit)
-  const hasMultipleUnits = availableUnits.length > 1
-  const needsConversion = selectedUnit !== defaultUnit
 
-  const convert = useCallback(
-    (value: number, fromUnit?: string): number => {
-      const from = fromUnit ?? defaultUnit
-      if (normalizeUnit(from) === normalizeUnit(selectedUnit)) return value
-      const converted = convertValue(value, from, selectedUnit, availableUnits)
-      // Un-convertible (stored unit has no catalog factor): keep the original
-      // number rather than mislabelling it as the selected unit.
-      return converted === null ? value : round1(converted)
-    },
-    [defaultUnit, selectedUnit, availableUnits]
+  // Display units the user can pick: the catalogue unit, the marker's other
+  // known units, and a saved preference (one entry per actual unit).
+  const unitOptions = useMemo(() => {
+    const out: string[] = []
+    for (const u of [defaultUnit, ...availableUnits.map((a) => a.unit), initialPreference]) {
+      if (u && !out.some((o) => normalizeUnit(o) === normalizeUnit(u))) out.push(u)
+    }
+    return out
+  }, [defaultUnit, availableUnits, initialPreference])
+  const hasMultipleUnits = unitOptions.length > 1
+
+  const ctx = useMemo(
+    () => ({ unit: defaultUnit, loinc_code: loincCode ?? null, name: markerName }),
+    [defaultUnit, loincCode, markerName]
   )
 
-  // Converted reference ranges
-  const displayRanges = useMemo(() => {
-    if (!needsConversion) return ranges
-    return ranges.map((r) => ({
-      ...r,
-      range_low: r.range_low != null ? convert(r.range_low) : null,
-      range_high: r.range_high != null ? convert(r.range_high) : null,
-      unit: selectedUnit,
-    }))
-  }, [ranges, needsConversion, convert, selectedUnit])
+  /** A value in `fromUnit` in the selected unit, or null when that is not possible. */
+  const convert = useCallback(
+    (value: number, fromUnit: string): number | null =>
+      convertValue(value, fromUnit, selectedUnit, availableUnits, ctx),
+    [selectedUnit, availableUnits, ctx]
+  )
 
-  // Converted trend points (each point may have a different stored unit)
-  const displayPoints = useMemo(() => {
-    return points.map((p) => ({ ...p, value: convert(p.value, p.unit) }))
-  }, [points, convert])
+  // Reference ranges in the selected unit, each converted from its OWN unit.
+  // A bound that cannot be converted becomes null rather than a wrong number.
+  const displayRanges = useMemo(
+    () =>
+      ranges.map((r) =>
+        normalizeUnit(r.unit) === normalizeUnit(selectedUnit)
+          ? { ...r, unit: selectedUnit }
+          : {
+              ...r,
+              range_low: r.range_low != null ? convert(r.range_low, r.unit) : null,
+              range_high: r.range_high != null ? convert(r.range_high, r.unit) : null,
+              unit: selectedUnit,
+            }
+      ),
+    [ranges, convert, selectedUnit]
+  )
 
-  // Find ref range for trend chart
-  const displayRefLow = useMemo(() => {
+  // Every result in the selected unit when possible. A result that cannot be
+  // converted keeps its own value and unit, is marked in the table, and stays
+  // out of the chart and the range bar so no two units are ever mixed.
+  const rows = useMemo(
+    () =>
+      points.map((p) => {
+        const from = p.unit ?? defaultUnit
+        const converted = convert(p.value, from)
+        return { point: p, from, shown: converted }
+      }),
+    [points, convert, defaultUnit]
+  )
+  const displayPoints = useMemo(
+    () =>
+      rows
+        .filter((r) => r.shown !== null)
+        .map((r) => ({ ...r.point, value: r.shown as number, unit: selectedUnit })),
+    [rows, selectedUnit]
+  )
+  const skipped = rows.length - displayPoints.length
+
+  const chartRange = useMemo(() => {
     const match = displayRanges.find(
       (r) =>
-        r.unit === selectedUnit &&
         (r.range_type ?? 'normal') === 'normal' &&
         (sex ? r.sex === sex || r.sex === 'general' : r.sex === 'general')
     )
-    return match?.range_low ?? null
-  }, [displayRanges, selectedUnit, sex])
-
-  const displayRefHigh = useMemo(() => {
-    const match = displayRanges.find(
-      (r) =>
-        r.unit === selectedUnit &&
-        (r.range_type ?? 'normal') === 'normal' &&
-        (sex ? r.sex === sex || r.sex === 'general' : r.sex === 'general')
-    )
-    return match?.range_high ?? null
-  }, [displayRanges, selectedUnit, sex])
+    return { low: match?.range_low ?? null, high: match?.range_high ?? null }
+  }, [displayRanges, sex])
 
   const latestValue = displayPoints.length > 0
     ? displayPoints[displayPoints.length - 1].value
@@ -127,10 +144,11 @@ export function UnitConversionWrapper({
     displayPoints.length >= 2
       ? {
           points: displayPoints,
-          refLow: displayRefLow,
-          refHigh: displayRefHigh,
+          refLow: chartRange.low,
+          refHigh: chartRange.high,
           unit: selectedUnit,
           markerName,
+          skipped,
         }
       : null
 
@@ -145,15 +163,16 @@ export function UnitConversionWrapper({
     <>
       {/* Unit selector — rendered in the header via portal would be complex, so we render it here */}
       {hasMultipleUnits && (
-        <div className="flex justify-end -mt-2 mb-4">
+        <div className="flex items-center justify-end gap-2 -mt-2 mb-4">
+          <span className="text-xs text-muted-foreground">Show in</span>
           <Select value={selectedUnit} onValueChange={handleUnitChange}>
             <SelectTrigger className="h-7 w-auto gap-1 text-xs">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {availableUnits.map((u) => (
-                <SelectItem key={u.unit} value={u.unit}>
-                  {u.unit}
+              {unitOptions.map((u) => (
+                <SelectItem key={u} value={u}>
+                  {u}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -175,7 +194,7 @@ export function UnitConversionWrapper({
               latestValue={latestValue}
             />
 
-            {displayPoints.length > 0 && (
+            {rows.length > 0 && (
               <div className="space-y-2">
                 <p className="text-sm font-medium">All Results</p>
                 <div className="max-h-[240px] overflow-auto rounded-md border">
@@ -183,33 +202,40 @@ export function UnitConversionWrapper({
                     <TableHeader>
                       <TableRow>
                         <TableHead>Date</TableHead>
-                        <TableHead>Value</TableHead>
-                        <TableHead>Original</TableHead>
+                        <TableHead>Shown in {selectedUnit}</TableHead>
+                        <TableHead>As entered</TableHead>
                         <TableHead>Lab / Test</TableHead>
                         <TableHead className="w-8" />
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {[...displayPoints].reverse().map((p, i) => {
-                        const original = points[points.length - 1 - i]
-                        return (
-                        <TableRow key={p.date + p.testName}>
-                          <TableCell className="text-sm">{p.date}</TableCell>
+                      {[...rows].reverse().map(({ point, from, shown }) => (
+                        <TableRow key={point.date + point.testName + (point.bloodTestId ?? '')}>
+                          <TableCell className="text-sm">{point.date}</TableCell>
                           <TableCell className="text-sm font-medium">
-                            {formatConverted(p.value)} {selectedUnit}
+                            {shown !== null ? (
+                              <>
+                                {formatConverted(shown)} {selectedUnit}
+                              </>
+                            ) : (
+                              <span
+                                className="font-normal text-amber-700 dark:text-amber-400"
+                                title={`${from} cannot be converted to ${selectedUnit}`}
+                              >
+                                not convertible
+                              </span>
+                            )}
                           </TableCell>
                           <TableCell className="text-sm text-muted-foreground">
-                            {original
-                              ? `${formatConverted(original.value)} ${original.unit ?? selectedUnit}`
-                              : ''}
+                            {formatConverted(point.value)} {from}
                           </TableCell>
                           <TableCell className="text-sm text-muted-foreground">
-                            {p.testName}
+                            {point.testName}
                           </TableCell>
                           <TableCell>
-                            {p.bloodTestId && (
+                            {point.bloodTestId && (
                               <Link
-                                href={`/tests/${p.bloodTestId}/edit#marker-${biomarkerId}`}
+                                href={`/tests/${point.bloodTestId}/edit#marker-${biomarkerId}`}
                                 className="text-muted-foreground hover:text-foreground"
                               >
                                 <Pencil className="size-3.5" />
@@ -217,11 +243,16 @@ export function UnitConversionWrapper({
                             )}
                           </TableCell>
                         </TableRow>
-                        )
-                      })}
+                      ))}
                     </TableBody>
                   </Table>
                 </div>
+                {skipped > 0 && (
+                  <p className="text-xs text-muted-foreground">
+                    {skipped} result{skipped === 1 ? '' : 's'} could not be converted to {selectedUnit} and
+                    {skipped === 1 ? ' is' : ' are'} left out of the chart.
+                  </p>
+                )}
               </div>
             )}
           </CardContent>

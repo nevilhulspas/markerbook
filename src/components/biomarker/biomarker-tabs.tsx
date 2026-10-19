@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/tabs'
 import { SuggestionForm } from '@/components/biomarker/suggestion-form'
 import { setUnitPreference } from '@/actions/unit-preferences'
+import { convertUnit, formatUnitValue } from '@/lib/units/convert'
 import type { NextToTestList } from '@/lib/database.types'
 import { APP_LOCALE } from '@/lib/locale'
 import { AddToNextToTestPopover } from '@/components/next-to-test/add-to-next-to-test-popover'
@@ -114,14 +115,21 @@ function MarkerTable({
             const inFamily = item.family != null
             const isFirstInFamily = inFamily && !(prev && catKey(prev.category) === ck && prev.family === item.family)
             const isLastInFamily = inFamily && !(next && catKey(next.category) === ck && next.family === item.family)
-            const displayUnit = unitPrefsMap.get(item.id) ?? item.latestUnit ?? item.unit
-            const labUnit = item.latestUnit ?? item.unit
+            // Display unit: the user's choice, else the catalogue unit. The
+            // latest value converts from the unit it was entered in; when that
+            // is not possible it is shown in its own unit, never relabelled.
+            const displayUnit = unitPrefsMap.get(item.id) ?? item.unit
             let displayValue = item.latestValue
-            if (displayValue != null && labUnit.toLowerCase() !== displayUnit.toLowerCase() && item.availableUnits.length > 1) {
-              const fromFactor = item.availableUnits.find((u) => u.unit.toLowerCase() === labUnit.toLowerCase())?.conversionFactor
-              const toFactor = item.availableUnits.find((u) => u.unit.toLowerCase() === displayUnit.toLowerCase())?.conversionFactor
-              if (fromFactor != null && toFactor != null && toFactor !== 0) {
-                displayValue = Math.round((displayValue * fromFactor / toFactor) * 10) / 10
+            let valueUnit = item.latestUnit ?? item.unit
+            if (displayValue != null) {
+              const converted = convertUnit(displayValue, valueUnit, displayUnit, {
+                catalogueUnit: item.unit,
+                factors: item.availableUnits.map((u) => ({ unit: u.unit, conversion_factor: u.conversionFactor })),
+                name: item.name,
+              })
+              if (converted !== null) {
+                displayValue = converted
+                valueUnit = displayUnit
               }
             }
             return (
@@ -186,8 +194,8 @@ function MarkerTable({
               )}
               <td className="px-3 py-2 text-right tabular-nums">
                 {displayValue != null ? (
-                  <span>
-                    {displayValue} {displayUnit}
+                  <span title={valueUnit !== displayUnit ? `Cannot be converted to ${displayUnit}` : undefined}>
+                    {formatUnitValue(displayValue)} {valueUnit}
                   </span>
                 ) : (
                   <span className="text-muted-foreground">—</span>

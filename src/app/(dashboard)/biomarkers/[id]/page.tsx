@@ -26,6 +26,7 @@ import { RelatedMarkers } from '@/components/biomarker/related-markers'
 import { ContextualInsight } from '@/components/biomarker/contextual-insight'
 import { FavoriteButton } from '@/components/biomarker/favorite-button'
 import { UnitConversionWrapper } from '@/components/biomarker/unit-conversion-wrapper'
+import { convertValue } from '@/lib/grid/unit-conversion'
 import { getFavoriteIds } from '@/actions/favorites'
 import { getUnitPreferences } from '@/actions/unit-preferences'
 import { getLabsForBiomarker } from '@/actions/labs'
@@ -190,11 +191,20 @@ export default async function BiomarkerDetailPage({
 
   const description = descriptionResult.data
 
-  // Prepare ContextualInsight data
+  // Prepare ContextualInsight data. The insight compares against the
+  // catalogue unit's range, so give it every value in that unit where
+  // possible; a value that cannot be converted keeps its own unit.
+  const toCatalogue = (value: number, unit: string) => {
+    const converted = convertValue(value, unit, biomarker.unit, biomarker.biomarker_units, {
+      unit: biomarker.unit,
+      loinc_code: biomarker.loinc_code,
+      name: biomarker.name,
+    })
+    return converted === null ? { value, unit } : { value: converted, unit: biomarker.unit }
+  }
   const mappedTestResults = testResults.map((r) => ({
     id: r.id,
-    value: r.value,
-    unit: r.unit,
+    ...toCatalogue(r.value, r.unit),
     date: r.blood_tests.test_date,
     testName: r.blood_tests.name,
     bloodTestId: r.blood_tests.id,
@@ -260,6 +270,7 @@ export default async function BiomarkerDetailPage({
       <UnitConversionWrapper
         biomarkerId={id}
         defaultUnit={biomarker.unit}
+        loincCode={biomarker.loinc_code}
         availableUnits={biomarker.biomarker_units}
         initialPreference={unitPrefs.get(id) ?? null}
         ranges={biomarker.reference_ranges}

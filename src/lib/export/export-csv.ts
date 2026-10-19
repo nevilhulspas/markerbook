@@ -1,5 +1,6 @@
 import type { GridData } from '@/lib/grid/grid-types'
 import { localDateISO } from '@/lib/dates/today'
+import { normalizeUnit } from '@/lib/grid/unit-conversion'
 
 /**
  * Escape a value for CSV output.
@@ -35,7 +36,15 @@ export function buildCsvContent(data: GridData): string {
 
     for (const td of testDates) {
       const cellData = row.values[td.id]
-      cells.push(cellData != null ? String(cellData.value) : '')
+      if (cellData == null) {
+        cells.push('')
+      } else if (normalizeUnit(cellData.unit) === normalizeUnit(row.biomarker.unit)) {
+        cells.push(String(cellData.value))
+      } else {
+        // Not convertible to the row's unit: keep the value with its own
+        // unit, so it is never read as a value in the column's unit.
+        cells.push(escapeCsv(`${cellData.value} ${cellData.unit}`))
+      }
     }
 
     lines.push(cells.join(','))

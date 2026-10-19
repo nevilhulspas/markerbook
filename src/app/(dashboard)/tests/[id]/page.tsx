@@ -4,15 +4,12 @@ import { ArrowLeft, Pencil } from 'lucide-react'
 
 import { getBloodTest } from '@/actions/blood-tests'
 import { createClient } from '@/lib/supabase/server'
-import type { Profile, ReferenceRange } from '@/lib/database.types'
+import type { BiomarkerUnit, Profile, ReferenceRange } from '@/lib/database.types'
 import { toClientProfile } from '@/lib/profile/client-profile'
-import {
-  findReferenceRange,
-  getRangeStatus,
-  getRangeStatusFromRanges,
-  type RangeStatus,
-} from '@/lib/grid/reference-range'
-import { normalizeUnit } from '@/lib/grid/unit-conversion'
+import type { RangeStatus } from '@/lib/grid/reference-range'
+import { describeResult, markerUnitsFor } from '@/lib/units/result-range'
+import { formatUnitValue } from '@/lib/units/convert'
+import { getUnitPreferences } from '@/actions/unit-preferences'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -110,12 +107,23 @@ export default async function TestDetailPage({
 
   // Fetch reference ranges for biomarkers in this test
   const biomarkerIds = test.test_results.map((r) => r.biomarkers.id)
-  const { data: refRanges } = biomarkerIds.length > 0
-    ? await supabase
-        .from('reference_ranges')
-        .select('*')
-        .in('biomarker_id', biomarkerIds)
-    : { data: null }
+  const [{ data: refRanges }, { data: unitRows }, unitPrefs] = await Promise.all([
+    biomarkerIds.length > 0
+      ? supabase.from('reference_ranges').select('*').in('biomarker_id', biomarkerIds)
+      : Promise.resolve({ data: null }),
+    biomarkerIds.length > 0
+      ? supabase.from('biomarker_units').select('*').in('biomarker_id', biomarkerIds)
+      : Promise.resolve({ data: null }),
+    getUnitPreferences(),
+  ])
+
+  // biomarker_id -> its known units with conversion factors
+  const unitsByBiomarker = new Map<string, BiomarkerUnit[]>()
+  for (const u of (unitRows ?? []) as BiomarkerUnit[]) {
+    const list = unitsByBiomarker.get(u.biomarker_id) ?? []
+    list.push(u)
+    unitsByBiomarker.set(u.biomarker_id, list)
+  }
 
   // Build lookup: biomarker_id -> ReferenceRange[]
   const rangesByBiomarker = new Map<string, ReferenceRange[]>()
@@ -148,6 +156,7 @@ export default async function TestDetailPage({
             test={test}
             profile={toClientProfile((profile as Profile) ?? null)}
             rangesByBiomarker={rangesByBiomarker}
+            unitsByBiomarker={unitsByBiomarker}
           />
           <Button variant="outline" size="sm" asChild>
             <Link href={`/tests/${test.id}/edit`}>
@@ -201,45 +210,26 @@ export default async function TestDetailPage({
             <TableBody>
               {sortedResults.map((result) => {
                 const bm = result.biomarkers
-                const bmRanges = rangesByBiomarker.get(bm.id) ?? []
-                const sexValue = profile?.sex as 'male' | 'female' | null
-
-                // Use new reference_ranges table if available, fallback to inline
-                let rangeStr: string
-                let status: RangeStatus
-
-                if (bmRanges.length > 0) {
-                  const { low, high } = findReferenceRange(
-                    bmRanges,
-                    result.unit,
-                    sexValue
-                  )
-                  rangeStr =
-                    low != null && high != null ? `${low} - ${high}` : '--'
-                  status = getRangeStatusFromRanges(
-                    result.value,
-                    bmRanges,
-                    result.unit,
-                    sexValue
-                  )
-                } else if (
-                  normalizeUnit(result.unit) === normalizeUnit(bm.unit)
-                ) {
-                  // Fallback to inline range columns (only when their unit
-                  // matches the result's stored unit).
-                  rangeStr =
-                    bm.ref_range_low != null && bm.ref_range_high != null
-                      ? `${bm.ref_range_low} - ${bm.ref_range_high}`
-                      : '--'
-                  status = getRangeStatus(
-                    result.value,
-                    bm,
-                    profile?.sex as 'male' | 'female' | 'other' | undefined
-                  )
-                } else {
-                  rangeStr = '--'
-                  status = 'unknown'
-                }
+                const sexValue =
+                  profile?.sex === 'male' || profile?.sex === 'female' ? profile.sex : null
+                const d = describeResult(
+                  result.value,
+                  result.unit,
+                  bm,
+                  rangesByBiomarker.get(bm.id) ?? [],
+                  markerUnitsFor(bm, unitsByBiomarker.get(bm.id)),
+                  unitPrefs.get(bm.id) ?? bm.unit,
+                  sexValue
+                )
+                const status: RangeStatus = d.range.status
+                const { low, high, unit: rangeUnit } = d.rangeShown
+                const rangeStr =
+                  low != null && high != null
+                    ? `${formatUnitValue(low)} - ${formatUnitValue(high)}${
+                        rangeUnit && rangeUnit !== d.shown.unit ? ` ${rangeUnit}` : ''
+                      }`
+                    : '--'
+                const convertedFromOther = d.shown.unit !== d.entered.unit
 
                 return (
                   <TableRow key={result.id}>
@@ -251,8 +241,15 @@ export default async function TestDetailPage({
                         </span>
                       </div>
                     </TableCell>
-                    <TableCell className="font-mono">{result.value}</TableCell>
-                    <TableCell>{result.unit}</TableCell>
+                    <TableCell className="font-mono">
+                      {formatUnitValue(d.shown.value)}
+                      {convertedFromOther && (
+                        <span className="block text-xs font-sans text-muted-foreground">
+                          entered as {formatUnitValue(d.entered.value)} {d.entered.unit}
+                        </span>
+                      )}
+                    </TableCell>
+                    <TableCell>{d.shown.unit}</TableCell>
                     <TableCell className="text-muted-foreground">
                       {rangeStr}
                     </TableCell>

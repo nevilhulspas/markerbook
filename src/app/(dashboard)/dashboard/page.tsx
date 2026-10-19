@@ -156,9 +156,11 @@ export default async function DashboardPage() {
           // Convert to the unit the PhenoAge formula expects. If it can't be
           // converted, skip this marker — feeding the raw value in the wrong
           // unit would silently corrupt the result.
-          if (cell.unit !== marker.unit && row.units && row.units.length > 0) {
-            value = convertValue(cell.value, cell.unit, marker.unit, row.units)
-          }
+          value = convertValue(cell.value, cell.unit, marker.unit, row.units ?? [], {
+            unit: row.biomarker.unit,
+            loinc_code: row.biomarker.loinc_code,
+            name: row.biomarker.name,
+          })
           if (value !== null) {
             ;(input as Record<string, number>)[marker.key] = value
           }

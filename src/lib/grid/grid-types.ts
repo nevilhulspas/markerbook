@@ -21,6 +21,8 @@ export interface GridRow {
   values: Record<string, GridCellData | null> // keyed by blood_test id
   units?: BiomarkerUnit[] // available units for this biomarker
   referenceRanges?: ReferenceRange[] // reference ranges for this biomarker
+  /** The catalogue unit when `biomarker.unit` was switched to a display unit. */
+  catalogueUnit?: string
   parentName?: string // resolved parent biomarker name for variant group labels
   isFirstVariant?: boolean // true for the first child in a parent group
   isLastVariant?: boolean // true for the last child in a parent group

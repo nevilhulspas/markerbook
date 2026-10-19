@@ -6,6 +6,8 @@ import { Plus, X } from 'lucide-react'
 import type { Biomarker, BiomarkerUnit } from '@/lib/database.types'
 import type { MarkerEntryValues } from '@/lib/validations/blood-test'
 import { matchesBiomarkerQuery } from '@/lib/biomarkers/search'
+import { inputUnitOptions } from '@/lib/units/convert'
+import { markerUnitsFor } from '@/lib/units/result-range'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -212,16 +214,14 @@ export function MarkerEntry({
     onChange({ ...value, unit: newUnit })
   }
 
-  // Get available units for the selected biomarker
+  // The units a value can be entered in for this marker: its catalogue unit
+  // and its known units (one entry per actual unit), plus the current unit.
+  // This is the INPUT unit; how a value is shown is chosen on the grid and
+  // the marker page.
   const availableUnits = useMemo(() => {
     if (!selectedBiomarker) return []
     const bm = selectedBiomarker as BiomarkerWithUnits
-    const units = bm.biomarker_units?.map((u) => u.unit) ?? []
-    // Always include the default unit and current unit
-    const set = new Set(units)
-    if (bm.unit) set.add(bm.unit)
-    if (unit) set.add(unit)
-    return Array.from(set).sort()
+    return inputUnitOptions(markerUnitsFor(bm, bm.biomarker_units), unit)
   }, [selectedBiomarker, unit])
 
   return (
@@ -305,7 +305,7 @@ export function MarkerEntry({
       </div>
 
       <div className="w-full space-y-1 sm:w-28">
-        <Label className="text-xs text-muted-foreground">Unit</Label>
+        <Label className="text-xs text-muted-foreground">Entered in</Label>
         {availableUnits.length > 1 ? (
           <Select value={unit} onValueChange={handleUnitChange}>
             <SelectTrigger className="w-full">

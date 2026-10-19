@@ -109,90 +109,95 @@ export function filterRowsByCategoryAndStatus(
 }
 
 /**
- * Apply unit conversions: display each row in the user's preferred unit, else
- * the most recent lab-reported unit, else the catalog unit.
+ * The unit a marker is shown in: the user's choice for that marker, else the
+ * catalogue unit. Never the unit of the latest lab report, so a new import in
+ * another unit does not silently switch what the user sees.
+ */
+export function displayUnitFor(row: GridRow, unitPrefsMap: Map<string, string>): string {
+  const pref = unitPrefsMap.get(row.biomarker.id)
+  const display = pref || row.biomarker.unit
+  // Show the catalogue's spelling of that unit when it has one.
+  const known = row.units?.find((u) => normalizeUnit(u.unit) === normalizeUnit(display))?.unit
+  return known ?? display
+}
+
+/**
+ * Show every cell and reference range in the row's display unit
+ * ({@link displayUnitFor}). Each cell converts from the unit it was entered
+ * in. A cell that cannot be converted keeps its own value and unit (the grid
+ * marks it), and a range bound that cannot be converted becomes null. Values
+ * keep full precision; formatting happens when they are rendered.
  */
 export function convertRowsToDisplayUnits(
   rows: GridRow[],
   unitPrefsMap: Map<string, string>,
-  testDates: TestDate[]
+  // Kept for callers; the display unit no longer depends on the test dates.
+  _testDates?: TestDate[]
 ): GridRow[] {
   return rows.map((row) => {
-    if (!row.units || row.units.length <= 1) return row
+    const displayUnit = displayUnitFor(row, unitPrefsMap)
+    const units = row.units ?? []
+    const ctx = { unit: row.biomarker.unit, loinc_code: row.biomarker.loinc_code, name: row.biomarker.name }
 
-    // Determine display unit: user preference > most recent lab unit > catalog unit
-    const userPref = unitPrefsMap.get(row.biomarker.id)
-    let displayUnit = userPref
-    if (!displayUnit) {
-      // Find most recent lab-reported unit from the last cell with data
-      const testIds = testDates.map((t) => t.id)
-      for (let i = testIds.length - 1; i >= 0; i--) {
-        const cell = row.values[testIds[i]]
-        if (cell) {
-          displayUnit = cell.unit
-          break
-        }
-      }
-    }
-    if (!displayUnit) displayUnit = row.biomarker.unit
-
-    // Normalize displayUnit to canonical spelling from biomarker_units table
-    if (displayUnit) {
-      const norm = normalizeUnit(displayUnit)
-      const canonicalUnit = row.units.find(
-        (u) => normalizeUnit(u.unit) === norm
-      )?.unit
-      if (canonicalUnit) displayUnit = canonicalUnit
-    }
-
-    // Convert all cell values to display unit
     const convertedValues: typeof row.values = {}
     let anyChanged = false
     for (const [testId, cell] of Object.entries(row.values)) {
-      if (!cell) {
+      if (!cell || cell.unit === displayUnit) {
         convertedValues[testId] = cell
         continue
       }
       if (normalizeUnit(cell.unit) === normalizeUnit(displayUnit)) {
-        convertedValues[testId] = cell
+        // Same unit, other spelling ("ug/l" = "ng/mL"): relabel, same value.
+        anyChanged = true
+        convertedValues[testId] = { ...cell, unit: displayUnit }
         continue
       }
-      const converted = convertValue(cell.value, cell.unit, displayUnit, row.units)
-      // Not convertible (e.g. a legacy mmol/L reading against a g/dL↔g/L
-      // catalog): keep the cell in its ORIGINAL unit+value. Relabelling it to
-      // displayUnit would show a wrong number under the wrong header.
+      const converted = convertValue(cell.value, cell.unit, displayUnit, units, ctx)
       if (converted === null) {
         convertedValues[testId] = cell
         continue
       }
-      const rounded = Math.round(converted * 10) / 10
       anyChanged = true
-      convertedValues[testId] = { ...cell, value: rounded, unit: displayUnit }
+      convertedValues[testId] = { ...cell, value: converted, unit: displayUnit }
     }
 
-    // Convert reference ranges to display unit. A range whose bound can't be
-    // converted is dropped (null) rather than left as a raw number in the
-    // wrong unit — an un-convertible bound can't be trusted for colouring.
-    const bmUnits = row.units
+    let rangesChanged = false
     const convertedRanges = row.referenceRanges?.map((r) => {
       if (normalizeUnit(r.unit) === normalizeUnit(displayUnit)) return r
-      const low = r.range_low != null
-        ? convertValue(r.range_low, r.unit, displayUnit, bmUnits)
-        : null
-      const high = r.range_high != null
-        ? convertValue(r.range_high, r.unit, displayUnit, bmUnits)
-        : null
+      rangesChanged = true
+      const low = r.range_low != null ? convertValue(r.range_low, r.unit, displayUnit, units, ctx) : null
+      const high = r.range_high != null ? convertValue(r.range_high, r.unit, displayUnit, units, ctx) : null
       return { ...r, range_low: low, range_high: high, unit: displayUnit }
     })
 
-    // Only update biomarker unit display if it differs
-    const unitChanged = normalizeUnit(row.biomarker.unit) !== normalizeUnit(displayUnit)
+    const unitChanged = row.biomarker.unit !== displayUnit
+    if (!anyChanged && !rangesChanged && !unitChanged) return row
+
+    // The biomarker's inline ranges are in its catalogue unit; move them to
+    // the display unit too, so a status never compares across units.
+    const inline = (v: number | null) =>
+      v == null ? null : convertValue(v, row.biomarker.unit, displayUnit, units, ctx)
+    const displayBiomarker = unitChanged
+      ? {
+          ...row.biomarker,
+          unit: displayUnit,
+          ref_range_low: inline(row.biomarker.ref_range_low),
+          ref_range_high: inline(row.biomarker.ref_range_high),
+          ref_range_low_male: inline(row.biomarker.ref_range_low_male),
+          ref_range_high_male: inline(row.biomarker.ref_range_high_male),
+          ref_range_low_female: inline(row.biomarker.ref_range_low_female),
+          ref_range_high_female: inline(row.biomarker.ref_range_high_female),
+        }
+      : row.biomarker
 
     return {
       ...row,
       values: anyChanged ? convertedValues : row.values,
-      referenceRanges: convertedRanges,
-      biomarker: unitChanged ? { ...row.biomarker, unit: displayUnit } : row.biomarker,
+      referenceRanges: rangesChanged ? convertedRanges : row.referenceRanges,
+      // The original catalogue facts stay available for conversions and the
+      // inline ranges; `unit` here is what the row is displayed in.
+      catalogueUnit: row.catalogueUnit ?? row.biomarker.unit,
+      biomarker: displayBiomarker,
     }
   })
 }

@@ -32,6 +32,8 @@ import {
   type TestWithResults,
 } from '@/lib/grid/build-grid-data'
 import { getRangeStatusFromRanges } from '@/lib/grid/reference-range'
+import { markerUnitsForRow, resolveResultRange } from '@/lib/units/result-range'
+import { convertUnit } from '@/lib/units/convert'
 import { computeHealthScores } from '@/lib/insights/health-scores'
 import type {
   MarkerHistoryEntry,
@@ -166,15 +168,20 @@ export default async function InsightsPage({
     for (const test of gridData.testDates) {
       const cell = row.values[test.id]
       if (!cell) continue
+      // Status is compared in a range unit the value converts to; the value
+      // goes to the AI in the catalogue unit when possible, so one marker's
+      // history reads in one unit.
+      const marker = markerUnitsForRow(row)
       const status =
         row.referenceRanges && row.referenceRanges.length > 0
-          ? getRangeStatusFromRanges(cell.value, row.referenceRanges, cell.unit, sex, chronologicalAge)
+          ? resolveResultRange(cell.value, cell.unit, row.biomarker, row.referenceRanges, marker, sex, chronologicalAge).status
           : 'unknown'
+      const inCatalogue = convertUnit(cell.value, cell.unit, marker.catalogueUnit, marker)
       history.push({
         testDate: test.date,
         testName: test.name,
-        value: cell.value,
-        unit: cell.unit,
+        value: inCatalogue ?? cell.value,
+        unit: inCatalogue !== null ? marker.catalogueUnit : cell.unit,
         status,
       })
     }
@@ -267,7 +274,7 @@ export default async function InsightsPage({
       // Fetch reference ranges for DUTCH biomarkers
       const dutchBiomarkerIds = [...new Set(detail.dutch_test_results.map((r) => r.biomarker_id))]
       const { data: dutchRefRanges } = dutchBiomarkerIds.length > 0
-        ? await supabase.from('reference_ranges').select('*').in('biomarker_id', dutchBiomarkerIds)
+        ? await supabase.from('dutch_reference_ranges').select('*').in('biomarker_id', dutchBiomarkerIds)
         : { data: [] as ReferenceRange[] }
 
       const dutchRangesByBiomarker = new Map<string, ReferenceRange[]>()

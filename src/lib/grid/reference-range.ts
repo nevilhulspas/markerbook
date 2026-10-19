@@ -1,4 +1,5 @@
 import type { Biomarker, ReferenceRange, Sex } from '@/lib/database.types'
+import { sameUnit } from '@/lib/units/parse'
 
 export type RangeStatus = 'normal' | 'borderline' | 'out-of-range' | 'unknown'
 
@@ -54,9 +55,9 @@ export function findReferenceRange(
   rangeType: 'normal' | 'optimal' = 'normal',
   phase?: string | null
 ): { low: number | null; high: number | null } {
-  const unitLower = unit.toLowerCase()
+  // Same unit also across spelling and equal-scale prefixes (µg/L = ng/mL).
   const typeRanges = ranges.filter(
-    (r) => r.unit.toLowerCase() === unitLower && (r.range_type ?? 'normal') === rangeType
+    (r) => sameUnit(r.unit, unit) && (r.range_type ?? 'normal') === rangeType
   )
 
   // No cross-type fallback: a lookup whose type has no ranges for this unit

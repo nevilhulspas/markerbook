@@ -7,7 +7,7 @@ import {
   getStatusColor,
   type RangeStatus,
 } from '@/lib/grid/reference-range'
-import { normalizeUnit } from '@/lib/grid/unit-conversion'
+import { formatConverted, normalizeUnit } from '@/lib/grid/unit-conversion'
 import { cn } from '@/lib/utils'
 
 interface GridCellProps {
@@ -43,7 +43,7 @@ export function GridCell({
       ? getRangeStatus(value, biomarker, userSex)
       : 'unknown'
   const colorClass = getStatusColor(status)
-  const formatted = Number.isInteger(value) ? value : value.toFixed(1)
+  const formatted = formatConverted(value)
   // Show the unit inline only when it doesn't match the column, so the reader
   // sees this value wasn't converted to the chosen display unit.
   const showUnit = normalizeUnit(unit) !== normalizeUnit(displayUnit)
@@ -56,7 +56,7 @@ export function GridCell({
         colorClass
       )}
       onClick={() => onClick(status)}
-      title={showUnit ? `${formatted} ${unit} — not converted to ${displayUnit}` : undefined}
+      title={showUnit ? `${formatted} ${unit}: cannot be converted to ${displayUnit}` : undefined}
     >
       {formatted}
       {showUnit && (

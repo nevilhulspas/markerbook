@@ -212,20 +212,28 @@ export function MarkerGrid({
   // Trend data for the currently selected cell
   const [selectedTrendData, setSelectedTrendData] = useState<TrendData | null>(null)
 
+  // Every row in its display unit (the user's choice, else the catalogue
+  // unit). Everything below — changes banner, cell popup, trend, AI context,
+  // filters and the table — reads these rows, so no view mixes units.
+  const convertedRows = useMemo(
+    () => convertRowsToDisplayUnits(rows, unitPrefsMap),
+    [rows, unitPrefsMap]
+  )
+
   // Marker changes comparing the two most recent tests
   const markerChanges = useMemo(() => {
     if (testDates.length < 2) return []
     const currentTestId = testDates[testDates.length - 1].id
     const previousTestId = testDates[testDates.length - 2].id
-    return computeMarkerChanges(rows, currentTestId, previousTestId, userSex)
-  }, [rows, testDates, userSex])
+    return computeMarkerChanges(convertedRows, currentTestId, previousTestId, userSex)
+  }, [convertedRows, testDates, userSex])
 
   const handleCellClick = useCallback((data: CellClickData) => {
     const { biomarker, value, unit, testDate, testName, status, bloodTestId } = data
     lastCellClickRef.current = data
 
     // Find reference range -- check if we have enriched data
-    const row = rows.find(r => r.biomarker.id === biomarker.id)
+    const row = convertedRows.find(r => r.biomarker.id === biomarker.id)
     let refLow: number | null = null
     let refHigh: number | null = null
 
@@ -273,7 +281,7 @@ export function MarkerGrid({
     }
 
     setModalOpen(true)
-  }, [rows, userSex, testDates])
+  }, [convertedRows, userSex, testDates])
 
   /**
    * Build all test results for the given blood test from grid rows.
@@ -283,7 +291,7 @@ export function MarkerGrid({
       const results: MarkerContext[] = []
       const rangeSex = userSex === 'male' || userSex === 'female' ? userSex : null
 
-      for (const row of rows) {
+      for (const row of convertedRows) {
         const cellData = row.values[bloodTestId]
         if (!cellData) continue
 
@@ -329,7 +337,7 @@ export function MarkerGrid({
       }
       return results
     },
-    [rows, userSex]
+    [convertedRows, userSex]
   )
 
   const handleInterpret = useCallback(() => {
@@ -349,7 +357,7 @@ export function MarkerGrid({
 
     // Determine reference range for focused marker — match by the cell's
     // ACTUAL unit (cell.unit), and only trust inline fields in that unit.
-    const focusedRow = rows.find(r => r.biomarker.id === cell.biomarker.id)
+    const focusedRow = convertedRows.find(r => r.biomarker.id === cell.biomarker.id)
     let refLow: number | null = null
     let refHigh: number | null = null
     const rangeSex = userSex === 'male' || userSex === 'female' ? userSex : null
@@ -403,7 +411,7 @@ export function MarkerGrid({
     })
 
     interpret(request, profileHash, markerContextHash)
-  }, [buildAllTestResults, profile, userSex, rows, interpret, resetChat])
+  }, [buildAllTestResults, profile, userSex, convertedRows, interpret, resetChat])
 
   const handleFullTestInterpret = useCallback(
     (testId: string) => {
@@ -475,22 +483,17 @@ export function MarkerGrid({
     [filteredTestDates, localAnnotations]
   )
 
-  // Filter rows by category and status before passing to the table
-  const filteredRows = useMemo(
+  // Filter the converted rows, so the status filter judges exactly the
+  // colours the grid shows.
+  const displayRows = useMemo(
     () =>
-      filterRowsByCategoryAndStatus(rows, {
+      filterRowsByCategoryAndStatus(convertedRows, {
         categories: filters.categories,
         status: filters.status,
         testDates: filteredTestDates,
         userSex,
       }),
-    [rows, filters.categories, filters.status, filteredTestDates, userSex]
-  )
-
-  // Apply unit conversions: display in user's preferred unit or most recent lab unit
-  const displayRows = useMemo(
-    () => convertRowsToDisplayUnits(filteredRows, unitPrefsMap, filteredTestDates),
-    [filteredRows, unitPrefsMap, filteredTestDates]
+    [convertedRows, filters.categories, filters.status, filteredTestDates, userSex]
   )
 
   // Responsive: detect mobile for column pinning and visibility

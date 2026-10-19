@@ -2,14 +2,10 @@
 
 import { useCallback, useState } from 'react'
 
-import type { Profile, ReferenceRange } from '@/lib/database.types'
+import type { BiomarkerUnit, Profile, ReferenceRange } from '@/lib/database.types'
 import type { BloodTestWithResults } from '@/actions/blood-tests'
-import {
-  findReferenceRange,
-  getRangeStatus,
-  getRangeStatusFromRanges,
-} from '@/lib/grid/reference-range'
-import { normalizeUnit } from '@/lib/grid/unit-conversion'
+import { markerUnitsFor, resolveResultRange } from '@/lib/units/result-range'
+import { convertUnit } from '@/lib/units/convert'
 import { hashProfile, hashMarkerContext } from '@/lib/interpretation/cache'
 import type {
   InterpretationRequest,
@@ -28,6 +24,8 @@ interface TestDetailClientProps {
    *  server page — lets the full-test interpretation match the status the
    *  table shows instead of falling back to inline fields only. */
   rangesByBiomarker?: Map<string, ReferenceRange[]>
+  /** biomarker_units per biomarker, for unit conversion. */
+  unitsByBiomarker?: Map<string, BiomarkerUnit[]>
 }
 
 function formatShortDate(dateStr: string): string {
@@ -43,6 +41,7 @@ export function TestDetailClient({
   test,
   profile,
   rangesByBiomarker,
+  unitsByBiomarker,
 }: TestDetailClientProps) {
   const interpretation = useInterpretation()
   const [panelOpen, setPanelOpen] = useState(false)
@@ -53,34 +52,28 @@ export function TestDetailClient({
         ? profile.sex
         : null
     const allResults: MarkerContext[] = test.test_results.map((r) => {
-      // Mirror the server table: enriched unit-specific ranges win; inline
-      // biomarker fields are only trusted when their unit matches the
-      // result's stored unit.
-      const ranges = rangesByBiomarker?.get(r.biomarkers.id) ?? []
-      let refLow: number | null = null
-      let refHigh: number | null = null
-      let status: string
-      if (ranges.length > 0) {
-        const range = findReferenceRange(ranges, r.unit, rangeSex)
-        refLow = range.low
-        refHigh = range.high
-        status = getRangeStatusFromRanges(r.value, ranges, r.unit, rangeSex)
-      } else if (normalizeUnit(r.unit) === normalizeUnit(r.biomarkers.unit)) {
-        refLow = r.biomarkers.ref_range_low
-        refHigh = r.biomarkers.ref_range_high
-        status = getRangeStatus(r.value, r.biomarkers, profile?.sex).toString()
-      } else {
-        status = 'unknown'
-      }
+      // Mirror the server table: the range is compared in a unit the value
+      // converts to, and the value is sent in that same unit so the AI never
+      // reads a value against a range in another unit.
+      const marker = markerUnitsFor(r.biomarkers, unitsByBiomarker?.get(r.biomarkers.id))
+      const range = resolveResultRange(
+        r.value,
+        r.unit,
+        r.biomarkers,
+        rangesByBiomarker?.get(r.biomarkers.id) ?? [],
+        marker,
+        rangeSex
+      )
+      const inRangeUnit = range.unit ? convertUnit(r.value, r.unit, range.unit, marker) : null
       return {
         name: r.biomarkers.name,
         shortName: r.biomarkers.short_name,
-        value: r.value,
-        unit: r.unit,
+        value: inRangeUnit ?? r.value,
+        unit: inRangeUnit !== null && range.unit ? range.unit : r.unit,
         category: r.biomarkers.category,
-        refRangeLow: refLow,
-        refRangeHigh: refHigh,
-        status,
+        refRangeLow: range.low,
+        refRangeHigh: range.high,
+        status: range.status,
       }
     })
 
@@ -106,7 +99,7 @@ export function TestDetailClient({
 
     setPanelOpen(true)
     interpretation.interpret(request, profileHash, markerContextHash)
-  }, [test, profile, rangesByBiomarker, interpretation])
+  }, [test, profile, rangesByBiomarker, unitsByBiomarker, interpretation])
 
   const handlePanelOpenChange = useCallback(
     (open: boolean) => {

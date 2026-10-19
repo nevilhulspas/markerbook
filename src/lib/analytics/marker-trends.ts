@@ -16,6 +16,8 @@ export interface TrendData {
   refHigh: number | null
   unit: string
   markerName: string
+  /** Results left out because they could not be converted to `unit`. */
+  skipped: number
 }
 
 /**
@@ -34,7 +36,13 @@ export function buildTrendData(
   // original value+unit (never relabel a number into a unit it isn't).
   const unit = row.biomarker.unit
   const unitFactors = row.units ?? []
+  const ctx = {
+    unit: row.catalogueUnit ?? row.biomarker.unit,
+    loinc_code: row.biomarker.loinc_code,
+    name: row.biomarker.name,
+  }
   const points: TrendDataPoint[] = []
+  let skipped = 0
 
   for (const td of testDates) {
     const cell = row.values[td.id]
@@ -42,11 +50,14 @@ export function buildTrendData(
     let value = cell.value
     let pointUnit = cell.unit
     if (normalizeUnit(cell.unit) !== normalizeUnit(unit)) {
-      const converted = convertValue(cell.value, cell.unit, unit, unitFactors)
+      const converted = convertValue(cell.value, cell.unit, unit, unitFactors, ctx)
       // Can't place this point on the marker-unit axis — drop it rather than
       // plot a number in a unit the axis doesn't label (mirrors the grid's
       // keep-original-cell behaviour: the chart has no inline-unit escape).
-      if (converted === null) continue
+      if (converted === null) {
+        skipped++
+        continue
+      }
       value = converted
       pointUnit = unit
     }
@@ -66,5 +77,6 @@ export function buildTrendData(
     refHigh,
     unit,
     markerName: row.biomarker.short_name ?? row.biomarker.name,
+    skipped,
   }
 }

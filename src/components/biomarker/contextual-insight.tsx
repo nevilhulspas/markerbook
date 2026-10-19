@@ -1,5 +1,7 @@
 'use client'
 
+import { sameUnit } from '@/lib/units/parse'
+
 import { useEffect, useRef } from 'react'
 import { Brain, RefreshCw } from 'lucide-react'
 
@@ -98,10 +100,14 @@ export function ContextualInsight({
       testResultId: latest.id,
       markerName: biomarkerName,
       markerValue: latest.value,
-      markerUnit: unit,
-      refRangeLow,
-      refRangeHigh,
-      status: computeStatus(latest.value, refRangeLow, refRangeHigh),
+      // The latest value's own unit: the page converts to the catalogue unit
+      // where it can, and the range applies only when the units match.
+      markerUnit: latest.unit ?? unit,
+      refRangeLow: sameUnit(latest.unit ?? unit, unit) ? refRangeLow : null,
+      refRangeHigh: sameUnit(latest.unit ?? unit, unit) ? refRangeHigh : null,
+      status: sameUnit(latest.unit ?? unit, unit)
+        ? computeStatus(latest.value, refRangeLow, refRangeHigh)
+        : 'unknown',
       allTestResults: allMarkerContextForLatestTest,
       profile,
       historicalValues: testResults.map((r) => ({

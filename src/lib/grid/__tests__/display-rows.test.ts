@@ -150,12 +150,12 @@ describe('filterRowsByCategoryAndStatus', () => {
 describe('convertRowsToDisplayUnits', () => {
   const units = [unit('mmol/L', 1, true), unit('mg/dL', 1 / 18)]
 
-  it('leaves rows with one or no unit untouched', () => {
+  it('leaves a row in its catalogue unit untouched', () => {
     const r = row({ values: { t1: { value: 5, unit: 'mmol/L', resultId: 'r1' } } })
     expect(convertRowsToDisplayUnits([r], new Map(), TEST_DATES)[0]).toBe(r)
   })
 
-  it('uses the most recent lab unit when there is no user preference', () => {
+  it('shows the catalogue unit when there is no preference, not the latest lab unit', () => {
     const r = row({
       units,
       values: {
@@ -164,30 +164,37 @@ describe('convertRowsToDisplayUnits', () => {
       },
     })
     const [out] = convertRowsToDisplayUnits([r], new Map(), TEST_DATES)
+    expect(out.biomarker.unit).toBe('mmol/L')
+    expect(out.values.t1).toBe(r.values.t1)
+    expect(out.values.t2?.unit).toBe('mmol/L')
+    expect(out.values.t2?.value).toBeCloseTo(5.5)
+  })
+
+  it('uses the preference, keeps full precision and converts the inline ranges', () => {
+    const r = row({ units, values: { t1: { value: 5.5, unit: 'mmol/L', resultId: 'r1' } } })
+    const [out] = convertRowsToDisplayUnits([r], new Map([['bm-glucose', 'mg/dL']]), TEST_DATES)
+    expect(out.values.t1?.value).toBeCloseTo(99)
     expect(out.biomarker.unit).toBe('mg/dL')
-    expect(out.values.t1).toEqual({ value: 90, unit: 'mg/dL', resultId: 'r1' })
-    expect(out.values.t2).toBe(r.values.t2)
+    expect(out.biomarker.ref_range_low).toBeCloseTo(72)
+    expect(out.biomarker.ref_range_high).toBeCloseTo(108)
+    expect(out.catalogueUnit).toBe('mmol/L')
   })
 
-  it('prefers the user preference and rounds to one decimal', () => {
-    const r = row({ units, values: { t1: { value: 99, unit: 'mg/dL', resultId: 'r1' } } })
-    const [out] = convertRowsToDisplayUnits([r], new Map([['bm-glucose', 'mmol/L']]), TEST_DATES)
-    expect(out.values.t1).toEqual({ value: 5.5, unit: 'mmol/L', resultId: 'r1' })
-    expect(out.biomarker).toBe(r.biomarker) // catalog unit already mmol/L
-  })
-
-  it('maps the display unit to the catalog spelling', () => {
-    const r = row({ units, values: { t1: { value: 99, unit: 'mg/dl', resultId: 'r1' } } })
+  it('converts a prefix variant without a catalogue row (µg/L shown as ng/mL)', () => {
+    const r = row({
+      biomarker: biomarker({ unit: 'ng/mL', name: 'Ferritin' }),
+      values: { t1: { value: 82, unit: 'ug/l', resultId: 'r1' } },
+    })
     const [out] = convertRowsToDisplayUnits([r], new Map(), TEST_DATES)
-    expect(out.biomarker.unit).toBe('mg/dL')
+    expect(out.values.t1).toEqual({ value: 82, unit: 'ng/mL', resultId: 'r1' })
   })
 
   it('keeps a cell that cannot be converted in its original unit', () => {
     const r = row({
       units,
       values: {
-        t1: { value: 3, unit: 'g/L', resultId: 'r1' },
-        t2: { value: 5, unit: 'mmol/L', resultId: 'r2' },
+        t1: { value: 5, unit: 'mmol/L', resultId: 'r1' },
+        t2: { value: 12, unit: '%', resultId: 'r2' },
       },
     })
     const [out] = convertRowsToDisplayUnits([r], new Map(), TEST_DATES)
@@ -197,7 +204,7 @@ describe('convertRowsToDisplayUnits', () => {
   it('converts reference ranges and nulls a bound that cannot be converted', () => {
     const r = row({
       units,
-      referenceRanges: [range('mmol/L', 4, 6), range('mg/dL', 70, 100), range('g/L', 1, 2)],
+      referenceRanges: [range('mmol/L', 4, 6), range('mg/dL', 70, 100), range('%', 1, 2)],
       values: { t1: { value: 5, unit: 'mmol/L', resultId: 'r1' } },
     })
     const [out] = convertRowsToDisplayUnits([r], new Map(), TEST_DATES)

@@ -2,9 +2,9 @@ import type { GridRow } from '@/lib/grid/grid-types'
 
 export interface PhenoAgeInput {
   age: number
-  albumin: number // g/dL
-  creatinine: number // mg/dL
-  glucose: number // mg/dL (fasting)
+  albumin: number // g/L
+  creatinine: number // µmol/L
+  glucose: number // mmol/L (fasting)
   crp: number // mg/L (hs-CRP, raw -- function applies ln)
   lymphocytePercent: number // %
   mcv: number // fL
@@ -22,12 +22,12 @@ export interface PhenoAgeReadiness {
 }
 
 export const PHENOAGE_MARKERS = [
-  { catalogName: 'Albumin', key: 'albumin' as const, unit: 'g/dL' },
-  { catalogName: 'Creatinine', key: 'creatinine' as const, unit: 'mg/dL' },
+  { catalogName: 'Albumin', key: 'albumin' as const, unit: 'g/L' },
+  { catalogName: 'Creatinine', key: 'creatinine' as const, unit: 'umol/L' },
   {
     catalogName: 'Glucose (Fasting)',
     key: 'glucose' as const,
-    unit: 'mg/dL',
+    unit: 'mmol/L',
   },
   { catalogName: 'hs-CRP', key: 'crp' as const, unit: 'mg/L' },
   {
@@ -52,14 +52,16 @@ export const PHENOAGE_MARKERS = [
 /**
  * Calculate PhenoAge (biological age) using the Levine 2018 algorithm.
  *
- * Coefficients from Levine 2018 Table S8 (Gompertz proportional hazards model
- * fitted on NHANES III mortality data). The original model uses ln(glucose) and
- * ln(CRP in mg/dL). This function accepts CRP in mg/L (standard for hs-CRP)
- * and converts internally.
+ * Coefficients and units from Levine 2018, Supplementary Table S1 (Gompertz
+ * proportional hazards model fitted on NHANES III mortality data): albumin in
+ * g/L, creatinine in µmol/L, glucose in mmol/L (not log-transformed), CRP as
+ * ln(mg/dL). This function takes CRP in mg/L (standard for hs-CRP) and
+ * converts it. The callers convert the other markers to these units first.
  *
  * References:
  * - Levine ME et al. "An epigenetic biomarker of aging for lifespan and healthspan."
- *   Aging (Albany NY). 2018;10(4):573-591.
+ *   Aging (Albany NY). 2018;10(4):573-591. Supplement Table S1.
+ * - Liu Z et al. 2018/2019 (PLoS Med), same model on NHANES IV.
  *
  * @returns Biological age estimate, or NaN if CRP <= 0 (ln guard)
  */
@@ -70,13 +72,13 @@ export function calculatePhenoAge(input: PhenoAgeInput): number {
   // Convert CRP from mg/L (hs-CRP standard) to mg/dL (NHANES III convention)
   const crpMgDL = input.crp / 10
 
-  // Levine 2018 mortality model coefficients (Table S8)
-  // Glucose and CRP are log-transformed per the original model specification
+  // Levine 2018 mortality model coefficients (Table S1). Only CRP is
+  // log-transformed.
   const xb =
     -19.9067 -
     0.0336 * input.albumin +
     0.0095 * input.creatinine +
-    0.1953 * Math.log(input.glucose) +
+    0.1953 * input.glucose +
     0.0954 * Math.log(crpMgDL) -
     0.012 * input.lymphocytePercent +
     0.0268 * input.mcv +

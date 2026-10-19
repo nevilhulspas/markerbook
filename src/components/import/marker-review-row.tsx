@@ -10,7 +10,9 @@ import {
   Trash2,
 } from 'lucide-react'
 
-import type { Biomarker } from '@/lib/database.types'
+import type { Biomarker, BiomarkerUnit } from '@/lib/database.types'
+import { isConvertible } from '@/lib/units/convert'
+import { markerUnitsFor } from '@/lib/units/result-range'
 import type { MatchedMarker } from '@/lib/extraction/types'
 import { matchesBiomarkerQuery } from '@/lib/biomarkers/search'
 import {
@@ -249,6 +251,24 @@ export function MarkerReviewRow({
         />
       </TableCell>
       <TableCell>
+        {(() => {
+          // Warn when the value's unit cannot be shown in the marker's unit:
+          // it is still saved as entered, but stays out of charts and
+          // comparisons until the marker has a conversion for it.
+          const bm = marker.biomarker_id
+            ? (biomarkerOptions.find((b) => b.id === marker.biomarker_id) as
+                | (Biomarker & { biomarker_units?: BiomarkerUnit[] })
+                | undefined)
+            : undefined
+          if (!bm || !marker.unit || !bm.unit) return null
+          if (isConvertible(marker.unit, markerUnitsFor(bm, bm.biomarker_units))) return null
+          return (
+            <p className="mb-1 flex items-center gap-1 text-xs text-amber-700 dark:text-amber-400">
+              <AlertTriangle className="size-3 shrink-0" />
+              Can&apos;t convert to {bm.unit}
+            </p>
+          )
+        })()}
         <Combobox
           value={
             marker.unit

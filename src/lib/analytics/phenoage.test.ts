@@ -54,9 +54,9 @@ describe('calculatePhenoAge', () => {
   it('returns correct biological age for known healthy inputs', () => {
     const result = calculatePhenoAge({
       age: 55,
-      albumin: 4.0,
-      creatinine: 1.0,
-      glucose: 100,
+      albumin: 40.0,
+      creatinine: 88.4,
+      glucose: 5.5494,
       crp: 1.5,
       lymphocytePercent: 28,
       mcv: 89,
@@ -65,17 +65,18 @@ describe('calculatePhenoAge', () => {
       wbc: 6.0,
     })
 
-    // Levine 2018 formula with ln(glucose) and CRP converted from mg/L to mg/dL
-    // produces ~54.5 for these healthy-ish inputs (younger than chronological age 55)
-    expect(result).toBeCloseTo(54.5, 0)
+    // Levine 2018 (Table S1 units: albumin g/L, creatinine µmol/L, glucose
+    // mmol/L, CRP ln(mg/dL)) gives ~52.3 for these inputs
+    // (albumin 4.0 g/dL, creatinine 1.0 mg/dL, glucose 100 mg/dL).
+    expect(result).toBeCloseTo(52.3, 0)
   })
 
   it('returns NaN when CRP is 0 (ln(0) guard)', () => {
     const result = calculatePhenoAge({
       age: 55,
-      albumin: 4.0,
-      creatinine: 1.0,
-      glucose: 100,
+      albumin: 40.0,
+      creatinine: 88.4,
+      glucose: 5.5494,
       crp: 0,
       lymphocytePercent: 28,
       mcv: 89,
@@ -90,9 +91,9 @@ describe('calculatePhenoAge', () => {
   it('returns NaN when CRP is negative', () => {
     const result = calculatePhenoAge({
       age: 40,
-      albumin: 4.0,
-      creatinine: 1.0,
-      glucose: 90,
+      albumin: 40.0,
+      creatinine: 88.4,
+      glucose: 4.9945,
       crp: -1,
       lymphocytePercent: 30,
       mcv: 85,
@@ -107,9 +108,9 @@ describe('calculatePhenoAge', () => {
   it('returns a higher biological age for worse markers', () => {
     const healthy = calculatePhenoAge({
       age: 55,
-      albumin: 4.5,
-      creatinine: 0.9,
-      glucose: 85,
+      albumin: 45.0,
+      creatinine: 79.56,
+      glucose: 4.717,
       crp: 0.5,
       lymphocytePercent: 32,
       mcv: 88,
@@ -120,9 +121,9 @@ describe('calculatePhenoAge', () => {
 
     const unhealthy = calculatePhenoAge({
       age: 55,
-      albumin: 3.0,
-      creatinine: 1.5,
-      glucose: 130,
+      albumin: 30.0,
+      creatinine: 132.6,
+      glucose: 7.2142,
       crp: 8.0,
       lymphocytePercent: 15,
       mcv: 105,
@@ -198,5 +199,23 @@ describe('checkPhenoAgeReadiness', () => {
 
     expect(result.present).not.toContain('Albumin')
     expect(result.missing).toContain('Albumin')
+  })
+})
+
+describe('calculatePhenoAge worked example', () => {
+  it('matches the published formula (~27.8) for a 37-year-old', () => {
+    const age = calculatePhenoAge({
+      age: 37,
+      albumin: 45, // 4.5 g/dL
+      creatinine: 0.9 * 88.4, // 0.9 mg/dL
+      glucose: 85 / 18.02, // 85 mg/dL
+      crp: 0.5,
+      lymphocytePercent: 31,
+      mcv: 89.5,
+      rdw: 12.8,
+      alkalinePhosphatase: 55,
+      wbc: 6.5,
+    })
+    expect(age).toBeCloseTo(27.8, 0)
   })
 })

@@ -132,6 +132,12 @@ function CellDetailContent({
         <div className="space-y-2 border-t pt-3">
           <p className="text-sm font-medium">Trend</p>
           <TrendChart data={trendData} />
+          {trendData.skipped > 0 && (
+            <p className="text-xs text-muted-foreground">
+              {trendData.skipped} result{trendData.skipped === 1 ? '' : 's'} could not be converted to{' '}
+              {trendData.unit} and {trendData.skipped === 1 ? 'is' : 'are'} not in this chart.
+            </p>
+          )}
         </div>
       )}
 

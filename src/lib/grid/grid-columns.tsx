@@ -1,3 +1,4 @@
+import { normalizeUnit } from '@/lib/grid/unit-conversion'
 import { type ColumnDef } from '@tanstack/react-table'
 import { Check, Sparkles } from 'lucide-react'
 import Link from 'next/link'
@@ -120,12 +121,19 @@ export function createGridColumns(
       minSize: 70,
       enablePinning: true,
       cell: ({ row }) => {
-        const units = row.original.units
         const bmId = row.original.biomarker.id
         // biomarker.unit is already the display unit (set by displayRows)
         const displayUnit = row.original.biomarker.unit
+        // Options: the catalogue unit, the marker's other units and the
+        // current display unit, once each — so the select always shows the
+        // unit the cells are actually in.
+        const options: string[] = []
+        for (const u of [row.original.catalogueUnit ?? displayUnit, ...(row.original.units ?? []).map((x) => x.unit), displayUnit]) {
+          if (u && !options.some((o) => normalizeUnit(o) === normalizeUnit(u))) options.push(u)
+        }
+        const selected = options.find((o) => normalizeUnit(o) === normalizeUnit(displayUnit)) ?? displayUnit
 
-        if (!units || units.length <= 1 || !onUnitChange) {
+        if (options.length <= 1 || !onUnitChange) {
           return (
             <span className="text-xs text-muted-foreground">
               {displayUnit}
@@ -135,13 +143,13 @@ export function createGridColumns(
 
         return (
           <select
-            value={displayUnit}
+            value={selected}
             onChange={(e) => onUnitChange(bmId, e.target.value)}
             className="w-full cursor-pointer rounded border-none bg-transparent px-0 py-0 text-xs text-muted-foreground outline-none focus:ring-1 focus:ring-ring"
           >
-            {units.map((u) => (
-              <option key={u.unit} value={u.unit}>
-                {u.unit}
+            {options.map((u) => (
+              <option key={u} value={u}>
+                {u}
               </option>
             ))}
           </select>

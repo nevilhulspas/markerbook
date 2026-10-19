@@ -1,6 +1,6 @@
 import type { Sex } from '@/lib/database.types'
 import type { GridRow } from '@/lib/grid/grid-types'
-import { normalizeUnit } from '@/lib/grid/unit-conversion'
+import { convertValue, normalizeUnit } from '@/lib/grid/unit-conversion'
 import {
   getRangeStatusFromRanges,
   getRangeStatus,
@@ -37,8 +37,22 @@ export function computeMarkerChanges(
 
   for (const row of rows) {
     const current = row.values[currentTestId]
-    const previous = row.values[previousTestId]
-    if (!current || !previous) continue
+    const rawPrevious = row.values[previousTestId]
+    if (!current || !rawPrevious) continue
+
+    // Compare like with like: bring the previous value into the current
+    // value's unit; skip the marker when that is not possible (30 ng/mL
+    // then 75 nmol/L vitamin D is no change, not +150%).
+    let previous = rawPrevious
+    if (normalizeUnit(rawPrevious.unit) !== normalizeUnit(current.unit)) {
+      const converted = convertValue(rawPrevious.value, rawPrevious.unit, current.unit, row.units ?? [], {
+        unit: row.catalogueUnit ?? row.biomarker.unit,
+        loinc_code: row.biomarker.loinc_code,
+        name: row.biomarker.name,
+      })
+      if (converted === null) continue
+      previous = { ...rawPrevious, value: converted, unit: current.unit }
+    }
 
     const delta = current.value - previous.value
     if (delta === 0) continue

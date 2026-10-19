@@ -1,5 +1,6 @@
 import type { GridRow } from '@/lib/grid/grid-types'
-import { getRangeStatusFromRanges, type RangeStatus } from '@/lib/grid/reference-range'
+import type { RangeStatus } from '@/lib/grid/reference-range'
+import { markerUnitsForRow, resolveResultRange } from '@/lib/units/result-range'
 
 export interface CategoryScore {
   category: string
@@ -44,15 +45,19 @@ export function computeHealthScores(
     const cell = row.values[latestTestId]
     if (!cell) continue
 
+    // Compared in a range unit the value converts to (a nmol/L value against
+    // an ng/mL range); 'unknown' when no range unit is reachable.
     const status: RangeStatus =
       row.referenceRanges && row.referenceRanges.length > 0
-        ? getRangeStatusFromRanges(
+        ? resolveResultRange(
             cell.value,
-            row.referenceRanges,
             cell.unit,
+            row.biomarker,
+            row.referenceRanges,
+            markerUnitsForRow(row),
             sex,
             age
-          )
+          ).status
         : 'unknown'
 
     const cat = row.category

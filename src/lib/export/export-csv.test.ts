@@ -125,3 +125,22 @@ describe('buildCsvContent', () => {
     expect(dataLine).toBe('Vitamins,"Vitamin B12, Total",pg/mL,400,')
   })
 })
+
+describe('buildCsvContent unit safety', () => {
+  it('writes a cell that is in another unit with that unit', () => {
+    const csv = buildCsvContent({
+      testDates: [{ id: 't1', date: '2026-01-01', name: 'A' }, { id: 't2', date: '2026-02-01', name: 'B' }],
+      rows: [
+        {
+          biomarker: { id: 'b', name: 'Hemoglobin', unit: 'g/dL' } as never,
+          category: 'Blood',
+          values: {
+            t1: { value: 14.5, unit: 'g/dL', resultId: 'r1' },
+            t2: { value: 9, unit: 'mmol/L', resultId: 'r2' },
+          },
+        },
+      ],
+    } as never)
+    expect(csv).toContain('Blood,Hemoglobin,g/dL,14.5,9 mmol/L')
+  })
+})

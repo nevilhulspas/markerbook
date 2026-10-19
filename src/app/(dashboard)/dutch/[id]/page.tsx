@@ -62,14 +62,16 @@ export default async function DutchTestDetailPage({
     ? await supabase.from('profiles').select('*').eq('id', user.id).single()
     : { data: null }
 
-  // Fetch reference ranges for all biomarkers in this test
+  // Fetch reference ranges for all markers in this test. DUTCH results point
+  // at dutch_markers, whose ranges live in dutch_reference_ranges (not the
+  // blood reference_ranges table).
   const biomarkerIds = [
     ...new Set(test.dutch_test_results.map((r) => r.biomarker_id)),
   ]
   const { data: refRanges } =
     biomarkerIds.length > 0
       ? await supabase
-          .from('reference_ranges')
+          .from('dutch_reference_ranges')
           .select('*')
           .in('biomarker_id', biomarkerIds)
       : { data: null }

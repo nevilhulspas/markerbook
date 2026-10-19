@@ -10,6 +10,7 @@ import {
 } from '@/lib/grid/reference-range'
 import { APP_LOCALE } from '@/lib/locale'
 import { normalizeUnit } from '@/lib/grid/unit-conversion'
+import { formatUnitValue } from '@/lib/units/convert'
 import { localDateISO } from '@/lib/dates/today'
 
 const STATUS_COLORS: Record<RangeStatus, [number, number, number] | null> = {
@@ -58,19 +59,17 @@ export function exportGridAsPdf(data: GridData, userSex?: Sex | null): void {
     const row = rows[rowIdx]
     const displayName = row.biomarker.short_name ?? row.biomarker.name
 
-    // The row's unit column and ref range follow the first stored reading —
-    // a legacy mmol/L row must not be labelled "g/dL" with a g/dL range.
-    const firstCell = testDates
-      .map((td) => row.values[td.id])
-      .find((c) => c != null)
-    const rowUnit = firstCell ? firstCell.unit : row.biomarker.unit
+    // The grid passes rows already in their display unit: the unit column
+    // is that unit, and a cell that could not be converted keeps (and prints)
+    // its own unit.
+    const rowUnit = row.biomarker.unit
 
     // Determine reference range string
     let refRangeStr = '-'
     if (row.referenceRanges && row.referenceRanges.length > 0) {
       const range = findReferenceRange(row.referenceRanges, rowUnit, rangeSex)
       if (range.low != null && range.high != null) {
-        refRangeStr = `${range.low}-${range.high}`
+        refRangeStr = `${formatUnitValue(range.low)}-${formatUnitValue(range.high)}`
       }
     }
 
@@ -85,8 +84,8 @@ export function exportGridAsPdf(data: GridData, userSex?: Sex | null): void {
         // header it isn't).
         const label =
           normalizeUnit(cellData.unit) === normalizeUnit(rowUnit)
-            ? String(cellData.value)
-            : `${cellData.value} ${cellData.unit}`
+            ? formatUnitValue(cellData.value)
+            : `${formatUnitValue(cellData.value)} ${cellData.unit}`
         cells.push(label)
 
         // Compute status for color coding — always against a range in the
