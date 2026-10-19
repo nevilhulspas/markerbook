@@ -20,6 +20,8 @@ export interface UnitContext {
   unit: string
   loinc_code?: string | null
   name?: string | null
+  molar_mass?: number | null
+  valence?: number | null
 }
 
 function markerUnits(units: BiomarkerUnit[], marker?: UnitContext): MarkerUnits {
@@ -30,6 +32,8 @@ function markerUnits(units: BiomarkerUnit[], marker?: UnitContext): MarkerUnits 
     factors: units.map((u) => ({ unit: u.unit, conversion_factor: Number(u.conversion_factor) })),
     loincCode: marker?.loinc_code ?? null,
     name: marker?.name ?? null,
+    molarMass: marker?.molar_mass != null ? Number(marker.molar_mass) : null,
+    valence: marker?.valence ?? null,
   }
 }
 

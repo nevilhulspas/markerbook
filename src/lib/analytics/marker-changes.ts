@@ -49,6 +49,8 @@ export function computeMarkerChanges(
         unit: row.catalogueUnit ?? row.biomarker.unit,
         loinc_code: row.biomarker.loinc_code,
         name: row.biomarker.name,
+        molar_mass: row.biomarker.molar_mass,
+        valence: row.biomarker.valence,
       })
       if (converted === null) continue
       previous = { ...rawPrevious, value: converted, unit: current.unit }

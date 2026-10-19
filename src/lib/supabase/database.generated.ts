@@ -189,6 +189,10 @@ export type Database = {
           id: string
           is_custom: boolean
           loinc_code: string | null
+          molar_mass: number | null
+          typical_mass_unit: string | null
+          typical_molar_unit: string | null
+          valence: number | null
           method: string | null
           name: string
           panel_id: string | null
@@ -213,6 +217,10 @@ export type Database = {
           id?: string
           is_custom?: boolean
           loinc_code?: string | null
+          molar_mass?: number | null
+          typical_mass_unit?: string | null
+          typical_molar_unit?: string | null
+          valence?: number | null
           method?: string | null
           name: string
           panel_id?: string | null
@@ -237,6 +245,10 @@ export type Database = {
           id?: string
           is_custom?: boolean
           loinc_code?: string | null
+          molar_mass?: number | null
+          typical_mass_unit?: string | null
+          typical_molar_unit?: string | null
+          valence?: number | null
           method?: string | null
           name?: string
           panel_id?: string | null
@@ -1461,6 +1473,59 @@ export type Database = {
             referencedColumns: ["loinc_num"]
           },
         ]
+      }
+      loinc_analyte_codes: {
+        Row: {
+          loinc_code: string
+          part_number: string
+        }
+        Insert: {
+          loinc_code: string
+          part_number: string
+        }
+        Update: {
+          loinc_code?: string
+          part_number?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "loinc_analyte_codes_part_number_fkey"
+            columns: ["part_number"]
+            isOneToOne: false
+            referencedRelation: "loinc_analytes"
+            referencedColumns: ["part_number"]
+          },
+        ]
+      }
+      loinc_analytes: {
+        Row: {
+          mass_unit: string | null
+          molar_mass: number
+          molar_unit: string | null
+          name: string
+          part_number: string
+          source: string
+          valence: number | null
+        }
+        Insert: {
+          mass_unit?: string | null
+          molar_mass: number
+          molar_unit?: string | null
+          name: string
+          part_number: string
+          source: string
+          valence?: number | null
+        }
+        Update: {
+          mass_unit?: string | null
+          molar_mass?: number
+          molar_unit?: string | null
+          name?: string
+          part_number?: string
+          source?: string
+          valence?: number | null
+        }
+        Relationships: []
       }
       loinc_terms: {
         Row: {

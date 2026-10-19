@@ -136,3 +136,25 @@ describe('formatUnitValue', () => {
     expect(formatUnitValue(12000.4)).toBe('12000')
   })
 })
+
+describe('convertUnit via molar mass', () => {
+  const cortisol: MarkerUnits = { catalogueUnit: 'ug/dL', factors: [], molarMass: 362.466 }
+  const calcium: MarkerUnits = { catalogueUnit: 'mg/dL', factors: [], molarMass: 40.078, valence: 2 }
+
+  it('converts any mass unit to any molar unit', () => {
+    near(convertUnit(10, 'ug/dL', 'nmol/L', cortisol), 275.9, 0.1)
+    near(convertUnit(276, 'nmol/L', 'ug/dL', cortisol), 10.0, 0.01)
+    near(convertUnit(0.276, 'umol/L', 'ng/mL', cortisol), 100.0, 0.1)
+  })
+
+  it('converts mEq through the valence', () => {
+    near(convertUnit(2.5, 'mmol/L', 'mEq/L', calcium), 5)
+    near(convertUnit(5, 'mEq/L', 'mg/dL', calcium), 10.02, 0.01)
+  })
+
+  it('prefers a catalogue factor and stays null without a molar mass', () => {
+    expect(convertUnit(1, 'nmol/L', 'ng/mL', { catalogueUnit: 'ng/mL', factors: [] })).toBeNull()
+    near(convertUnit(75, 'nmol/L', 'ng/mL', { ...vitaminD, molarMass: 999 }), 30.045)
+    expect(convertUnit(1, 'mEq/L', 'mg/dL', cortisol)).toBeNull()
+  })
+})

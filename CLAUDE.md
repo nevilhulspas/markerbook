@@ -40,6 +40,12 @@ Below the `lg` breakpoint the narrow mode falls back to full width — never har
 
 Globals define chart colors as `--chart-1`…`--chart-5` in `oklch(...)`. Reference them as `var(--chart-N)` — **never** wrap in `hsl()` (e.g. `hsl(var(--chart-1))` produces `hsl(oklch(...))`, an invalid color, and the line renders invisibly).
 
+## Units
+
+A result is stored in the unit it was entered in (`test_results.unit`); screens show it in the display unit (the user's choice, else `biomarkers.unit`). All conversion goes through [src/lib/units](src/lib/units): prefixes and spelling by parsing, mass ↔ molar ↔ mEq through `biomarkers.molar_mass` / `valence`, and explicit `biomarker_units` factors first. Return `null` and keep the value in its own unit when a conversion is not possible; never relabel a number.
+
+Molar masses come from LOINC: `scripts/units/build-molar-masses.ts` (LOINC release → ChEBI/PubChem, with [curated-analytes.ts](src/lib/units/curated-analytes.ts) for lab conventions and proteins) and `scripts/units/gen-molar-mass-migration.ts` (writes the migration). A trigger fills `biomarkers.molar_mass` from `loinc_code`, so new LOINC markers convert too.
+
 ## Env vars
 
 - Supabase secret key uses the new naming: `SUPABASE_SECRET_KEY` (not `SUPABASE_SERVICE_ROLE_KEY`). Read in [src/lib/supabase/admin.ts](src/lib/supabase/admin.ts).

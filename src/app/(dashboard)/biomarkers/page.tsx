@@ -127,6 +127,8 @@ export default async function BiomarkersPage() {
         unit: u.unit,
         conversionFactor: u.conversion_factor,
       })),
+      molarMass: bm.molar_mass != null ? Number(bm.molar_mass) : null,
+      valence: bm.valence ?? null,
       latestValue: userResult?.value ?? null,
       latestUnit: userResult?.unit ?? null,
       latestDate: userResult?.testDate ?? null,

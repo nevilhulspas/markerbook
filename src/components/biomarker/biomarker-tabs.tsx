@@ -31,6 +31,9 @@ export interface CatalogItem {
   hasUserData: boolean
   isFavorite: boolean
   availableUnits: Array<{ unit: string; conversionFactor: number }>
+  /** g/mol and charge, for mass ↔ molar ↔ mEq conversion. */
+  molarMass: number | null
+  valence: number | null
   latestValue: number | null
   latestUnit: string | null
   latestDate: string | null
@@ -126,6 +129,8 @@ function MarkerTable({
                 catalogueUnit: item.unit,
                 factors: item.availableUnits.map((u) => ({ unit: u.unit, conversion_factor: u.conversionFactor })),
                 name: item.name,
+                molarMass: item.molarMass,
+                valence: item.valence,
               })
               if (converted !== null) {
                 displayValue = converted

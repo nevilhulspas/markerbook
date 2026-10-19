@@ -129,6 +129,13 @@ export interface Biomarker {
   panel_id: string | null
   archived_at: string | null
   loinc_code: string | null
+  /** g/mol, filled from LOINC (loinc_analytes) for mass <-> molar conversion. */
+  molar_mass?: number | null
+  /** Charge number, for mEq/L <-> mmol/L. */
+  valence?: number | null
+  /** The mass / molar unit labs use most for this substance (LOINC example units). */
+  typical_mass_unit?: string | null
+  typical_molar_unit?: string | null
   is_custom: boolean
   method: string | null
   created_at: string

@@ -62,7 +62,10 @@ export function resolveResultRange(
 
 /** The unit facts for one biomarker, from its row and its `biomarker_units`. */
 export function markerUnitsFor(
-  biomarker: Pick<Biomarker, 'unit' | 'loinc_code' | 'name'>,
+  biomarker: Pick<
+    Biomarker,
+    'unit' | 'loinc_code' | 'name' | 'molar_mass' | 'valence' | 'typical_mass_unit' | 'typical_molar_unit'
+  >,
   units: ReadonlyArray<{ unit: string; conversion_factor: number }> = []
 ): MarkerUnits {
   return {
@@ -70,7 +73,23 @@ export function markerUnitsFor(
     factors: units.map((u) => ({ unit: u.unit, conversion_factor: Number(u.conversion_factor) })),
     loincCode: biomarker.loinc_code,
     name: biomarker.name,
+    molarMass: biomarker.molar_mass != null ? Number(biomarker.molar_mass) : null,
+    valence: biomarker.valence ?? null,
+    typicalUnits: typicalUnitsFor(biomarker),
   }
+}
+
+/**
+ * The units a marker with a molar mass can also be shown or entered in: the
+ * typical mass and molar unit from LOINC, and mEq/L for an ion.
+ */
+export function typicalUnitsFor(
+  biomarker: Pick<Biomarker, 'molar_mass' | 'valence' | 'typical_mass_unit' | 'typical_molar_unit'>
+): string[] {
+  if (biomarker.molar_mass == null) return []
+  const out = [biomarker.typical_mass_unit, biomarker.typical_molar_unit].filter((u): u is string => !!u)
+  if (biomarker.valence) out.push('mEq/L')
+  return out
 }
 
 export interface DescribedResult {
@@ -131,7 +150,10 @@ export function describeResult(
  * relative to that one.
  */
 export function markerUnitsForRow(row: {
-  biomarker: Pick<Biomarker, 'unit' | 'loinc_code' | 'name'>
+  biomarker: Pick<
+    Biomarker,
+    'unit' | 'loinc_code' | 'name' | 'molar_mass' | 'valence' | 'typical_mass_unit' | 'typical_molar_unit'
+  >
   units?: ReadonlyArray<{ unit: string; conversion_factor: number }>
   catalogueUnit?: string
 }): MarkerUnits {

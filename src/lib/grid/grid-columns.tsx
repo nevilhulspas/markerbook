@@ -1,4 +1,5 @@
 import { normalizeUnit } from '@/lib/grid/unit-conversion'
+import { typicalUnitsFor } from '@/lib/units/result-range'
 import { type ColumnDef } from '@tanstack/react-table'
 import { Check, Sparkles } from 'lucide-react'
 import Link from 'next/link'
@@ -128,7 +129,12 @@ export function createGridColumns(
         // current display unit, once each — so the select always shows the
         // unit the cells are actually in.
         const options: string[] = []
-        for (const u of [row.original.catalogueUnit ?? displayUnit, ...(row.original.units ?? []).map((x) => x.unit), displayUnit]) {
+        for (const u of [
+          row.original.catalogueUnit ?? displayUnit,
+          ...(row.original.units ?? []).map((x) => x.unit),
+          ...typicalUnitsFor(row.original.biomarker),
+          displayUnit,
+        ]) {
           if (u && !options.some((o) => normalizeUnit(o) === normalizeUnit(u))) options.push(u)
         }
         const selected = options.find((o) => normalizeUnit(o) === normalizeUnit(displayUnit)) ?? displayUnit

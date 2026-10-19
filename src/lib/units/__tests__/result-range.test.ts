@@ -63,3 +63,29 @@ describe('describeResult', () => {
     expect(d.shown).toEqual({ value: 9, unit: 'IU/L', inDisplayUnit: false })
   })
 })
+
+describe('markers with a molar mass', () => {
+  const cortisol = {
+    ...vitD,
+    name: 'Cortisol',
+    unit: 'ug/dL',
+    molar_mass: 362.466,
+    valence: null,
+    typical_mass_unit: 'ug/dL',
+    typical_molar_unit: 'nmol/L',
+  } as unknown as Biomarker
+
+  it('offers the typical molar unit and converts to it without a factor row', () => {
+    const m = markerUnitsFor(cortisol, [])
+    expect(m.typicalUnits).toEqual(['ug/dL', 'nmol/L'])
+    const d = describeResult(276, 'nmol/L', cortisol, [range('ug/dL', 5, 25)], m, 'ug/dL')
+    expect(d.shown.unit).toBe('ug/dL')
+    expect(d.shown.value).toBeCloseTo(10.0, 1)
+    expect(d.range.status).toBe('normal')
+  })
+
+  it('adds mEq/L for an ion', () => {
+    const calcium = { ...cortisol, molar_mass: 40.078, valence: 2, typical_mass_unit: 'mg/dL', typical_molar_unit: 'mmol/L' } as unknown as Biomarker
+    expect(markerUnitsFor(calcium, []).typicalUnits).toEqual(['mg/dL', 'mmol/L', 'mEq/L'])
+  })
+})

@@ -137,7 +137,13 @@ export function convertRowsToDisplayUnits(
   return rows.map((row) => {
     const displayUnit = displayUnitFor(row, unitPrefsMap)
     const units = row.units ?? []
-    const ctx = { unit: row.biomarker.unit, loinc_code: row.biomarker.loinc_code, name: row.biomarker.name }
+    const ctx = {
+      unit: row.biomarker.unit,
+      loinc_code: row.biomarker.loinc_code,
+      name: row.biomarker.name,
+      molar_mass: row.biomarker.molar_mass,
+      valence: row.biomarker.valence,
+    }
 
     const convertedValues: typeof row.values = {}
     let anyChanged = false

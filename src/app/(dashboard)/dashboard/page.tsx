@@ -160,6 +160,8 @@ export default async function DashboardPage() {
             unit: row.biomarker.unit,
             loinc_code: row.biomarker.loinc_code,
             name: row.biomarker.name,
+            molar_mass: row.biomarker.molar_mass,
+            valence: row.biomarker.valence,
           })
           if (value !== null) {
             ;(input as Record<string, number>)[marker.key] = value

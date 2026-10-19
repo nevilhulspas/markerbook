@@ -10,6 +10,12 @@ export interface MarkerUnits {
   factors: ReadonlyArray<{ unit: string; conversion_factor: number }>
   loincCode?: string | null
   name?: string | null
+  /** Average molar mass in g/mol (from LOINC → ChEBI/PubChem or a lab convention). */
+  molarMass?: number | null
+  /** Charge number, for mEq ↔ mmol. */
+  valence?: number | null
+  /** Units labs commonly use for this substance (LOINC example units), offered as choices. */
+  typicalUnits?: ReadonlyArray<string>
 }
 
 /** Convert between two units of the same kind (prefix / spelling only). */
@@ -82,6 +88,30 @@ export function convertUnit(
       if (out !== null) return out
     }
   }
+  return viaMolarMass(value, from, to, marker)
+}
+
+/**
+ * Mass ↔ amount ↔ equivalents for one substance: g/L = mol/L × molar mass,
+ * eq/L = mol/L × valence. Null when the marker has no molar mass (or no
+ * valence for eq) or a side is not one of these kinds.
+ */
+function viaMolarMass(value: number, from: string, to: string, marker: MarkerUnits): number | null {
+  const M = marker.molarMass && marker.molarMass > 0 ? marker.molarMass : null
+  const v = marker.valence && marker.valence > 0 ? marker.valence : null
+  const a = parseUnit(from)
+  const b = parseUnit(to)
+  const toMol = (x: number, k: typeof a): number | null => {
+    if (k.kind === 'amount') return x * k.scale
+    if (k.kind === 'mass') return M ? (x * k.scale) / M : null
+    if (k.kind === 'eq') return v ? (x * k.scale) / v : null
+    return null
+  }
+  const mol = toMol(value, a)
+  if (mol === null) return null
+  if (b.kind === 'amount') return mol / b.scale
+  if (b.kind === 'mass') return M ? (mol * M) / b.scale : null
+  if (b.kind === 'eq') return v ? (mol * v) / b.scale : null
   return null
 }
 
@@ -112,6 +142,7 @@ export function inputUnitOptions(marker: MarkerUnits, extra?: string | null): st
   }
   add(marker.catalogueUnit)
   for (const f of marker.factors) add(f.unit)
+  for (const u of marker.typicalUnits ?? []) add(u)
   add(extra)
   return out
 }

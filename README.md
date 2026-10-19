@@ -255,7 +255,8 @@ Found a security problem? Report it privately, see [SECURITY.md](SECURITY.md).
 
 ## Acknowledgements
 
-- [LOINC](https://loinc.org) by Regenstrief Institute for lab test codes
+- [LOINC](https://loinc.org) by Regenstrief Institute for lab test codes, with
+  [ChEBI](https://www.ebi.ac.uk/chebi) and [PubChem](https://pubchem.ncbi.nlm.nih.gov) for molar masses
 - [NEVO](https://www.rivm.nl/en/dutch-food-composition-database) by RIVM and
   [Open Food Facts](https://world.openfoodfacts.org) for food data
 - [shadcn/ui](https://ui.shadcn.com) and [Lucide](https://lucide.dev) for the interface

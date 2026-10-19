@@ -40,6 +40,8 @@ export function buildTrendData(
     unit: row.catalogueUnit ?? row.biomarker.unit,
     loinc_code: row.biomarker.loinc_code,
     name: row.biomarker.name,
+    molar_mass: row.biomarker.molar_mass,
+    valence: row.biomarker.valence,
   }
   const points: TrendDataPoint[] = []
   let skipped = 0

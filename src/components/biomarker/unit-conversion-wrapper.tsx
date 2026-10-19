@@ -37,6 +37,11 @@ interface UnitConversionWrapperProps {
   /** The catalogue unit (`biomarkers.unit`): shown when there is no preference. */
   defaultUnit: string
   loincCode?: string | null
+  /** g/mol, for mass ↔ molar conversion (null when unknown). */
+  molarMass?: number | null
+  valence?: number | null
+  /** The typical mass / molar units for this substance, offered as display units. */
+  typicalUnits?: string[]
   availableUnits: BiomarkerUnit[]
   initialPreference: string | null
   // Reference ranges data
@@ -54,6 +59,9 @@ export function UnitConversionWrapper({
   biomarkerId,
   defaultUnit,
   loincCode,
+  molarMass,
+  valence,
+  typicalUnits,
   availableUnits,
   initialPreference,
   ranges,
@@ -70,16 +78,22 @@ export function UnitConversionWrapper({
   // known units, and a saved preference (one entry per actual unit).
   const unitOptions = useMemo(() => {
     const out: string[] = []
-    for (const u of [defaultUnit, ...availableUnits.map((a) => a.unit), initialPreference]) {
+    for (const u of [defaultUnit, ...availableUnits.map((a) => a.unit), ...(typicalUnits ?? []), initialPreference]) {
       if (u && !out.some((o) => normalizeUnit(o) === normalizeUnit(u))) out.push(u)
     }
     return out
-  }, [defaultUnit, availableUnits, initialPreference])
+  }, [defaultUnit, availableUnits, typicalUnits, initialPreference])
   const hasMultipleUnits = unitOptions.length > 1
 
   const ctx = useMemo(
-    () => ({ unit: defaultUnit, loinc_code: loincCode ?? null, name: markerName }),
-    [defaultUnit, loincCode, markerName]
+    () => ({
+      unit: defaultUnit,
+      loinc_code: loincCode ?? null,
+      name: markerName,
+      molar_mass: molarMass ?? null,
+      valence: valence ?? null,
+    }),
+    [defaultUnit, loincCode, markerName, molarMass, valence]
   )
 
   /** A value in `fromUnit` in the selected unit, or null when that is not possible. */

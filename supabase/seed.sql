@@ -3246,4 +3246,19 @@ WHERE b.loinc_code = '3052-8' AND b.is_custom = false
   );
 
 
+-- Molar masses per marker, from migration 20261019210000. The seed runs with
+-- triggers off (session_replication_role = replica), so fill them here.
+UPDATE public.biomarkers b
+SET molar_mass = a.molar_mass,
+    valence = a.valence,
+    typical_mass_unit = a.mass_unit,
+    typical_molar_unit = a.molar_unit
+FROM public.loinc_analyte_codes c
+JOIN public.loinc_analytes a ON a.part_number = c.part_number
+WHERE c.loinc_code = b.loinc_code
+  AND (b.molar_mass IS DISTINCT FROM a.molar_mass
+    OR b.valence IS DISTINCT FROM a.valence
+    OR b.typical_mass_unit IS DISTINCT FROM a.mass_unit
+    OR b.typical_molar_unit IS DISTINCT FROM a.molar_unit);
+
 RESET ALL;

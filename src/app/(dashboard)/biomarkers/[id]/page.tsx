@@ -27,6 +27,7 @@ import { ContextualInsight } from '@/components/biomarker/contextual-insight'
 import { FavoriteButton } from '@/components/biomarker/favorite-button'
 import { UnitConversionWrapper } from '@/components/biomarker/unit-conversion-wrapper'
 import { convertValue } from '@/lib/grid/unit-conversion'
+import { typicalUnitsFor } from '@/lib/units/result-range'
 import { getFavoriteIds } from '@/actions/favorites'
 import { getUnitPreferences } from '@/actions/unit-preferences'
 import { getLabsForBiomarker } from '@/actions/labs'
@@ -199,6 +200,8 @@ export default async function BiomarkerDetailPage({
       unit: biomarker.unit,
       loinc_code: biomarker.loinc_code,
       name: biomarker.name,
+      molar_mass: biomarker.molar_mass,
+      valence: biomarker.valence,
     })
     return converted === null ? { value, unit } : { value: converted, unit: biomarker.unit }
   }
@@ -271,6 +274,9 @@ export default async function BiomarkerDetailPage({
         biomarkerId={id}
         defaultUnit={biomarker.unit}
         loincCode={biomarker.loinc_code}
+        molarMass={biomarker.molar_mass}
+        valence={biomarker.valence}
+        typicalUnits={typicalUnitsFor(biomarker)}
         availableUnits={biomarker.biomarker_units}
         initialPreference={unitPrefs.get(id) ?? null}
         ranges={biomarker.reference_ranges}
