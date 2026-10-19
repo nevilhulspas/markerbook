@@ -10,7 +10,7 @@ import { throwIfAuthOutage } from '@/lib/supabase/auth-outage'
 import { getRequestUser } from '@/lib/supabase/request-user'
 
 export const metadata: Metadata = {
-  title: 'Conversations | Bloodmarkers',
+  title: 'Conversations | Markerbook',
 }
 
 export default async function ChatsPage() {

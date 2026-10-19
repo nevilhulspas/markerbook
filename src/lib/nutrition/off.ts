@@ -30,7 +30,7 @@ interface OffSearchResponse {
 }
 
 const OFF_BASE = 'https://nl.openfoodfacts.org/cgi/search.pl'
-const USER_AGENT = `BloodmarkersNutrition/1.0 (${contactForUserAgent()})`
+const USER_AGENT = `MarkerbookNutrition/1.0 (${contactForUserAgent()})`
 
 function toNumber(v: unknown): number {
   const n = Number(v)

@@ -16,7 +16,7 @@ export default async function Home() {
     <div className="flex min-h-dvh flex-col items-center justify-center">
       <main className="flex flex-col items-center gap-8 text-center">
         <h1 className="text-4xl font-bold tracking-tight">
-          Bloodmarkers
+          Markerbook
         </h1>
         <p className="max-w-md text-lg text-muted-foreground">
           Track your blood test results over time and get personalized

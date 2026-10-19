@@ -20,7 +20,7 @@ import { RmrTrendChart } from '@/components/body/rmr-trend-chart'
 import { BodyLogForm } from '@/components/body/body-log-form'
 import { BodyLogList } from '@/components/body/body-log-list'
 
-export const metadata: Metadata = { title: 'Body Comp | Bloodmarkers' }
+export const metadata: Metadata = { title: 'Body Comp | Markerbook' }
 
 export default async function BodyCompPage() {
   const [scans, goals, sex, logEntries, rmrTests] = await Promise.all([

@@ -7,7 +7,7 @@ import { getRequestUser } from '@/lib/supabase/request-user'
 import { isGoogleSignInEnabled } from '@/lib/auth/providers'
 
 export const metadata: Metadata = {
-  title: 'Login | Bloodmarkers',
+  title: 'Login | Markerbook',
 }
 
 export default async function LoginPage({

@@ -52,7 +52,7 @@ async function ask(question, fallback = '') {
   return answer || fallback
 }
 
-console.log(bold('\nBloodmarkers setup\n'))
+console.log(bold('\nMarkerbook setup\n'))
 
 // 1. Tools ---------------------------------------------------------------------
 const [major] = process.versions.node.split('.').map(Number)
@@ -109,7 +109,7 @@ if (!flag('no-start')) {
   console.log('  Starting Supabase (the first time downloads the images; this can take a few minutes)…')
   let start = await runTee('supabase', ['start'])
   if (start.status !== 0 && /address pools have been fully subnetted/.test(start.output)) {
-    const net = 'bloodmarkers-net'
+    const net = 'markerbook-net'
     warn(`Docker has no free network range; retrying on its own network "${net}".`)
     if (!ensureOwnNetwork(net)) fail('Could not create a Docker network.', 'Remove unused networks: docker network prune')
     start = await runTee('supabase', ['start', '--network-id', net])

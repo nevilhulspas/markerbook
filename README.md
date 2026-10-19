@@ -1,15 +1,15 @@
 <div align="center">
 
-<img src="docs/assets/logo.svg" width="96" height="96" alt="Bloodmarkers logo">
+<img src="docs/assets/logo.svg" width="96" height="96" alt="Markerbook logo">
 
-# Bloodmarkers
+# Markerbook
 
 **All your lab results in one place. Self-hosted, AI-powered, yours.**
 
-Upload a lab report as PDF or photo. Bloodmarkers reads the values, puts every test
+Upload a lab report as PDF or photo. Markerbook reads the values, puts every test
 on one timeline, and lets you ask an AI assistant about your own data.
 
-[![CI](https://github.com/nevilhulspas/bloodmarkers-public/actions/workflows/ci.yml/badge.svg)](https://github.com/nevilhulspas/bloodmarkers-public/actions/workflows/ci.yml)
+[![CI](https://github.com/nevilhulspas/markerbook/actions/workflows/ci.yml/badge.svg)](https://github.com/nevilhulspas/markerbook/actions/workflows/ci.yml)
 [![License: AGPL v3](https://img.shields.io/badge/license-AGPL%20v3-blue.svg)](LICENSE)
 [![Self-hosted](https://img.shields.io/badge/self--hosted-yes-2ea44f)](docs/SELF_HOSTING.md)
 [![PRs welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
@@ -34,11 +34,11 @@ on one timeline, and lets you ask an AI assistant about your own data.
 </div>
 
 > [!IMPORTANT]
-> **Not a medical device. Not medical advice.** Bloodmarkers organises data you already
+> **Not a medical device. Not medical advice.** Markerbook organises data you already
 > have. Its AI output can be wrong. Talk to a doctor about your health. The software
 > comes without any warranty.
 
-## Why Bloodmarkers?
+## Why Markerbook?
 
 Lab results arrive as PDFs from different labs, in different units, years apart.
 Comparing them by hand is slow, and the trend is what matters.
@@ -181,8 +181,8 @@ You need **Node 22+**, **[Docker](https://www.docker.com/products/docker-desktop
 ### With Claude Code (easiest)
 
 ```bash
-git clone https://github.com/nevilhulspas/bloodmarkers-public.git bloodmarkers
-cd bloodmarkers
+git clone https://github.com/nevilhulspas/markerbook.git markerbook
+cd markerbook
 claude
 ```
 
@@ -192,8 +192,8 @@ key, starts the local database and the app, and tells you where to sign up.
 ### By hand
 
 ```bash
-git clone https://github.com/nevilhulspas/bloodmarkers-public.git bloodmarkers
-cd bloodmarkers
+git clone https://github.com/nevilhulspas/markerbook.git markerbook
+cd markerbook
 npm run setup      # checks your tools, starts the database, writes .env.local
 npm run dev        # http://localhost:3000
 ```
@@ -214,8 +214,8 @@ supabase link --project-ref <your-project-ref>
 supabase db push --include-seed
 docker build --build-arg NEXT_PUBLIC_SUPABASE_URL=... \
   --build-arg NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=... \
-  --build-arg NEXT_PUBLIC_SITE_URL=https://health.example.com -t bloodmarkers .
-docker run -p 3000:3000 --env-file .env.local bloodmarkers
+  --build-arg NEXT_PUBLIC_SITE_URL=https://health.example.com -t markerbook .
+docker run -p 3000:3000 --env-file .env.local markerbook
 ```
 
 ## Tech stack
@@ -266,5 +266,5 @@ Third-party data and their terms are listed in [NOTICE](NOTICE).
 ## License
 
 [GNU Affero General Public License v3.0 or later](LICENSE). You may use, change and
-share Bloodmarkers. If you run a changed version for other people, you must offer
+share Markerbook. If you run a changed version for other people, you must offer
 them its source code too.

@@ -4,7 +4,7 @@ Project conventions for this Next.js + Supabase blood markers app. They apply to
 
 ## First-time setup
 
-If the user asks to install, set up or run Bloodmarkers on a new machine, follow
+If the user asks to install, set up or run Markerbook on a new machine, follow
 [.claude/commands/setup.md](.claude/commands/setup.md) (the `/setup` command). Short
 version: `npm run setup -- --yes --admin-email=<their e-mail> [--anthropic-key=<their key>]`,
 then start the app with `env -u ANTHROPIC_API_KEY -u ANTHROPIC_BASE_URL npm run dev`,

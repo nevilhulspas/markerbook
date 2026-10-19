@@ -53,7 +53,7 @@ export function RegisterForm({ googleEnabled = false }: { googleEnabled?: boolea
       <CardHeader className="text-center">
         <CardTitle className="text-2xl">Create an account</CardTitle>
         <CardDescription>
-          Get started with Bloodmarkers
+          Get started with Markerbook
         </CardDescription>
       </CardHeader>
       <CardContent>

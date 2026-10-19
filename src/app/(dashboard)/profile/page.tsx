@@ -24,7 +24,7 @@ import {
 } from '@/components/ui/card'
 
 export const metadata: Metadata = {
-  title: 'Profile | Bloodmarkers',
+  title: 'Profile | Markerbook',
 }
 
 export default async function ProfilePage() {

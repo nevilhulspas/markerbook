@@ -8,7 +8,7 @@ import { DutchEditForm } from '@/components/dutch/dutch-edit-form'
 import { notFoundOrAuthOutage } from '@/lib/supabase/session'
 
 export const metadata: Metadata = {
-  title: 'Edit DUTCH Test | Bloodmarkers',
+  title: 'Edit DUTCH Test | Markerbook',
 }
 
 export default async function EditDutchTestPage({

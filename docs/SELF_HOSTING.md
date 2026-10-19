@@ -1,11 +1,11 @@
-# Self-hosting Bloodmarkers
+# Self-hosting Markerbook
 
 This guide sets up your own installation: one web app, one Supabase project,
 your own AI keys. Plan about an hour.
 
 > You run this for yourself (and, if you want, people you know). You are
 > responsible for your installation, the data in it, and the AI costs on your
-> keys. Bloodmarkers is not a medical device; see [NOTICE](../NOTICE).
+> keys. Markerbook is not a medical device; see [NOTICE](../NOTICE).
 
 ## 1. What you need
 
@@ -19,8 +19,8 @@ your own AI keys. Plan about an hour.
 ## 2. Try it locally first (optional)
 
 ```bash
-git clone <this repository> bloodmarkers
-cd bloodmarkers
+git clone <this repository> markerbook
+cd markerbook
 npm run setup
 npm run dev
 ```
@@ -86,8 +86,8 @@ docker build \
   --build-arg NEXT_PUBLIC_SUPABASE_URL=... \
   --build-arg NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=... \
   --build-arg NEXT_PUBLIC_SITE_URL=https://health.example.com \
-  -t bloodmarkers .
-docker run -p 3000:3000 --env-file .env.local bloodmarkers
+  -t markerbook .
+docker run -p 3000:3000 --env-file .env.local markerbook
 ```
 
 Put a reverse proxy with HTTPS in front of it (Caddy, Traefik, nginx).
@@ -154,7 +154,7 @@ before you start the new version.
 `ios/` holds a Capacitor shell that loads your web app. To build your own:
 
 1. Set `CAPACITOR_SERVER_URL` to your site and `CAPACITOR_APP_ID` to your own
-   bundle ID (e.g. `com.example.bloodmarkers`).
+   bundle ID (e.g. `com.example.markerbook`).
 2. Open `ios/App/App.xcodeproj`, change the bundle ID, team and the URL scheme
    in `Info.plist` to match.
 3. Run `npx cap sync ios` and build with Xcode.

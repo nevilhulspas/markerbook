@@ -25,7 +25,7 @@ import { throwIfAuthOutage } from '@/lib/supabase/auth-outage'
 import { getRequestUser } from '@/lib/supabase/request-user'
 
 export const metadata: Metadata = {
-  title: 'Marker Grid | Bloodmarkers',
+  title: 'Marker Grid | Markerbook',
 }
 
 export default async function GridPage() {

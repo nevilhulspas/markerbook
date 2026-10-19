@@ -27,7 +27,7 @@ import { notFoundOrAuthOutage } from '@/lib/supabase/session'
 import { getRequestUser } from '@/lib/supabase/request-user'
 
 export const metadata: Metadata = {
-  title: 'DUTCH Marker Detail | Bloodmarkers',
+  title: 'DUTCH Marker Detail | Markerbook',
 }
 
 const CATEGORY_LABELS: Record<string, string> = {

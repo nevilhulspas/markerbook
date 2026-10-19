@@ -34,7 +34,7 @@ import { notFoundOrAuthOutage } from '@/lib/supabase/session'
 import { getRequestUser } from '@/lib/supabase/request-user'
 
 export const metadata: Metadata = {
-  title: 'Biomarker Detail | Bloodmarkers',
+  title: 'Biomarker Detail | Markerbook',
 }
 
 interface BiomarkerWithRelations extends Biomarker {

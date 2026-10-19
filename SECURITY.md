@@ -1,6 +1,6 @@
 # Security
 
-Bloodmarkers stores health data, so security problems matter.
+Markerbook stores health data, so security problems matter.
 
 ## Report a vulnerability
 

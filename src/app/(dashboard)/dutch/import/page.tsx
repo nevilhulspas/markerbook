@@ -4,7 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { DutchImportClient } from '@/components/dutch/dutch-import-client'
 
 export const metadata: Metadata = {
-  title: 'Import DUTCH Test | Bloodmarkers',
+  title: 'Import DUTCH Test | Markerbook',
 }
 
 export default async function DutchImportPage() {

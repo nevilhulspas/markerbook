@@ -6,7 +6,7 @@ import { PageContainer } from '@/components/layout/page-container'
 import { Button } from '@/components/ui/button'
 import { OtherImportClient } from '@/components/other/other-import-client'
 
-export const metadata: Metadata = { title: 'Import test | Bloodmarkers' }
+export const metadata: Metadata = { title: 'Import test | Markerbook' }
 
 export default function OtherImportPage() {
   return (

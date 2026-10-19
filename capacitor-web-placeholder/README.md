@@ -1,6 +1,6 @@
 # iOS shell (Capacitor)
 
-A thin native iOS shell that loads your deployed Bloodmarkers web app in a
+A thin native iOS shell that loads your deployed Markerbook web app in a
 `WKWebView`. No web assets are bundled: the IPA is small and always shows the
 latest deployed version. This folder only exists because the Capacitor CLI
 needs a `webDir`.
@@ -10,7 +10,7 @@ needs a `webDir`.
 Set via `CAPACITOR_SERVER_URL` (see `capacitor.config.ts`):
 
 ```bash
-CAPACITOR_SERVER_URL="https://health.example.com" CAPACITOR_APP_ID="com.example.bloodmarkers" npx cap sync ios
+CAPACITOR_SERVER_URL="https://health.example.com" CAPACITOR_APP_ID="com.example.markerbook" npx cap sync ios
 ```
 
 The host is added to `server.allowNavigation` automatically.

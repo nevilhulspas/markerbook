@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { MicrobiomeImportClient } from '@/components/microbiome/microbiome-import-client'
 
 export const metadata: Metadata = {
-  title: 'Import Microbiome Test | Bloodmarkers',
+  title: 'Import Microbiome Test | Markerbook',
 }
 
 export default function MicrobiomeImportPage() {

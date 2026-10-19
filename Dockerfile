@@ -5,11 +5,11 @@
 #     --build-arg NEXT_PUBLIC_SUPABASE_URL=https://xyz.supabase.co \
 #     --build-arg NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_... \
 #     --build-arg NEXT_PUBLIC_SITE_URL=https://health.example.com \
-#     -t bloodmarkers .
+#     -t markerbook .
 #
 # Pass the secrets only at run time (never as build args):
 #
-#   docker run -p 3000:3000 --env-file .env bloodmarkers
+#   docker run -p 3000:3000 --env-file .env markerbook
 
 FROM node:22-bookworm-slim AS build
 WORKDIR /app

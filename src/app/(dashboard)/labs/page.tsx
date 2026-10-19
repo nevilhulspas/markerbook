@@ -7,7 +7,7 @@ import { LabCard } from '@/components/labs/lab-card'
 import { SuggestLabDialog } from '@/components/labs/suggest-lab-dialog'
 
 export const metadata: Metadata = {
-  title: 'Labs | Bloodmarkers',
+  title: 'Labs | Markerbook',
 }
 
 export default async function LabsPage() {

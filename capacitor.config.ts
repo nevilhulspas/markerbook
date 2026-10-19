@@ -6,7 +6,7 @@ const serverUrl = process.env.CAPACITOR_SERVER_URL ?? 'https://bloodmarkers.natu
 
 const config: CapacitorConfig = {
   appId: process.env.CAPACITOR_APP_ID ?? 'nl.naturalheroes.bloodmarkers',
-  appName: 'Blood Markers',
+  appName: 'Markerbook',
   // For a remote-served wrap we don't bundle web assets in the IPA — the
   // shell loads `server.url` directly. `webDir` is still required by the
   // CLI; point it at a tiny placeholder folder so `cap sync` is happy.

@@ -9,7 +9,7 @@ import { throwIfAuthOutage } from '@/lib/supabase/auth-outage'
 import { getRequestUser } from '@/lib/supabase/request-user'
 
 export const metadata: Metadata = {
-  title: 'Import Genetic Data | Bloodmarkers',
+  title: 'Import Genetic Data | Markerbook',
 }
 
 export default async function GeneticsImportPage() {

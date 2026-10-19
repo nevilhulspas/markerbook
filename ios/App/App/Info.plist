@@ -7,7 +7,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>en</string>
 	<key>CFBundleDisplayName</key>
-        <string>Blood Markers</string>
+        <string>Markerbook</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -40,13 +40,13 @@
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSCameraUsageDescription</key>
-	<string>Blood Markers uses the camera to photograph meals you log and lab reports you attach in the chat.</string>
+	<string>Markerbook uses the camera to photograph meals you log and lab reports you attach in the chat.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>Blood Markers can attach photos from your library to log meals and lab reports in the chat.</string>
+	<string>Markerbook can attach photos from your library to log meals and lab reports in the chat.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
-	<string>Blood Markers saves meal photos so they can be logged and reviewed later.</string>
+	<string>Markerbook saves meal photos so they can be logged and reviewed later.</string>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>Blood Markers uses the microphone so you can log meals by speaking.</string>
+	<string>Markerbook uses the microphone so you can log meals by speaking.</string>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>

@@ -16,7 +16,7 @@ describe('parseRobots / isAllowed', () => {
       'User-agent: *',
       'Disallow: /',
       '',
-      'User-agent: BloodmarkersLabBot',
+      'User-agent: MarkerbookLabBot',
       'Disallow: /cart',
     ].join('\n')
     const rules = parseRobots(body)

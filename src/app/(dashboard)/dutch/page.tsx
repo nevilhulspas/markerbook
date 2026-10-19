@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { DutchTestCard } from '@/components/dutch/dutch-test-card'
 
 export const metadata: Metadata = {
-  title: 'DUTCH Tests | Bloodmarkers',
+  title: 'DUTCH Tests | Markerbook',
 }
 
 export default async function DutchTestsPage() {

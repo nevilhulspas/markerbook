@@ -11,7 +11,7 @@ import { APP_LOCALE } from '@/lib/locale'
 import { notFoundOrAuthOutage } from '@/lib/supabase/session'
 
 export const metadata: Metadata = {
-  title: 'Microbiome Test Detail | Bloodmarkers',
+  title: 'Microbiome Test Detail | Markerbook',
 }
 
 function formatDate(dateString: string): string {

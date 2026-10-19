@@ -3,7 +3,7 @@ import 'server-only'
 import { siteUrl } from '@/lib/site-url'
 
 /** Product token the lab scraper sends and looks for in robots.txt groups. */
-export const LAB_BOT_TOKEN = 'BloodmarkersLabBot'
+export const LAB_BOT_TOKEN = 'MarkerbookLabBot'
 export const LAB_BOT_USER_AGENT = `${LAB_BOT_TOKEN}/1.0 (+${siteUrl()})`
 
 const ROBOTS_TIMEOUT_MS = 5_000

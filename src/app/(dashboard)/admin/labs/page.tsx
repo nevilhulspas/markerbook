@@ -5,7 +5,7 @@ import { getAdminBiomarkers } from '@/actions/admin/biomarkers'
 import { LabAdminTable } from '@/components/admin/labs/lab-admin-table'
 
 export const metadata: Metadata = {
-  title: 'Lab Directory | Bloodmarkers',
+  title: 'Lab Directory | Markerbook',
 }
 
 export default async function AdminLabsPage() {

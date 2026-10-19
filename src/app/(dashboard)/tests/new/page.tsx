@@ -8,7 +8,7 @@ import { BloodTestForm } from '@/components/tests/blood-test-form'
 import type { BloodTestFormValues } from '@/lib/validations/blood-test'
 
 export const metadata: Metadata = {
-  title: 'New Blood Test | Bloodmarkers',
+  title: 'New Blood Test | Markerbook',
 }
 
 export default async function NewTestPage() {

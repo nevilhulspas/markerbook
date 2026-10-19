@@ -1,8 +1,8 @@
 ---
-description: Install Bloodmarkers on this computer and start it (local database, keys, first admin account)
+description: Install Markerbook on this computer and start it (local database, keys, first admin account)
 ---
 
-Set up Bloodmarkers for the user on this computer. They may not be technical: tell them
+Set up Markerbook for the user on this computer. They may not be technical: tell them
 what you do in plain words, one short line per step, and ask only what you cannot find out.
 
 ## 1. Check the tools
@@ -42,8 +42,8 @@ If it fails:
 - **Port already in use** → another Supabase project runs. `supabase stop --project-id <name>`
   (find the name with `docker ps`), or ask the user.
 - **"all predefined address pools have been fully subnetted"** → Docker has no free network
-  range. The setup already retries on its own network `bloodmarkers-net`; later starts
-  need `supabase start --network-id bloodmarkers-net`.
+  range. The setup already retries on its own network `markerbook-net`; later starts
+  need `supabase start --network-id markerbook-net`.
 
 ## 4. Start the app
 

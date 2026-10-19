@@ -72,7 +72,7 @@ enum LogFoodMode: String, AppEnum {
 struct LogFoodIntent: AppIntent, ForegroundContinuableIntent {
     static var title: LocalizedStringResource = "Log Food"
     static var description = IntentDescription(
-        "Logs a meal to Bloodmarkers. Speak opens the in-app recorder; Photo opens the camera to scan a plate; Write logs in the background without opening the app. If Meal is provided (e.g. from Dictate Text), it is logged directly and Method is ignored."
+        "Logs a meal to Markerbook. Speak opens the in-app recorder; Photo opens the camera to scan a plate; Write logs in the background without opening the app. If Meal is provided (e.g. from Dictate Text), it is logged directly and Method is ignored."
     )
     static var openAppWhenRun: Bool = false
 
@@ -171,12 +171,12 @@ struct LogFoodIntent: AppIntent, ForegroundContinuableIntent {
         do {
             (data, response) = try await URLSession.shared.data(for: request)
         } catch {
-            return (nil, "Couldn't reach Bloodmarkers — check your connection and try again.")
+            return (nil, "Couldn't reach Markerbook — check your connection and try again.")
         }
 
         let status = (response as? HTTPURLResponse)?.statusCode ?? 0
         if status == 401 {
-            return (nil, "You're signed out — open Blood Markers once to sign in, then try again.")
+            return (nil, "You're signed out — open Markerbook once to sign in, then try again.")
         }
         guard (200..<300).contains(status) else {
             return (nil, "Couldn't log that meal (server error \(status)) — try again.")
@@ -214,7 +214,7 @@ struct LogFoodIntent: AppIntent, ForegroundContinuableIntent {
 struct LogFoodByVoiceIntent: AppIntent {
     static var title: LocalizedStringResource = "Open Voice Recorder"
     static var description = IntentDescription(
-        "Opens Bloodmarkers on the focused capture screen with the voice recorder running."
+        "Opens Markerbook on the focused capture screen with the voice recorder running."
     )
     static var openAppWhenRun: Bool = true
 
@@ -229,7 +229,7 @@ struct LogFoodByVoiceIntent: AppIntent {
 /// automatically (no user setup), work with Siri via the phrases below, and
 /// can be bound to Back Tap, the Action Button, or a Control Center control.
 @available(iOS 17.0, *)
-struct BloodmarkersAppShortcuts: AppShortcutsProvider {
+struct MarkerbookAppShortcuts: AppShortcutsProvider {
     static var appShortcuts: [AppShortcut] {
         AppShortcut(
             intent: LogFoodIntent(),

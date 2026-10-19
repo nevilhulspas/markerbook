@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { OtherTestCard } from '@/components/other/other-test-card'
 
-export const metadata: Metadata = { title: 'Other tests | Bloodmarkers' }
+export const metadata: Metadata = { title: 'Other tests | Markerbook' }
 
 export default async function OtherTestsPage() {
   const tests = await getOtherTests()

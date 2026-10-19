@@ -14,7 +14,7 @@ vi.mock('@/lib/labs/url-guard', () => ({
 // fetch call counts below only count page fetches.
 const { mockRobotsAllows } = vi.hoisted(() => ({ mockRobotsAllows: vi.fn(async () => true) }))
 vi.mock('@/lib/labs/robots', () => ({
-  LAB_BOT_USER_AGENT: 'BloodmarkersLabBot/1.0 (+http://localhost:3000)',
+  LAB_BOT_USER_AGENT: 'MarkerbookLabBot/1.0 (+http://localhost:3000)',
   robotsAllows: mockRobotsAllows,
 }))
 
