@@ -1,0 +1,842 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`health-record tool contract > keeps every description and input schema byte-identical 1`] = `
+"{
+  "list_blood_tests": {
+    "description": "List the user's logged blood tests (id, name, date, sample type, marker count), newest first. Freely callable — call this FIRST to get test ids before reading, editing or deleting, and to check whether a test already exists on a date before creating a new one.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {},
+      "additionalProperties": false
+    }
+  },
+  "get_blood_test": {
+    "description": "Read one blood test with ALL its marker results (catalog marker name, value, unit). Freely callable. Use the exact returned marker names when correcting or removing results.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "testId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "testId"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "create_blood_test": {
+    "description": "Create a NEW blood test with marker results (markers passed by name; matching is automatic — markers are matched to your catalog, resolved to a standard code, or, if neither works, added as a CUSTOM marker, so nothing is dropped). Use ONLY when no test exists for that date — if one does, prefer add_blood_results on it. If a same-date test exists this tool refuses unless \`allowDuplicateDate\` is true (set it only after the user explicitly chose a separate test). Names in \`custom\` were added as new custom markers — mention them to the user as \\"added as a custom marker\\" (never say \\"LOINC\\"). Only genuine failures (empty name / DB error) come back in \`unmatched\`.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "test_date": {
+          "type": "string",
+          "format": "date",
+          "pattern": "^(?:(?:\\\\d\\\\d[2468][048]|\\\\d\\\\d[13579][26]|\\\\d\\\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\\\d|30)|(?:02)-(?:0[1-9]|1\\\\d|2[0-8])))$",
+          "description": "YYYY-MM-DD"
+        },
+        "name": {
+          "description": "Defaults to \\"Blood test <date>\\".",
+          "type": "string",
+          "maxLength": 200
+        },
+        "sample_type": {
+          "type": "string",
+          "enum": [
+            "serum",
+            "plasma",
+            "unknown"
+          ]
+        },
+        "notes": {
+          "type": "string",
+          "maxLength": 1000
+        },
+        "markers": {
+          "minItems": 1,
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "minLength": 1,
+                "description": "Biomarker name (catalog name, short name or common alias — e.g. \\"Ferritin\\", \\"HbA1c\\", \\"Vitamin D\\")."
+              },
+              "value": {
+                "type": "number",
+                "minimum": 0
+              },
+              "unit": {
+                "description": "Unit as reported. Omit to use the catalog default unit.",
+                "type": "string"
+              },
+              "loinc_code": {
+                "description": "LOINC code for this marker when you are confident of it (e.g. \\"2692-2\\" = Serum Osmolality, \\"1649-3\\" = Calcitriol/active vitamin D, \\"2629-4\\" = Methylmalonate, \\"27200-5\\" = ANA). Strongly recommended for specialty markers that aren't common catalog entries — it lets them auto-resolve and add instead of being dropped. The code is validated against the LOINC database, so a wrong guess is safely ignored (falls back to name matching); omit it when unsure.",
+                "type": "string",
+                "pattern": "^\\\\d{1,7}-\\\\d$"
+              }
+            },
+            "required": [
+              "name",
+              "value"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "allowDuplicateDate": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "test_date",
+        "markers"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "add_blood_results": {
+    "description": "Add marker results to an EXISTING blood test (get the id from list_blood_tests). Markers already on the test get their value REPLACED (use this to correct wrong values or complete a partial test — e.g. \\"the remaining results from June 1st\\"); new markers are added. Matching is automatic: catalog match, standard-code resolve, or, failing both, added as a CUSTOM marker. Deduplication is automatic. Names in \`custom\` were added as new custom markers — mention them to the user as \\"added as a custom marker\\" (never say \\"LOINC\\"). Only genuine failures come back in \`unmatched\`.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "testId": {
+          "type": "string"
+        },
+        "markers": {
+          "minItems": 1,
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "minLength": 1,
+                "description": "Biomarker name (catalog name, short name or common alias — e.g. \\"Ferritin\\", \\"HbA1c\\", \\"Vitamin D\\")."
+              },
+              "value": {
+                "type": "number",
+                "minimum": 0
+              },
+              "unit": {
+                "description": "Unit as reported. Omit to use the catalog default unit.",
+                "type": "string"
+              },
+              "loinc_code": {
+                "description": "LOINC code for this marker when you are confident of it (e.g. \\"2692-2\\" = Serum Osmolality, \\"1649-3\\" = Calcitriol/active vitamin D, \\"2629-4\\" = Methylmalonate, \\"27200-5\\" = ANA). Strongly recommended for specialty markers that aren't common catalog entries — it lets them auto-resolve and add instead of being dropped. The code is validated against the LOINC database, so a wrong guess is safely ignored (falls back to name matching); omit it when unsure.",
+                "type": "string",
+                "pattern": "^\\\\d{1,7}-\\\\d$"
+              }
+            },
+            "required": [
+              "name",
+              "value"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": [
+        "testId",
+        "markers"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "remove_blood_results": {
+    "description": "Remove specific marker results from a blood test by marker name (e.g. a marker logged by mistake). The test itself stays. Use only on explicit user request.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "testId": {
+          "type": "string"
+        },
+        "markerNames": {
+          "minItems": 1,
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      },
+      "required": [
+        "testId",
+        "markerNames"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "update_blood_test": {
+    "description": "Update a blood test's metadata (name, date, sample type, notes) — marker results stay untouched. Only the provided fields change.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "testId": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string",
+          "maxLength": 200
+        },
+        "test_date": {
+          "type": "string",
+          "format": "date",
+          "pattern": "^(?:(?:\\\\d\\\\d[2468][048]|\\\\d\\\\d[13579][26]|\\\\d\\\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\\\d|30)|(?:02)-(?:0[1-9]|1\\\\d|2[0-8])))$"
+        },
+        "sample_type": {
+          "type": "string",
+          "enum": [
+            "serum",
+            "plasma",
+            "unknown"
+          ]
+        },
+        "notes": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 1000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "testId"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "delete_blood_test": {
+    "description": "Delete a whole blood test and ALL its marker results. IRREVERSIBLE — only after the user explicitly confirmed deleting THIS test (restate its name + date first).",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "testId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "testId"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "attach_document_to_record": {
+    "description": "Link the file uploaded on THIS message (PDF or image) to an existing record (blood / DEXA / microbiome / DUTCH / RMR test) as its source document, REPLACING any previously linked file. Results are NOT changed — to also update results from a fuller report, additionally call add_blood_results. If the record already has a linked file, confirm the replacement with the user first.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "recordType": {
+          "type": "string",
+          "enum": [
+            "blood",
+            "dexa",
+            "microbiome",
+            "dutch",
+            "rmr"
+          ]
+        },
+        "recordId": {
+          "type": "string"
+        },
+        "attachmentIndex": {
+          "description": "Which attachment on the message (0-based). Defaults to the last one.",
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        }
+      },
+      "required": [
+        "recordType",
+        "recordId"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "list_health_tests": {
+    "description": "List the user's DEXA scans, microbiome tests, DUTCH tests or RMR tests (id + date + key fields), newest first, one page at a time. \`total\` is the full count; while \`truncated\` is true, call again with \`offset: next_offset\` until it is false. Freely callable — get ids here before get/update/delete.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "dexa",
+            "microbiome",
+            "dutch",
+            "rmr"
+          ]
+        },
+        "offset": {
+          "description": "Skip this many newest tests (paging).",
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        }
+      },
+      "required": [
+        "type"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "get_health_test": {
+    "description": "Read one DEXA scan (with body regions), microbiome test (with scores + taxa results), DUTCH test (with hormone results + computed ratios) or RMR test in full. Freely callable.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "dexa",
+            "microbiome",
+            "dutch",
+            "rmr"
+          ]
+        },
+        "id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "id"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "update_health_test": {
+    "description": "Update a DEXA / microbiome / DUTCH / RMR test: metadata (name, date, notes, provider/lab name, sample type, menstrual phase) and/or numeric values via \`values\` (DEXA: body_fat_pct, lean_mass_g, total_mass_kg, visceral_fat_g, etc.; RMR: rmr_kcal, rer, fuel pcts; DUTCH: cycle_day). Only provided fields change. To fix individual microbiome taxa or DUTCH hormone results, re-upload the report instead.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "dexa",
+            "microbiome",
+            "dutch",
+            "rmr"
+          ]
+        },
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "description": "Not for DEXA (scans have no name).",
+          "type": "string",
+          "maxLength": 200
+        },
+        "date": {
+          "type": "string",
+          "format": "date",
+          "pattern": "^(?:(?:\\\\d\\\\d[2468][048]|\\\\d\\\\d[13579][26]|\\\\d\\\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\\\d|30)|(?:02)-(?:0[1-9]|1\\\\d|2[0-8])))$"
+        },
+        "notes": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 1000
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "provider": {
+          "description": "DEXA/RMR provider.",
+          "type": "string"
+        },
+        "lab_name": {
+          "description": "Microbiome lab name.",
+          "type": "string"
+        },
+        "sample_type": {
+          "description": "Microbiome sample type.",
+          "type": "string"
+        },
+        "menstrual_phase": {
+          "description": "DUTCH only.",
+          "type": "string",
+          "enum": [
+            "follicular",
+            "luteal",
+            "postmenopausal",
+            "oral_progesterone",
+            "oral_contraceptive",
+            "male",
+            "unknown"
+          ]
+        },
+        "values": {
+          "description": "Numeric fields to set (whitelisted per type).",
+          "type": "object",
+          "propertyNames": {
+            "type": "string"
+          },
+          "additionalProperties": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        }
+      },
+      "required": [
+        "type",
+        "id"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "delete_health_test": {
+    "description": "Delete a DEXA scan, microbiome test, DUTCH test or RMR test including all its results/regions. IRREVERSIBLE — only after the user explicitly confirmed deleting THIS test (restate type + date first).",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "dexa",
+            "microbiome",
+            "dutch",
+            "rmr"
+          ]
+        },
+        "id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "id"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "list_body_log": {
+    "description": "Read the user's manual body log (weight, body-fat %, waist per date), newest first. Freely callable.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "limit": {
+          "description": "Defaults to 60 entries.",
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 365
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "log_body_entry": {
+    "description": "Log weight / body-fat % / waist for a date (defaults to today). If an entry already exists for that date, the provided fields UPDATE it (no duplicates) — so this also corrects earlier entries. At least one metric is required.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "logged_on": {
+          "description": "YYYY-MM-DD, defaults to today.",
+          "type": "string",
+          "format": "date",
+          "pattern": "^(?:(?:\\\\d\\\\d[2468][048]|\\\\d\\\\d[13579][26]|\\\\d\\\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\\\d|30)|(?:02)-(?:0[1-9]|1\\\\d|2[0-8])))$"
+        },
+        "weight_kg": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "body_fat_pct": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "waist_cm": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "notes": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "delete_body_log_entry": {
+    "description": "Delete one body-log entry by id (from list_body_log). Use only on explicit user request.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "list_food_logs": {
+    "description": "Read the user's food log entries over the last N days (newest first): name, macros, meal type, grams. Freely callable — get ids here before editing/deleting entries.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "days": {
+          "description": "Window in days, defaults to 7.",
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 90
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "log_food_entry": {
+    "description": "Log a food entry with explicit macros (manual entry — no food-database matching). Use when the user states what they ate WITH macros, or you estimated macros together. Defaults to today.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "food_name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "entry_date": {
+          "description": "YYYY-MM-DD, defaults to today.",
+          "type": "string",
+          "format": "date",
+          "pattern": "^(?:(?:\\\\d\\\\d[2468][048]|\\\\d\\\\d[13579][26]|\\\\d\\\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\\\d|30)|(?:02)-(?:0[1-9]|1\\\\d|2[0-8])))$"
+        },
+        "meal_type": {
+          "type": "string",
+          "enum": [
+            "breakfast",
+            "lunch",
+            "dinner",
+            "snack"
+          ]
+        },
+        "grams": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "calories": {
+          "type": "number",
+          "minimum": 0
+        },
+        "protein_g": {
+          "type": "number",
+          "minimum": 0
+        },
+        "carbs_g": {
+          "type": "number",
+          "minimum": 0
+        },
+        "fat_g": {
+          "type": "number",
+          "minimum": 0
+        },
+        "fiber_g": {
+          "type": "number",
+          "minimum": 0
+        },
+        "sugar_g": {
+          "type": "number",
+          "minimum": 0
+        },
+        "sodium_mg": {
+          "type": "number",
+          "minimum": 0
+        },
+        "saturated_fat_g": {
+          "type": "number",
+          "minimum": 0
+        },
+        "notes": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "food_name"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "update_food_log": {
+    "description": "Update a food log entry by id (from list_food_logs): rename, fix macros, change meal type or move to another date. Only the provided fields change (macros are NOT auto-rescaled when grams change — pass corrected macros too).",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "food_name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "entry_date": {
+          "type": "string",
+          "format": "date",
+          "pattern": "^(?:(?:\\\\d\\\\d[2468][048]|\\\\d\\\\d[13579][26]|\\\\d\\\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\\\d|30)|(?:02)-(?:0[1-9]|1\\\\d|2[0-8])))$"
+        },
+        "meal_type": {
+          "anyOf": [
+            {
+              "type": "string",
+              "enum": [
+                "breakfast",
+                "lunch",
+                "dinner",
+                "snack"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "grams": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "calories": {
+          "anyOf": [
+            {
+              "type": "number",
+              "minimum": 0
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "protein_g": {
+          "anyOf": [
+            {
+              "type": "number",
+              "minimum": 0
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "carbs_g": {
+          "anyOf": [
+            {
+              "type": "number",
+              "minimum": 0
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "fat_g": {
+          "anyOf": [
+            {
+              "type": "number",
+              "minimum": 0
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "fiber_g": {
+          "anyOf": [
+            {
+              "type": "number",
+              "minimum": 0
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "sugar_g": {
+          "anyOf": [
+            {
+              "type": "number",
+              "minimum": 0
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "sodium_mg": {
+          "anyOf": [
+            {
+              "type": "number",
+              "minimum": 0
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "saturated_fat_g": {
+          "anyOf": [
+            {
+              "type": "number",
+              "minimum": 0
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "notes": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "id"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "delete_food_log": {
+    "description": "Delete a food log entry by id (soft delete — it disappears from the log). Use only on explicit user request.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "get_nutrition_targets": {
+    "description": "Read the user's daily nutrition targets (calories, protein, carbs, fat). Freely callable.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {},
+      "additionalProperties": false
+    }
+  },
+  "set_nutrition_targets": {
+    "description": "Set the user's daily nutrition targets. Only the provided fields change; pass null to clear one. Use only on explicit user request.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "calories": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "protein_g": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "carbs_g": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "fat_g": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}"
+`;
+
+exports[`health-record tool contract > keeps the tool names in their exact order 1`] = `
+[
+  "list_blood_tests",
+  "get_blood_test",
+  "create_blood_test",
+  "add_blood_results",
+  "remove_blood_results",
+  "update_blood_test",
+  "delete_blood_test",
+  "attach_document_to_record",
+  "list_health_tests",
+  "get_health_test",
+  "update_health_test",
+  "delete_health_test",
+  "list_body_log",
+  "log_body_entry",
+  "delete_body_log_entry",
+  "list_food_logs",
+  "log_food_entry",
+  "update_food_log",
+  "delete_food_log",
+  "get_nutrition_targets",
+  "set_nutrition_targets",
+]
+`;

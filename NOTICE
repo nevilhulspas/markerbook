@@ -1,0 +1,54 @@
+Bloodmarkers
+Copyright (C) 2026 Nevil Hulspas
+
+This program is free software: you can redistribute it and/or modify it under
+the terms of the GNU Affero General Public License as published by the Free
+Software Foundation, either version 3 of the License, or (at your option) any
+later version. See LICENSE.
+
+This program is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE.
+
+Bloodmarkers is a tool to organise your own lab data. It is not a medical
+device and it does not give medical advice. AI output can be wrong.
+
+-------------------------------------------------------------------------------
+Third-party content and data
+-------------------------------------------------------------------------------
+
+LOINC
+  The biomarker catalogue in supabase/seed.sql contains LOINC codes, and the
+  optional script scripts/loinc/import-loinc-terms.ts loads the LOINC table you
+  download yourself.
+
+  This material contains content from LOINC (https://loinc.org). LOINC is
+  copyright (c) Regenstrief Institute, Inc. and the Logical Observation
+  Identifiers Names and Codes (LOINC) Committee and is available at no cost
+  under the license at https://loinc.org/license. LOINC(R) is a registered
+  United States trademark of Regenstrief Institute, Inc.
+
+NEVO (Dutch food composition database, RIVM)
+  Not included in this repository. scripts/seed-nevo.ts loads the NEVO CSV
+  that you download yourself from https://www.rivm.nl/en/dutch-food-composition-database
+  after accepting the RIVM conditions of use. Those conditions require the
+  source reference shown in the app ("Food data: NEVO (RIVM)") and do not
+  allow charging end users for the use of NEVO data.
+
+Open Food Facts
+  The nutrition features query the Open Food Facts API at run time. Open Food
+  Facts data is available under the Open Database License (ODbL) 1.0,
+  https://opendatacommons.org/licenses/odbl/1-0/.
+
+DUTCH
+  "DUTCH" (Dried Urine Test for Comprehensive Hormones) is a test by Precision
+  Analytical, Inc. This project is not affiliated with Precision Analytical.
+  The DUTCH reference values in supabase/seed.sql are labelled
+  "dutch-sample-report": they are placeholders based on a sample report, not
+  official ranges. Use the ranges printed on your own report.
+
+Reference ranges
+  The reference ranges in supabase/seed.sql are general adult ranges for
+  orientation only. Ranges with source "optimal-functional" or
+  "functional-medicine" are opinions from integrative-medicine literature
+  without a single cited source. Your lab's own ranges take priority.

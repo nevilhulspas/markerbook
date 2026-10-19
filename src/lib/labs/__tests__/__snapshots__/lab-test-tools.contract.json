@@ -1,0 +1,358 @@
+[
+  {
+    "name": "list_lab_tests",
+    "description": "List the FULL test catalogue offered by one or more approved labs in a single call — every test with its metadata (method, cost, sample, turnaround), the analyzing-lab provider when outsourced (e.g. a partner reference lab like Biovis Diagnostik MVZ GmbH), and the biomarkers each test covers. Use this for broad or comprehensive requests (e.g. \"a general health check\", \"everything relevant at Bodimed and Lina\") so you see the whole catalogue at once and pick from it, instead of many narrow lab_test_finder calls. For a targeted \"does lab X offer biomarker Y?\" check, use lab_test_finder instead.",
+    "hasExecute": true,
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "labs": {
+          "minItems": 1,
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Lab names to list in full, e.g. [\"Bodimed\", \"Lina\"]."
+        }
+      },
+      "required": [
+        "labs"
+      ],
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "lab_test_finder",
+    "description": "Look up which approved labs offer which tests, with metadata (method, cost, sample, turnaround) and the biomarkers each test covers. Filter by lab name(s) and optionally by a name query and/or catalogue biomarker names. Use this to discover what is actually available before recommending or listing tests.",
+    "hasExecute": true,
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "labs": {
+          "minItems": 1,
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Lab names to search, e.g. [\"Bodimed\", \"Lina\"]."
+        },
+        "query": {
+          "description": "Optional case-insensitive substring to match in the test name.",
+          "type": "string"
+        },
+        "biomarkers": {
+          "description": "Optional catalogue biomarker names/short-names; only tests covering one of these are returned.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "limit": {
+          "description": "Max tests per lab (default 50, max 200).",
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
+        }
+      },
+      "required": [
+        "labs"
+      ],
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "build_lab_test_lists",
+    "description": "Finalize one or more per-lab test lists for the user to download and hand to each lab. Only include tests you have confirmed (via lab_test_finder) are offered by that lab. The chat renders each list as a downloadable card (PDF + TXT).",
+    "hasExecute": true,
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "title": {
+          "description": "Optional overall title, e.g. \"Tests to request — May 2026\".",
+          "type": "string"
+        },
+        "lists": {
+          "minItems": 1,
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "labName": {
+                "type": "string"
+              },
+              "items": {
+                "minItems": 1,
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "testName": {
+                      "type": "string"
+                    },
+                    "reason": {
+                      "description": "Optional one-line rationale grounded in the user data.",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "testName"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            },
+            "required": [
+              "labName",
+              "items"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "format": {
+          "description": "Output formatting when the user asks for it — e.g. only name+cost, sort by cost, hide unavailable. The user can also tweak this on the download card afterwards.",
+          "type": "object",
+          "properties": {
+            "columns": {
+              "description": "Optional columns besides the test name. Omit for all.",
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": [
+                  "method",
+                  "cost",
+                  "sample",
+                  "turnaround",
+                  "reason"
+                ]
+              }
+            },
+            "sort": {
+              "description": "Row order: keep your order (default), by name, or by cost.",
+              "type": "string",
+              "enum": [
+                "default",
+                "name",
+                "cost_asc",
+                "cost_desc"
+              ]
+            },
+            "hideUnavailable": {
+              "description": "Drop tests the lab does not offer (and their \"not available\" text).",
+              "type": "boolean"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "lists"
+      ],
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "ask_user",
+    "description": "Ask the user a single multiple-choice question and wait for their answer before continuing. Use this to clarify scope or preferences (e.g. which focus areas to include, how detailed the list should be) instead of guessing. Provide 2–6 concise options.",
+    "hasExecute": false,
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "question": {
+          "type": "string",
+          "description": "The question to show the user."
+        },
+        "options": {
+          "minItems": 2,
+          "maxItems": 6,
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "The answer choices."
+        },
+        "multiple": {
+          "description": "If true, the user may select several options.",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "question",
+        "options"
+      ],
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "list_next_to_test_lists",
+    "description": "Read the user's next-to-test LISTS themselves (not their entries) — each list's name and how many pending items it holds. ALWAYS call this BEFORE adding anything, so you can add to an existing list (by passing its name as `listName`) or ask the user which one, instead of inventing a brand-new list. Freely callable.",
+    "hasExecute": true,
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {},
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "list_next_to_test",
+    "description": "Read the user's next-to-test lists. Returns entries (biomarker or lab_test) the user has saved for later ordering. Default status filter is 'pending'.",
+    "hasExecute": true,
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "listName": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "pending",
+            "done",
+            "all"
+          ]
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "add_to_next_to_test",
+    "description": "Save a test the user wants to remember to order. PREFER the biomarker form (just biomarkerName) — this saves the test lab-agnostically and lets them choose a lab later. Only use the lab-test form (labName + testName) when the user has EXPLICITLY named a specific lab in their message. Pass `sampleType` ('blood' | 'urine' | 'stool' | 'saliva' | 'hair' | 'serum' | 'plasma') when the catalogue has multiple variants and the user implied a sample — e.g. DHEA-S blood vs DHEA-S (Urine), Cortisol serum vs Cortisol (Saliva). Default assumption when the user doesn't specify is 'blood' for routine markers. If the user just names a test and you're unsure whether to save it lab-agnostically or pin it to a lab, FIRST call ask_user with options like 'Save lab-agnostically (decide later)' and one option per lab that offers this test — never silently pick a lab on the user's behalf. If the test isn't in our catalogue (neither a known biomarker nor an approved lab-test), it is saved AUTOMATICALLY as a free-text custom entry (returned with `kind:'custom'`) — never refuse a test just because it's not in the catalogue. Use ONLY when the user explicitly says 'add this to my list', 'remember to test X', or similar.",
+    "hasExecute": true,
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "biomarkerName": {
+          "type": "string"
+        },
+        "labName": {
+          "type": "string"
+        },
+        "testName": {
+          "type": "string"
+        },
+        "sampleType": {
+          "type": "string",
+          "enum": [
+            "blood",
+            "serum",
+            "plasma",
+            "urine",
+            "stool",
+            "saliva",
+            "hair"
+          ]
+        },
+        "listName": {
+          "type": "string"
+        },
+        "note": {
+          "type": "string"
+        },
+        "dueDate": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "add_many_to_next_to_test",
+    "description": "Add MANY tests to a next-to-test list in a single call. STRONGLY PREFER this over looping `add_to_next_to_test` when the user asks to save more than a couple of items (e.g. 'add my full panel', 'save all the cardio markers') — it does one round-trip and reports per-item outcomes, so a single ambiguous entry doesn't unravel the rest. Each item just needs a name: { biomarkerName } (lab-agnostic, preferred) — or { testName } on its own for a specialty/uncatalogued test. `labName` is OPTIONAL; add it (with testName) ONLY to pin to a specific lab. A name not in the catalogue is saved as a free-text custom entry — never require a lab for that. Per-item `sampleType` ('blood' | 'urine' | 'stool' | 'saliva' | 'hair' | 'serum' | 'plasma') narrows variants — pass 'blood' on routine markers by default. Same listName/note/dueDate apply to every item. Tests not in our catalogue are saved automatically as free-text custom entries (no failure). Returns a results array AND a summary counting added/added_custom/duplicate/ambiguous/error (`added` includes `added_custom`; `added_custom` is the subset saved as free-text) — after which you should briefly tell the user what got added (noting how many were saved as custom), what was a duplicate, and which were ambiguous and need resolution; do not loop with single-add to retry.",
+    "hasExecute": true,
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "items": {
+          "minItems": 1,
+          "maxItems": 100,
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "biomarkerName": {
+                "type": "string"
+              },
+              "testName": {
+                "type": "string"
+              },
+              "labName": {
+                "type": "string"
+              },
+              "sampleType": {
+                "type": "string",
+                "enum": [
+                  "blood",
+                  "serum",
+                  "plasma",
+                  "urine",
+                  "stool",
+                  "saliva",
+                  "hair"
+                ]
+              }
+            },
+            "additionalProperties": false
+          },
+          "description": "Items to add. 1–100 per call."
+        },
+        "listName": {
+          "type": "string"
+        },
+        "note": {
+          "type": "string"
+        },
+        "dueDate": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "items"
+      ],
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "mark_next_to_test_done",
+    "description": "Mark a next-to-test entry as done. Use ONLY when the user explicitly confirms they have tested it; otherwise leave the entry pending.",
+    "hasExecute": true,
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "entryId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "entryId"
+      ],
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "remove_from_next_to_test",
+    "description": "Remove a next-to-test entry by id. Use when the user changes their mind about a saved item, wants to swap it (e.g. 'I prefer Lina, not BODIMED' — remove the old entry then call add_to_next_to_test for the new lab), or asks to clear it from the list. Only the entry owner's id should be passed; the tool refuses cross-user access.",
+    "hasExecute": true,
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "type": "object",
+      "properties": {
+        "entryId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "entryId"
+      ],
+      "additionalProperties": false
+    }
+  }
+]

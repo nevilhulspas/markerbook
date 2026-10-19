@@ -1,0 +1,61 @@
+name: CI
+
+# Lint, typecheck, unit tests and a production build on every PR to main.
+# Before this, types and tests ran nowhere: type errors only surfaced in the
+# production build after merge, and test failures not at all.
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: lint · typecheck · test · build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      # Several modules build their Supabase/Anthropic/OpenAI client at import
+      # time, and `next build` imports every route to collect page data, so
+      # these must be set. The build never calls those services: placeholders
+      # are enough, and no real secret is exposed to PR workflows.
+      NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: placeholder-publishable-key
+      SUPABASE_SECRET_KEY: placeholder-secret-key
+      ANTHROPIC_API_KEY: placeholder-anthropic-key
+      OPENAI_API_KEY: placeholder-openai-key
+      NEXT_PUBLIC_SITE_URL: http://localhost:3000
+      NEXT_TELEMETRY_DISABLED: '1'
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci --no-audit --no-fund
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Test
+        run: npm test
+
+      - name: Build
+        run: npm run build
+
+      - name: Bundle size per route
+        if: success()
+        run: node scripts/measure-bundles.mjs >> "$GITHUB_STEP_SUMMARY"

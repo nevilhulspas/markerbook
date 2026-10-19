@@ -1,0 +1,62 @@
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# dependencies
+/node_modules
+/.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+
+# testing
+/coverage
+
+# next.js
+/.next/
+/out/
+
+# production
+/build
+
+# misc
+.DS_Store
+*.pem
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# env files (can opt-in for committing if needed)
+.env*
+!.env.example
+
+# vercel
+.vercel
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts
+
+# capacitor / ios (build artifacts; the App project itself is committed).
+# Capacitor 7+ uses Swift Package Manager — no Pods/ folder.
+ios/App/App.xcodeproj/xcuserdata/
+ios/App/App.xcodeproj/project.xcworkspace/xcuserdata/
+ios/App/build/
+ios/DerivedData/
+ios/App/output/
+*.xcuserstate
+ios/App/App.xcodeproj/project.xcworkspace/swiftpm/
+
+# Claude Code runtime state
+.claude/
+
+# Superpowers brainstorming visual-companion artifacts
+.superpowers/
+
+# AUT-904 LOINC matcher local cache (17MB lab-active term dump; regenerated from
+# the loinc_terms table on demand). The candidates JSON is committed; this is not.
+docs/loinc/mapping/loinc-lab-active.json
