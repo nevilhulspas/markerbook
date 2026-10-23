@@ -80,7 +80,7 @@ export function libraryItemFromRecipe(r: Recipe): LibraryItem | null {
 }
 
 // ---------------------------------------------------------------------------
-// Normalisation (ported from caltrack library.ts)
+// Normalisation
 // ---------------------------------------------------------------------------
 
 export function normalizeName(s: string): string {
@@ -94,7 +94,7 @@ export function normalizeName(s: string): string {
 }
 
 // ---------------------------------------------------------------------------
-// Library matching (faithful port of caltrack findLibraryMatch)
+// Library matching
 // ---------------------------------------------------------------------------
 
 export function findLibraryMatch(query: string, items: LibraryItem[]): LibraryItem | null {
@@ -132,7 +132,7 @@ export function findLibraryMatch(query: string, items: LibraryItem[]): LibraryIt
 }
 
 // ---------------------------------------------------------------------------
-// Rerank via Anthropic Haiku (port of caltrack pickBestMatchWithLlm, generalized)
+// Rerank via the FAST_MODEL
 // ---------------------------------------------------------------------------
 
 const RERANK_SYSTEM = `Pick the best match for the user's food from these candidates from food-composition databases.
@@ -270,7 +270,8 @@ export async function matchItem(
           ref: food.nevo_code,
           recipeId: null,
           customFoodId: null,
-          name: food.name_nl,
+          // English name for the log; the Dutch NEVO name when there is none.
+          name: food.name_en ?? food.name_nl,
           grams,
           macros: scaleTo(per100g, grams),
         }

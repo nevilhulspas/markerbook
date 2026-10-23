@@ -154,12 +154,11 @@ export function MarkerReviewRow({
       <TableCell>
         {isCapturable || isCustom ? (
           // Capturable/custom: display as resolved with a "new marker" badge
-          <div className="flex flex-col gap-1">
-            <div className="flex items-center gap-2">
-              <span className="font-medium">{isCapturable ? (marker.catalog_name ?? marker.name) : marker.name}</span>
-              <Badge variant="secondary" className="text-[10px]">{isCapturable ? 'New · LOINC' : 'New · Custom'}</Badge>
-            </div>
-            <p className="text-xs text-muted-foreground">Added automatically on save</p>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="font-medium">{isCapturable ? (marker.catalog_name ?? marker.name) : marker.name}</span>
+            <Badge variant="secondary" className="text-[10px]">
+              {isCapturable ? 'New marker, added on save' : 'New custom marker, added on save'}
+            </Badge>
           </div>
         ) : (
           <div className="flex items-start gap-2">

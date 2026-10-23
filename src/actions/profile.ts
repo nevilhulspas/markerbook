@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache'
 
 import { getSessionUser } from '@/lib/supabase/session'
+import { userErrorMessage } from '@/lib/supabase/errors'
 import { supabaseAdmin } from '@/lib/supabase/admin'
 import { profileSchema } from '@/lib/validations/profile'
 import type { ClientProfile, Profile } from '@/lib/database.types'
@@ -24,7 +25,14 @@ export async function getProfile(): Promise<
     .single()
 
   if (error) {
-    return { data: null, error: error.message }
+    return {
+      data: null,
+      error: userErrorMessage(
+        'getProfile',
+        error,
+        'Could not load your profile. Please try again.'
+      ),
+    }
   }
 
   // The page passes this row to client components, so it ends up in the HTML.
@@ -54,7 +62,14 @@ export async function updateProfile(
     .eq('id', user.id)
 
   if (error) {
-    return { success: false, error: error.message }
+    return {
+      success: false,
+      error: userErrorMessage(
+        'updateProfile',
+        error,
+        'Could not save your profile. Please try again.'
+      ),
+    }
   }
 
   revalidatePath('/profile')

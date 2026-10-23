@@ -132,7 +132,7 @@ export const recipeSchema = z.object({
 
 export type RecipeInput = z.infer<typeof recipeSchema>
 
-// AUT-955: optional retro choice carried with saveRecipe — "also update logged
+// Optional retro choice carried with saveRecipe — "also update logged
 // entries with entry_date >= since". `since` is an exact ISO instant: the
 // client computes the user's LOCAL midnight for the picked date (UI days are
 // grouped by local day), keeping the server timezone-agnostic.

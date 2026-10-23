@@ -1,5 +1,11 @@
+import type { Metadata } from 'next'
+
 import { getAdminBiomarkers } from '@/actions/admin/biomarkers'
 import { BiomarkerList } from '@/components/admin/biomarker-list'
+
+export const metadata: Metadata = {
+  title: 'Admin · Biomarkers | Markerbook',
+}
 
 export default async function BiomarkersPage() {
   const { data, error } = await getAdminBiomarkers({ showArchived: true })

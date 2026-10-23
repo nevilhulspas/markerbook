@@ -1,9 +1,11 @@
+import type { Metadata } from 'next'
 import Link from 'next/link'
 import { ArrowLeft, Pencil } from 'lucide-react'
 
 import { getOtherTest, getOtherTestSourceUrl } from '@/actions/other-tests'
 import { APP_LOCALE } from '@/lib/locale'
 import { cn } from '@/lib/utils'
+import { isAiConfigured } from '@/lib/ai/config'
 import { PageContainer } from '@/components/layout/page-container'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -20,6 +22,10 @@ import { OtherDeleteButton } from '@/components/other/other-delete-button'
 import { OtherInterpretPanel } from '@/components/other/other-interpret-panel'
 import { OtherPdfPanel } from '@/components/other/other-pdf-panel'
 import { notFoundOrAuthOutage } from '@/lib/supabase/session'
+
+export const metadata: Metadata = {
+  title: 'Other test | Markerbook',
+}
 
 export default async function OtherTestDetailPage({
   params,
@@ -130,7 +136,11 @@ export default async function OtherTestDetailPage({
               <CardTitle className="text-base">Interpretation</CardTitle>
             </CardHeader>
             <CardContent>
-              <OtherInterpretPanel testId={test.id} initialContent={test.interpretation} />
+              <OtherInterpretPanel
+                testId={test.id}
+                initialContent={test.interpretation}
+                aiEnabled={isAiConfigured()}
+              />
             </CardContent>
           </Card>
         </div>

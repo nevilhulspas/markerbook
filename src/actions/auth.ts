@@ -8,7 +8,6 @@ import { createClient } from '@/lib/supabase/server'
 import { resolveOrigin } from '@/lib/auth/site-origin'
 import { sanitizeNextPath } from '@/lib/auth/next-path'
 import { loginSchema, registerSchema } from '@/lib/validations/auth'
-import { promoteIfAdminEmail } from '@/lib/auth/admin-email'
 
 export async function login(values: unknown, next?: string) {
   const parsed = loginSchema.safeParse(values)
@@ -17,7 +16,7 @@ export async function login(values: unknown, next?: string) {
   }
 
   const supabase = await createClient()
-  const { data, error } = await supabase.auth.signInWithPassword({
+  const { error } = await supabase.auth.signInWithPassword({
     email: parsed.data.email,
     password: parsed.data.password,
   })
@@ -25,7 +24,6 @@ export async function login(values: unknown, next?: string) {
   if (error) {
     return { error: error.message }
   }
-  if (await promoteIfAdminEmail(data.user)) await supabase.auth.refreshSession()
 
   revalidatePath('/', 'layout')
   redirect(sanitizeNextPath(next))
@@ -38,7 +36,7 @@ export async function register(values: unknown) {
   }
 
   const supabase = await createClient()
-  const { data, error } = await supabase.auth.signUp({
+  const { error } = await supabase.auth.signUp({
     email: parsed.data.email,
     password: parsed.data.password,
   })
@@ -46,7 +44,6 @@ export async function register(values: unknown) {
   if (error) {
     return { error: error.message }
   }
-  if (await promoteIfAdminEmail(data.user)) await supabase.auth.refreshSession()
 
   revalidatePath('/', 'layout')
   redirect('/dashboard')
@@ -56,13 +53,12 @@ export async function signInWithGoogle(next?: string) {
   const supabase = await createClient()
 
   // Build redirectTo from the request's own origin so OAuth returns to whichever
-  // host the user is actually on (canonical bloodmarkers.localhost in prod, any
-  // *.bloodmarkers-tracker.localhost worktree URL in local dev, the production
-  // domain, etc.). Falls back to NEXT_PUBLIC_SITE_URL if no host header is
-  // present (defensive — should always be set in practice). The per-host URL
-  // must still be whitelisted in Supabase Auth → URL Configuration → Redirect
-  // URLs; for local dev a `https://*.bloodmarkers-tracker.localhost:1355/**`
-  // wildcard covers every worktree.
+  // host the user is actually on (the production domain, or a named
+  // *.localhost URL in local development). Falls back to NEXT_PUBLIC_SITE_URL
+  // if no host header is present (defensive — should always be set in
+  // practice). The per-host URL must still be allowed in Supabase Auth → URL
+  // Configuration → Redirect URLs; for local dev a wildcard such as
+  // `https://*.markerbook.localhost:1355/**` covers every worktree.
   const origin = resolveOrigin(await headers())
 
   const nextPath = sanitizeNextPath(next)

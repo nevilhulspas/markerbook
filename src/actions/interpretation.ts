@@ -1,6 +1,7 @@
 'use server'
 
 import { getSessionUser } from '@/lib/supabase/session'
+import { userErrorMessage } from '@/lib/supabase/errors'
 import { supabaseAdmin } from '@/lib/supabase/admin'
 import type { CachedInterpretation, InterpretationType } from '@/lib/interpretation/types'
 
@@ -44,7 +45,13 @@ export async function getCachedInterpretation(
   const { data, error } = await query.maybeSingle()
 
   if (error) {
-    return { error: error.message }
+    return {
+      error: userErrorMessage(
+        'getCachedInterpretation',
+        error,
+        'Could not load the interpretation. Please try again.'
+      ),
+    }
   }
 
   if (!data) {
@@ -67,6 +74,10 @@ export async function getCachedInterpretation(
 
 // --- saveInterpretation ---
 
+const INTERPRETATION_TYPES: InterpretationType[] = ['single_marker', 'full_test', 'biomarker_insight']
+/** Far above a real interpretation; stops the cache being used as storage. */
+const MAX_CONTENT_CHARS = 100_000
+
 interface SaveParams {
   bloodTestId: string
   testResultId?: string
@@ -80,10 +91,33 @@ interface SaveParams {
 export async function saveInterpretation(
   params: SaveParams
 ): Promise<{ success: true } | { success: false; error: string }> {
-  const { user, authError } = await getSessionUser()
+  const { supabase, user, authError } = await getSessionUser()
 
   if (!user) {
     return { success: false, error: authError ?? 'Not authenticated' }
+  }
+
+  if (!INTERPRETATION_TYPES.includes(params.type) || params.content.length > MAX_CONTENT_CHARS) {
+    return { success: false, error: 'Invalid interpretation' }
+  }
+
+  // The rows are written with the service role, so check that the test (and
+  // result) are the caller's own before attaching anything to them.
+  const { data: test } = await supabase
+    .from('blood_tests')
+    .select('id')
+    .eq('id', params.bloodTestId)
+    .eq('user_id', user.id)
+    .maybeSingle()
+  if (!test) return { success: false, error: 'Test not found' }
+  if (params.testResultId) {
+    const { data: result } = await supabase
+      .from('test_results')
+      .select('id')
+      .eq('id', params.testResultId)
+      .eq('blood_test_id', params.bloodTestId)
+      .maybeSingle()
+    if (!result) return { success: false, error: 'Result not found' }
   }
 
   // Delete any existing interpretation for this combination
@@ -103,7 +137,14 @@ export async function saveInterpretation(
   const { error: deleteError } = await deleteQuery
 
   if (deleteError) {
-    return { success: false, error: deleteError.message }
+    return {
+      success: false,
+      error: userErrorMessage(
+        'saveInterpretation delete',
+        deleteError,
+        'Could not save the interpretation. Please try again.'
+      ),
+    }
   }
 
   // Insert new interpretation via admin client
@@ -121,7 +162,14 @@ export async function saveInterpretation(
     })
 
   if (insertError) {
-    return { success: false, error: insertError.message }
+    return {
+      success: false,
+      error: userErrorMessage(
+        'saveInterpretation insert',
+        insertError,
+        'Could not save the interpretation. Please try again.'
+      ),
+    }
   }
 
   return { success: true }

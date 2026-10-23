@@ -7,7 +7,7 @@ import { supabaseAdmin } from '@/lib/supabase/admin'
 import { labTestSuggestionSchema } from '@/lib/validations/lab-test-suggestion'
 import { suggestLabTestFromUrl, SuggestTestError } from '@/lib/labs/suggest-test'
 
-// Per-user guardrail: tests auto-publish, so cap how many a user can add per hour.
+// Per-user guardrail: cap how many tests a user can send for review per hour.
 const MAX_SUGGESTIONS_PER_HOUR = 20
 
 export interface SuggestLabTestActionResult {
@@ -18,8 +18,8 @@ export interface SuggestLabTestActionResult {
 /**
  * User-facing action behind the "Suggest a missing test" dialog. Validates the
  * input, requires sign-in, rate-limits per user, then delegates to
- * {@link suggestLabTestFromUrl}. On success revalidates the lab page so the new
- * test appears. Never throws — every failure is returned as `error`.
+ * {@link suggestLabTestFromUrl}, which saves new tests as `pending` until an
+ * admin approves them. Never throws — every failure is returned as `error`.
  */
 export async function suggestLabTest(
   values: unknown

@@ -70,11 +70,11 @@ function downloadBlob(blob: Blob, filename: string): void {
 
 /**
  * Export GridData as a CSV file download.
- * Filename: blood-markers-YYYY-MM-DD.csv
+ * Filename: markerbook-YYYY-MM-DD.csv
  */
 export function exportGridAsCsv(data: GridData): void {
   const csvContent = buildCsvContent(data)
   const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
   const date = localDateISO()
-  downloadBlob(blob, `blood-markers-${date}.csv`)
+  downloadBlob(blob, `markerbook-${date}.csv`)
 }

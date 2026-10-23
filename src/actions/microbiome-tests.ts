@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache'
 
 import { getSessionUser } from '@/lib/supabase/session'
+import { userErrorMessage } from '@/lib/supabase/errors'
 import { supabaseAdmin } from '@/lib/supabase/admin'
 import { microbiomeTestSchema } from '@/lib/validations/microbiome-test'
 import type {
@@ -38,7 +39,16 @@ export async function getMicrobiomeTests(): Promise<
     .select('*, microbiome_results(id)')
     .order('test_date', { ascending: false })
 
-  if (error) return { data: null, error: error.message }
+  if (error) {
+    return {
+      data: null,
+      error: userErrorMessage(
+        'getMicrobiomeTests',
+        error,
+        'Could not load your microbiome tests. Please try again.'
+      ),
+    }
+  }
 
   const tests: MicrobiomeTestWithCount[] = (data ?? []).map((row) => {
     const { microbiome_results, ...rest } = row
@@ -114,7 +124,16 @@ export async function updateMicrobiomeTest(
     .eq('id', id)
     .eq('user_id', user.id)
 
-  if (error) return { success: false, error: error.message }
+  if (error) {
+    return {
+      success: false,
+      error: userErrorMessage(
+        'updateMicrobiomeTest',
+        error,
+        'Could not save the test. Please try again.'
+      ),
+    }
+  }
 
   revalidatePath('/microbiome')
   revalidatePath(`/microbiome/${id}`)
@@ -140,7 +159,16 @@ export async function deleteMicrobiomeTest(
     .eq('id', id)
     .eq('user_id', user.id)
 
-  if (error) return { success: false, error: error.message }
+  if (error) {
+    return {
+      success: false,
+      error: userErrorMessage(
+        'deleteMicrobiomeTest',
+        error,
+        'Could not delete the test. Please try again.'
+      ),
+    }
+  }
 
   revalidatePath('/microbiome')
   return { success: true, error: null }

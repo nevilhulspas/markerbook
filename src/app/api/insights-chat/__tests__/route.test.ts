@@ -1,7 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
+// AI routes and actions refuse to run without a key (isAiConfigured).
+vi.stubEnv('ANTHROPIC_API_KEY', 'test-key')
 // The per-user AI limit has its own tests (src/lib/ai/__tests__/quota.test.ts).
 vi.mock('@/lib/ai/quota', () => ({
   takeAiRequest: async () => ({ ok: true }),
+  countedAiCall: (_userId: string, fn: unknown) => fn,
   aiLimitResponse: (error: string) => Response.json({ error }, { status: 429 }),
   AI_LIMIT_REACHED: 'limit',
 }))
@@ -24,7 +27,7 @@ const {
 }))
 
 // supabaseAdmin mock state ---------------------------------------------------
-let threadRow: unknown = { id: 'thread-1', user_id: 'user-1' }
+let threadRow: unknown = { id: 'thread-1', user_id: '11111111-1111-4111-8111-111111111111' }
 let messageCount = 1
 let inserts: Array<{ table: string; data: unknown }> = []
 let updates: Array<{ table: string; data: unknown }> = []
@@ -39,6 +42,7 @@ type OnFinishArg = {
   isAborted?: boolean
 }
 type UiStreamConfig = {
+  originalMessages?: unknown[]
   execute: (opts: { writer: unknown }) => Promise<void> | void
   onEnd?: (arg: OnFinishArg) => Promise<void> | void
 }
@@ -142,7 +146,7 @@ function fakeRun(
 }
 
 function resetState() {
-  threadRow = { id: 'thread-1', user_id: 'user-1' }
+  threadRow = { id: 'thread-1', user_id: '11111111-1111-4111-8111-111111111111' }
   messageCount = 1
   inserts = []
   updates = []
@@ -159,7 +163,7 @@ function resetState() {
   mockBuildPrompt.mockReset()
   mockCreateLabTestTools.mockReset()
   mockConsumeStream.mockReset()
-  mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } } })
+  mockGetUser.mockResolvedValue({ data: { user: { id: '11111111-1111-4111-8111-111111111111' } } })
   mockBuildPrompt.mockReturnValue('SYSTEM PROMPT BODY')
   mockCreateLabTestTools.mockReturnValue({}) // no lab tools needed for these assertions
 }
@@ -219,6 +223,8 @@ vi.mock('@/lib/supabase/admin', () => ({
 vi.mock('ai', () => ({
   streamText: (...args: unknown[]) => mockStreamText(...args),
   convertToModelMessages: async (m: unknown) => m,
+  isToolUIPart: (p: { type?: string }) =>
+    p.type === 'dynamic-tool' || (p.type ?? '').startsWith('tool-'),
   isStepCount: () => undefined,
   toUIMessageStream: ({
     stream,
@@ -384,8 +390,8 @@ describe('POST /api/insights-chat — web_search tool', () => {
         threadId: 'thread-1',
         messages: [{ role: 'user', parts: [{ type: 'text', text: 'this is what I tested' }] }],
         attachments: [
-          { storagePath: 'user-1/chat/abc.jpg', mediaType: 'image/jpeg', filename: 'IMG_0849.JPG' },
-          { storagePath: 'user-1/chat/def.pdf', mediaType: 'application/pdf', filename: 'report.pdf' },
+          { storagePath: '11111111-1111-4111-8111-111111111111/chat/33333333-3333-4333-8333-333333333331.jpg', mediaType: 'image/jpeg', filename: 'IMG_0849.JPG' },
+          { storagePath: '11111111-1111-4111-8111-111111111111/chat/33333333-3333-4333-8333-333333333332.pdf', mediaType: 'application/pdf', filename: 'report.pdf' },
         ],
       })
     )
@@ -404,15 +410,64 @@ describe('POST /api/insights-chat — web_search tool', () => {
     expect(content.find((b) => b.type === 'file')?.mediaType).toBe('application/pdf')
   })
 
-  it('does NOT inject attachments that belong to a different user (authz guard)', async () => {
+  it('refuses a request whose attachment belongs to a different user (authz guard)', async () => {
+    mockStreamText.mockReturnValue(fakeRun())
+
+    const res = await POST(
+      makeRequest({
+        threadId: 'thread-1',
+        messages: [{ role: 'user', parts: [{ type: 'text', text: 'hi' }] }],
+        attachments: [
+          { storagePath: '22222222-2222-4222-8222-222222222222/chat/33333333-3333-4333-8333-333333333334.jpg', mediaType: 'image/jpeg', filename: 'x.jpg' },
+        ],
+      })
+    )
+
+    // Nothing is stored, downloaded or sent to the model.
+    expect(res.status).toBe(400)
+    expect(mockStreamText).not.toHaveBeenCalled()
+  })
+
+  it('refuses traversal in an attachment path, including in tiles', async () => {
+    mockStreamText.mockReturnValue(fakeRun())
+
+    const res = await POST(
+      makeRequest({
+        threadId: 'thread-1',
+        messages: [{ role: 'user', parts: [{ type: 'text', text: 'hi' }] }],
+        attachments: [
+          {
+            storagePath: '11111111-1111-4111-8111-111111111111/chat/33333333-3333-4333-8333-333333333335.jpg',
+            parts: ['11111111-1111-4111-8111-111111111111/chat/../../22222222-2222-4222-8222-222222222222/chat/33333333-3333-4333-8333-333333333336.jpg'],
+            mediaType: 'image/jpeg',
+            filename: 'x.jpg',
+          },
+        ],
+      })
+    )
+
+    expect(res.status).toBe(400)
+    expect(mockStreamText).not.toHaveBeenCalled()
+  })
+
+  it("skips a foreign file in an earlier message's metadata instead of downloading it", async () => {
     mockStreamText.mockReturnValue(fakeRun())
 
     await POST(
       makeRequest({
         threadId: 'thread-1',
-        messages: [{ role: 'user', parts: [{ type: 'text', text: 'hi' }] }],
-        attachments: [
-          { storagePath: 'someone-else/chat/x.jpg', mediaType: 'image/jpeg', filename: 'x.jpg' },
+        messages: [
+          {
+            role: 'user',
+            parts: [{ type: 'text', text: 'old' }],
+            metadata: {
+              attachments: [
+                { storagePath: '22222222-2222-4222-8222-222222222222/chat/33333333-3333-4333-8333-333333333337.jpg', mediaType: 'image/jpeg', filename: 'x.jpg' },
+              ],
+            },
+          },
+          { role: 'assistant', parts: [{ type: 'text', text: 'ok' }] },
+          { role: 'user', parts: [{ type: 'text', text: 'new' }] },
         ],
       })
     )
@@ -420,9 +475,7 @@ describe('POST /api/insights-chat — web_search tool', () => {
     const args = mockStreamText.mock.calls[0][0] as {
       messages: Array<{ role: string; content: unknown }>
     }
-    const lastUser = args.messages[args.messages.length - 1]
-    // No image block injected — content stays free of image/file parts.
-    const content = lastUser.content
+    const content = args.messages[0].content
     const types = Array.isArray(content)
       ? (content as Array<{ type: string }>).map((b) => b.type)
       : []
@@ -441,7 +494,7 @@ describe('POST /api/insights-chat — web_search tool', () => {
             parts: [{ type: 'text', text: 'here is my invoice' }],
             metadata: {
               attachments: [
-                { storagePath: 'user-1/chat/inv.jpg', mediaType: 'image/jpeg', filename: 'inv.jpg' },
+                { storagePath: '11111111-1111-4111-8111-111111111111/chat/33333333-3333-4333-8333-333333333333.jpg', mediaType: 'image/jpeg', filename: 'inv.jpg' },
               ],
             },
           },
@@ -467,7 +520,7 @@ describe('POST /api/insights-chat — a client that goes away mid-answer', () =>
   beforeEach(resetState)
 
   it('keeps the run going server-side so the whole reply is still saved', async () => {
-    // OTH-40: a phone locking or switching apps cancels the response body,
+    // A phone locking or switching apps cancels the response body,
     // which used to cascade back and fire onEnd on the half-written reply —
     // the rest was generated and thrown away. Teeing the stream and draining
     // the copy here keeps the run alive to its natural end, so the complete
@@ -498,7 +551,7 @@ describe('POST /api/insights-chat — Stop', () => {
 
     // Without this the composer's Stop is a client-only gesture: the server
     // treats a vanished client as a dropped connection and keeps generating,
-    // deliberately, so the answer survives a phone losing signal (OTH-40).
+    // deliberately, so the answer survives a phone losing signal.
     const args = mockStreamText.mock.calls[0][0] as { abortSignal?: AbortSignal }
     expect(args.abortSignal).toBeInstanceOf(AbortSignal)
     expect(args.abortSignal?.aborted).toBe(false)
@@ -727,5 +780,61 @@ describe('POST /api/insights-chat — prompt caching', () => {
     expect(args.instructions.providerOptions).toEqual({
       anthropic: { cacheControl: { type: 'ephemeral' } },
     })
+  })
+})
+
+describe('POST /api/insights-chat — approval cards', () => {
+  beforeEach(resetState)
+
+  const answeredCard = {
+    type: 'tool-delete_blood_test',
+    toolCallId: 'c-del',
+    state: 'approval-responded',
+    input: { testId: 'bt-1' },
+    approval: { id: 'ap-1', approved: true },
+  }
+
+  it('continues the asking message and saves only what the resumed run added', async () => {
+    mockStreamText.mockReturnValue(fakeRun())
+
+    await POST(
+      makeRequest({
+        threadId: 'thread-1',
+        messages: [
+          { role: 'user', parts: [{ type: 'text', text: 'delete my June test' }] },
+          { id: 'a-1', role: 'assistant', parts: [{ type: 'text', text: 'Deleting it.' }, answeredCard] },
+        ],
+      })
+    )
+    await executed
+
+    // The stream continues the assistant message the card lives on.
+    expect(streamConfig!.originalMessages).toHaveLength(2)
+    // No user row: the last message is the assistant's.
+    expect(inserts.filter((i) => i.table === 'chat_messages')).toHaveLength(0)
+
+    await streamConfig!.onEnd!({
+      responseMessage: {
+        parts: [
+          { type: 'text', text: 'Deleting it.' },
+          { ...answeredCard, state: 'output-available', output: { deleted: { id: 'bt-1' } } },
+          { type: 'text', text: 'Done.' },
+        ],
+      },
+    })
+    const row = inserts.find((i) => i.table === 'chat_messages')!.data as {
+      content: string
+      tool_invocations: Array<{ toolCallId: string }>
+    }
+    // The text before the card was saved by the run that asked.
+    expect(row.content).toBe('Done.')
+    expect(row.tool_invocations.map((p) => p.toolCallId)).toEqual(['c-del'])
+  })
+
+  it('starts a fresh message for an ordinary user turn', async () => {
+    mockStreamText.mockReturnValue(fakeRun())
+    await POST(makeRequest(VALID_BODY))
+    await executed
+    expect(streamConfig!.originalMessages).toBeUndefined()
   })
 })

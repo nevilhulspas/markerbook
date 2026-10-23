@@ -91,7 +91,7 @@ describe('getApprovedLabsWithTestCount', () => {
                   id: 'l1',
                   name: 'Acme',
                   status: 'approved',
-                  lab_tests: [{ count: 3 }],
+                  lab_tests: [{ id: 't1' }, { id: 't2' }, { id: 't3' }],
                 },
               ],
             }),
@@ -146,7 +146,10 @@ describe('getApprovedLabsWithTestCount', () => {
       }),
     })
 
-    expect(await getApprovedLabsWithTestCount()).toEqual({ data: null, error: 'db down' })
+    expect(await getApprovedLabsWithTestCount()).toEqual({
+      data: null,
+      error: 'Could not load the labs. Please try again.',
+    })
   })
 
   it('applies the country filter when opts.country is set', async () => {
@@ -346,6 +349,44 @@ describe('getLabsForBiomarker', () => {
       }),
     })
 
-    expect(await getLabsForBiomarker('b1')).toEqual({ data: null, error: 'db down' })
+    expect(await getLabsForBiomarker('b1')).toEqual({
+      data: null,
+      error: 'Could not load the labs for this marker. Please try again.',
+    })
+  })
+})
+
+describe('review fields stay private', () => {
+  // Signed-in users may not read who submitted or reviewed a lab or test (the
+  // column grants refuse it), so the user-facing reads must name their columns.
+  function recordSelects(row: unknown) {
+    const selects: string[] = []
+    const chain: Record<string, unknown> = {
+      select: (cols: string) => {
+        selects.push(cols)
+        return chain
+      },
+      eq: () => chain,
+      in: () => chain,
+      order: () => chain,
+      maybeSingle: () => Promise.resolve({ data: row, error: null }),
+      then: (resolve: (v: unknown) => unknown) => resolve({ data: [], error: null }),
+    }
+    mockFrom.mockReturnValue(chain)
+    return selects
+  }
+
+  it('never selects *, submitted_by, reviewed_by or review_notes', async () => {
+    const selects = recordSelects({ id: 'l1', name: 'Acme', status: 'approved' })
+
+    await getApprovedLabs()
+    await getApprovedLabsWithTestCount()
+    await getLabDetail('l1')
+
+    expect(selects.length).toBeGreaterThanOrEqual(4)
+    for (const cols of selects) {
+      expect(cols).not.toMatch(/(^|[\s,(])\*/)
+      expect(cols).not.toMatch(/submitted_by|reviewed_by|review_notes/)
+    }
   })
 })

@@ -76,6 +76,7 @@ export function createProfileTools(supabase: TypedSupabaseClient, userId: string
           [K in keyof typeof profileFields]: z.ZodOptional<(typeof profileFields)[K]>
         }
       ),
+      needsApproval: true,
       execute: async (input) => {
         // Free-text fields clear to null on empty string, so "cleared" reads as
         // unset (null) rather than "set but empty" — matches the medical-condition
@@ -132,6 +133,7 @@ export function createProfileTools(supabase: TypedSupabaseClient, userId: string
         end_date: z.union([z.string().date(), z.literal('')]).optional(),
         notes: z.string().max(5000).optional(),
       }),
+      needsApproval: true,
       execute: async ({ id, condition_name, start_date, end_date, notes }) => {
         const patch: TableUpdate<'medical_conditions'> = {}
         if (condition_name !== undefined) patch.condition_name = condition_name.trim()
@@ -156,6 +158,7 @@ export function createProfileTools(supabase: TypedSupabaseClient, userId: string
       description:
         'Delete a medical condition by id (from get_profile). IRREVERSIBLE — only after the user confirmed removing THIS condition (restate its name first).',
       inputSchema: z.object({ id: z.string() }),
+      needsApproval: true,
       execute: async ({ id }) => {
         const { data: existing } = await supabase
           .from('medical_conditions')

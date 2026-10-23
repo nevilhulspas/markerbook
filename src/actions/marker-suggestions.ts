@@ -1,6 +1,7 @@
 'use server'
 
 import { getSessionUser } from '@/lib/supabase/session'
+import { userErrorMessage } from '@/lib/supabase/errors'
 import { suggestionSchema } from '@/lib/validations/suggestion'
 
 export async function submitMarkerSuggestion(
@@ -26,7 +27,14 @@ export async function submitMarkerSuggestion(
     .eq('status', 'pending')
 
   if (countError) {
-    return { success: false, error: countError.message }
+    return {
+      success: false,
+      error: userErrorMessage(
+        'submitMarkerSuggestion count',
+        countError,
+        'Could not send your suggestion. Please try again.'
+      ),
+    }
   }
 
   if ((count ?? 0) >= 5) {
@@ -85,7 +93,14 @@ export async function submitMarkerSuggestion(
   })
 
   if (error) {
-    return { success: false, error: error.message }
+    return {
+      success: false,
+      error: userErrorMessage(
+        'submitMarkerSuggestion',
+        error,
+        'Could not send your suggestion. Please try again.'
+      ),
+    }
   }
 
   return { success: true }

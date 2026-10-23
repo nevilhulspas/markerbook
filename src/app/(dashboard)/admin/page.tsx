@@ -1,8 +1,13 @@
+import type { Metadata } from 'next'
 import Link from 'next/link'
 
 import { getAuditLogs } from '@/actions/admin/audit'
 import type { AuditLogRow } from '@/actions/admin/audit'
 import { APP_LOCALE } from '@/lib/locale'
+
+export const metadata: Metadata = {
+  title: 'Admin | Markerbook',
+}
 
 export default async function AdminPage() {
   const { data: logs, error } = await getAuditLogs({ limit: 20 })

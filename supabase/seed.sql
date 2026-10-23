@@ -3261,4 +3261,67 @@ WHERE c.loinc_code = b.loinc_code
     OR b.typical_mass_unit IS DISTINCT FROM a.mass_unit
     OR b.typical_molar_unit IS DISTINCT FROM a.molar_unit);
 
+-- Catalogue fixes from migration 20261023120000 (data correctness): AI
+-- ranges in the wrong unit, RDW-CV taking over from RDW, Bilirubin from group
+-- container to the total-bilirubin marker.
+-- Methylmalonate: 0–0.4 is the µmol/L range written as nmol/L.
+UPDATE public.biomarkers
+SET ref_range_low = 0, ref_range_high = 400
+WHERE id = '84aefa69-de54-40f5-9e0a-710897718eac'
+  AND unit = 'nmol/L' AND ref_range_high = 0.4;
+
+-- Ceruloplasmin: 20–40 is the mg/dL range written as mg/L.
+UPDATE public.biomarkers
+SET ref_range_low = 200, ref_range_high = 400
+WHERE id = '9dbf2d82-0324-4105-852b-321feb993621'
+  AND unit = 'mg/L' AND ref_range_low = 20 AND ref_range_high = 40;
+
+-- RDW-CV takes over from the archived RDW row (same LOINC 788-0).
+UPDATE public.biomarkers
+SET ref_range_low = 11.5,
+    ref_range_high = 14.5,
+    short_name = COALESCE(short_name, 'RDW'),
+    description = COALESCE(description, 'Red Cell Distribution Width - measures variation in red blood cell size'),
+    panel_id = COALESCE(panel_id, '0edf3662-1993-43e4-92f8-ef173712f02f'),
+    aliases = ARRAY(
+      SELECT DISTINCT a FROM unnest(aliases || ARRAY['RDW', 'Red Cell Distribution Width']) AS a
+    )
+WHERE id = '9caf0469-359a-40f7-aa44-b08eb586cfd6'
+  AND (ref_range_low IS NULL AND ref_range_high IS NULL
+    OR NOT aliases @> ARRAY['RDW', 'Red Cell Distribution Width']);
+
+INSERT INTO public.reference_ranges (biomarker_id, unit, sex, range_low, range_high, source, range_type)
+SELECT '9caf0469-359a-40f7-aa44-b08eb586cfd6', '%', 'general', 11.5, 14.5, 'seeded', 'normal'
+WHERE EXISTS (SELECT 1 FROM public.biomarkers WHERE id = '9caf0469-359a-40f7-aa44-b08eb586cfd6')
+  AND NOT EXISTS (
+    SELECT 1 FROM public.reference_ranges
+    WHERE biomarker_id = '9caf0469-359a-40f7-aa44-b08eb586cfd6' AND range_type = 'normal'
+  );
+
+-- Bilirubin: from group container to the total-bilirubin marker.
+UPDATE public.biomarkers
+SET parent_id = NULL, variant_name = NULL
+WHERE parent_id = 'aa1ecabb-8354-4f49-8665-e546c76a0c30'
+  AND id IN ('666352d2-5792-46d9-b952-708d653133a9', 'e8941ddf-d7fb-4401-9bcc-852ebfeda0df');
+
+UPDATE public.biomarkers
+SET ref_range_low = 0.1,
+    ref_range_high = 1.2,
+    description = 'Total bilirubin: breakdown product of hemoglobin, elevated in liver disease and hemolysis',
+    aliases = ARRAY(
+      SELECT DISTINCT a FROM unnest(
+        aliases || ARRAY['total bilirubin', 'Bilirubin, total', 'bilirubin total', 'TBIL', 'Bilirubin (Total)']
+      ) AS a
+    )
+WHERE id = 'aa1ecabb-8354-4f49-8665-e546c76a0c30'
+  AND ref_range_low IS NULL AND ref_range_high IS NULL;
+
+INSERT INTO public.reference_ranges (biomarker_id, unit, sex, range_low, range_high, source, range_type)
+SELECT 'aa1ecabb-8354-4f49-8665-e546c76a0c30', 'mg/dL', 'general', 0.1, 1.2, 'seeded', 'normal'
+WHERE EXISTS (SELECT 1 FROM public.biomarkers WHERE id = 'aa1ecabb-8354-4f49-8665-e546c76a0c30')
+  AND NOT EXISTS (
+    SELECT 1 FROM public.reference_ranges
+    WHERE biomarker_id = 'aa1ecabb-8354-4f49-8665-e546c76a0c30' AND range_type = 'normal'
+  );
+
 RESET ALL;

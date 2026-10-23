@@ -1,6 +1,6 @@
 /**
  * The live insights runs, so the composer's Stop button can actually stop one
- * (OTH-41).
+ *.
  *
  * The server cannot tell a deliberate Stop from a phone losing signal: both
  * arrive as a cancelled response body, and OTH-40 deliberately made that case

@@ -68,8 +68,7 @@ exports[`health-record tool contract > keeps every description and input schema 
                 "description": "Biomarker name (catalog name, short name or common alias — e.g. \\"Ferritin\\", \\"HbA1c\\", \\"Vitamin D\\")."
               },
               "value": {
-                "type": "number",
-                "minimum": 0
+                "type": "number"
               },
               "unit": {
                 "description": "Unit as reported. Omit to use the catalog default unit.",
@@ -120,8 +119,7 @@ exports[`health-record tool contract > keeps every description and input schema 
                 "description": "Biomarker name (catalog name, short name or common alias — e.g. \\"Ferritin\\", \\"HbA1c\\", \\"Vitamin D\\")."
               },
               "value": {
-                "type": "number",
-                "minimum": 0
+                "type": "number"
               },
               "unit": {
                 "description": "Unit as reported. Omit to use the catalog default unit.",

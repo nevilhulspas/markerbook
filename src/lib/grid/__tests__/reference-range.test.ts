@@ -4,6 +4,8 @@ import {
   findReferenceRange,
   getRangeStatusFromRanges,
   getRangeStatus,
+  classifyValue,
+  inlineRange,
 } from '@/lib/grid/reference-range'
 import type { Biomarker, ReferenceRange } from '@/lib/database.types'
 
@@ -124,5 +126,45 @@ describe('getRangeStatus (inline fallback)', () => {
     expect(getRangeStatus(80, bm, 'male')).toBe('normal')
     // Female value outside female bounds is flagged.
     expect(getRangeStatus(60, bm, 'female')).toBe('out-of-range')
+  })
+})
+
+describe('one-sided ranges and the capped borderline margin', () => {
+  it('judges an upper-limit-only range (< 5)', () => {
+    expect(classifyValue(3, null, 5)).toBe('normal')
+    expect(classifyValue(5.3, null, 5)).toBe('borderline')
+    expect(classifyValue(9, null, 5)).toBe('out-of-range')
+  })
+
+  it('judges a lower-limit-only range (> 60)', () => {
+    expect(classifyValue(75, 60, null)).toBe('normal')
+    expect(classifyValue(57, 60, null)).toBe('borderline')
+    expect(classifyValue(30, 60, null)).toBe('out-of-range')
+  })
+
+  it('returns unknown without any bound', () => {
+    expect(classifyValue(3, null, null)).toBe('unknown')
+  })
+
+  it('flags a very low eGFR against 90–999 as out of range', () => {
+    expect(classifyValue(20, 90, 999)).toBe('out-of-range')
+    expect(classifyValue(85, 90, 999)).toBe('borderline')
+  })
+
+  it('keeps the usual 10%-of-span margin for a normal range', () => {
+    // Bilirubin 0.1–1.2: margin 0.11 below, capped at 0.05 by the bound.
+    expect(classifyValue(0.08, 0.1, 1.2)).toBe('borderline')
+    expect(classifyValue(1.3, 0.1, 1.2)).toBe('borderline')
+    expect(classifyValue(1.4, 0.1, 1.2)).toBe('out-of-range')
+  })
+
+  it('uses a one-sided male inline range', () => {
+    const bm = {
+      ref_range_low: null, ref_range_high: 10,
+      ref_range_low_male: null, ref_range_high_male: 5,
+      ref_range_low_female: null, ref_range_high_female: null,
+    }
+    expect(inlineRange(bm, 'male')).toEqual({ low: null, high: 5 })
+    expect(inlineRange(bm, 'female')).toEqual({ low: null, high: 10 })
   })
 })

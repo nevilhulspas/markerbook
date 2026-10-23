@@ -12,7 +12,7 @@ const nullableString = z
   .optional()
   .transform((v) => v ?? null)
 
-/** Shape Claude returns for one parsed meal. Mirrors caltrack's parse-food. */
+/** Shape Claude returns for one parsed meal. */
 export const nutritionExtractionSchema = z.object({
   calories: nullableNumber,
   protein_g: nullableNumber,

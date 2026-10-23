@@ -3,8 +3,12 @@
 import { revalidatePath } from 'next/cache'
 
 import { getSessionUser } from '@/lib/supabase/session'
+import { isOwnedPath } from '@/lib/supabase/storage-path'
 import { takeAiRequest } from '@/lib/ai/quota'
+import { aiFailureMessage, isAiConfigured } from '@/lib/ai/config'
+import { AI_NOT_CONFIGURED_MESSAGE } from '@/lib/ai/messages'
 import { supabaseAdmin } from '@/lib/supabase/admin'
+import { userErrorMessage } from '@/lib/supabase/errors'
 import { parseOtherBytes } from '@/lib/other/parse'
 import {
   sniffMediaType,
@@ -44,6 +48,7 @@ export async function extractOtherReport(
 
   const { user, authError } = await getSessionUser()
   if (!user) return { success: false, error: authError ?? 'Not authenticated' }
+  if (!isAiConfigured()) return { success: false, error: AI_NOT_CONFIGURED_MESSAGE }
 
   const buffers = await Promise.all(files.map((f) => f.arrayBuffer()))
 
@@ -77,7 +82,7 @@ export async function extractOtherReport(
   } catch (err) {
     return {
       success: false,
-      error: err instanceof Error ? err.message : 'Extraction failed',
+      error: aiFailureMessage('extractOtherReport', err),
     }
   }
 
@@ -119,6 +124,9 @@ export async function saveOtherTest(args: {
 
   const { supabase, user, authError } = await getSessionUser()
   if (!user) return { success: false, error: authError ?? 'Not authenticated' }
+  if (args.storagePath && !isOwnedPath(user.id, args.storagePath)) {
+    return { success: false, error: 'This file is not authorized for your account.' }
+  }
 
   const t = parsed.data.test
   const { data, error } = await supabase
@@ -136,7 +144,12 @@ export async function saveOtherTest(args: {
     })
     .select('id')
     .single()
-  if (error || !data) return { success: false, error: error?.message ?? 'Failed to save' }
+  if (error || !data) {
+    return {
+      success: false,
+      error: userErrorMessage('saveOtherTest', error, 'Could not save the test. Please try again.'),
+    }
+  }
 
   const testId = data.id as string
 
@@ -153,7 +166,10 @@ export async function saveOtherTest(args: {
     if (valuesError) {
       // Don't orphan a half-saved test — roll the parent back so the user can retry.
       await supabase.from('other_tests').delete().eq('id', testId)
-      return { success: false, error: valuesError.message }
+      return {
+        success: false,
+        error: userErrorMessage('saveOtherTest values', valuesError, 'Could not save the test. Please try again.'),
+      }
     }
   }
 

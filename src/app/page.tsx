@@ -6,7 +6,7 @@ import { getRequestUser } from '@/lib/supabase/request-user'
 export default async function Home() {
   // The native iOS app loads this root URL on every launch. Send an already
   // signed-in user straight to their dashboard so they don't land on the
-  // marketing page and assume they've been logged out (AUT-919).
+  // marketing page and assume they've been logged out.
   const {
     data: { user },
   } = await getRequestUser()

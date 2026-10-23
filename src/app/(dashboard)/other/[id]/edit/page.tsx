@@ -1,3 +1,4 @@
+import type { Metadata } from 'next'
 import Link from 'next/link'
 import { ArrowLeft } from 'lucide-react'
 
@@ -6,6 +7,10 @@ import { PageContainer } from '@/components/layout/page-container'
 import { Button } from '@/components/ui/button'
 import { OtherEditForm } from '@/components/other/other-edit-form'
 import { notFoundOrAuthOutage } from '@/lib/supabase/session'
+
+export const metadata: Metadata = {
+  title: 'Edit other test | Markerbook',
+}
 
 export default async function OtherTestEditPage({
   params,

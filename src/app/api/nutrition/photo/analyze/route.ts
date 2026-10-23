@@ -4,6 +4,8 @@ import { parsePhotoBytes } from '@/lib/nutrition/photo-parse'
 import { analyzePhoto } from '@/lib/nutrition/photo-analyze'
 import { buildPhotoMatchDeps, MAX_PHOTO_BYTES } from '@/lib/nutrition/photo-deps'
 import { takeAiRequest } from '@/lib/ai/quota'
+import { isAiConfigured } from '@/lib/ai/config'
+import { AI_NOT_CONFIGURED_MESSAGE } from '@/lib/ai/messages'
 
 export async function POST(req: Request): Promise<Response> {
   const userId = await authenticateNutritionRequest(req)
@@ -28,6 +30,10 @@ export async function POST(req: Request): Promise<Response> {
   }
 
   const clarification = ((form.get('clarification') as string | null) ?? '').trim() || null
+
+  if (!isAiConfigured()) {
+    return Response.json({ error: AI_NOT_CONFIGURED_MESSAGE }, { status: 503 })
+  }
 
   const quota = await takeAiRequest(userId)
   if (!quota.ok) return Response.json({ error: quota.error }, { status: 429 })

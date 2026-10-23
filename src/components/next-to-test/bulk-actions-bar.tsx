@@ -1,6 +1,6 @@
 'use client'
 
-// AUT-864: floating action bar that appears when the user has ≥1 row
+// Floating action bar that appears when the user has ≥1 row
 // selected in the next-to-test table. Lives at the top of the table so it
 // stays visible while the user scrolls long lists.
 
@@ -81,7 +81,7 @@ export function BulkActionsBar({
     run(async () => {
       const r = await bulkMoveEntries(selectedIds, listId)
       if ('error' in r) {
-        toast.error(`Couldn't move — ${r.error}`)
+        toast.error(r.error)
         return false
       }
       if (r.merged > 0) {
@@ -99,7 +99,7 @@ export function BulkActionsBar({
     run(async () => {
       const r = await bulkUpdateEntryStatus(selectedIds, status)
       if ('error' in r) {
-        toast.error(`Couldn't update — ${r.error}`)
+        toast.error(r.error)
         return false
       }
       toast.success(
@@ -115,7 +115,7 @@ export function BulkActionsBar({
     run(async () => {
       const r = await bulkDeleteEntries(selectedIds)
       if ('error' in r) {
-        toast.error(`Couldn't delete — ${r.error}`)
+        toast.error(r.error)
         return false
       }
       toast.success(`Removed ${r.count}`)

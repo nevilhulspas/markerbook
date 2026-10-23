@@ -8,6 +8,8 @@ export interface TrendDataPoint {
   testName: string
   unit?: string // unit of `value` (target unit when converted, original when not)
   bloodTestId?: string
+  /** '<' / '>' etc. for a result such as "<0.5". */
+  qualifier?: string | null
 }
 
 export interface TrendData {

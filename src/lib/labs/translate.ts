@@ -1,5 +1,6 @@
 
 import { getAnthropic } from '@/lib/ai/client'
+import { chargeAiCall } from '@/lib/ai/charge'
 import { FAST_MODEL, FAST_THINKING } from '@/lib/ai/models'
 /**
  * Lab-test text translation engine (Bulgarian/German/… → English). Used to
@@ -92,6 +93,7 @@ Rules:
 
 /** Translate one batch; throws on an unrecoverable / mismatched response. */
 async function translateChunk(texts: string[]): Promise<string[]> {
+  await chargeAiCall()
   const response = await getAnthropic().messages.create({
     model: MODEL,
     thinking: FAST_THINKING,

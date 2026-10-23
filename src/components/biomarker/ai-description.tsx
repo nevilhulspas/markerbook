@@ -13,6 +13,8 @@ import {
 } from '@/components/ui/card'
 import { InterpretationContent } from '@/components/interpretation/interpretation-content'
 import { readTextStream } from '@/lib/ai/text-stream'
+import { isAiNotConfiguredMessage } from '@/lib/ai/messages'
+import { AiUnavailableNote } from '@/components/interpretation/ai-unavailable-note'
 
 interface AiDescriptionProps {
   biomarkerId: string
@@ -21,6 +23,8 @@ interface AiDescriptionProps {
   cachedAt: string | null
   /** Which catalogue the marker belongs to (DUTCH markers have their own). */
   descriptionTarget?: 'biomarker' | 'dutch_marker'
+  /** False when the server has no Anthropic API key: only a stored description shows. */
+  aiEnabled?: boolean
 }
 
 function formatRelativeTime(dateStr: string): string {
@@ -43,6 +47,7 @@ export function AiDescription({
   isStale,
   cachedAt,
   descriptionTarget = 'biomarker',
+  aiEnabled = true,
 }: AiDescriptionProps) {
   const [content, setContent] = useState(cachedContent ?? '')
   const [isStreaming, setIsStreaming] = useState(false)
@@ -70,7 +75,7 @@ export function AiDescription({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         // Only which marker: the server reads the catalogue context itself and
-        // stores the finished description (OTH-79).
+        // stores the finished description.
         body: JSON.stringify({ markerId: biomarkerId, target: descriptionTarget }),
         signal: controller.signal,
       })
@@ -86,8 +91,15 @@ export function AiDescription({
       if (err instanceof DOMException && err.name === 'AbortError') {
         return
       }
+      // The server already sends plain sentences; a TypeError is fetch
+      // failing to reach it at all.
+      console.error('Description generation failed:', err)
       const message =
-        err instanceof Error ? err.message : 'Failed to generate description'
+        err instanceof TypeError
+          ? 'Could not reach the server. Check your connection and try again.'
+          : err instanceof Error && err.message
+            ? err.message
+            : 'The description could not be generated. Please try again.'
       setError(message)
     } finally {
       setIsStreaming(false)
@@ -96,11 +108,11 @@ export function AiDescription({
 
   // Auto-trigger generation when no cached content exists
   useEffect(() => {
-    if (!cachedContent && !hasAutoTriggered.current) {
+    if (!cachedContent && aiEnabled && !hasAutoTriggered.current) {
       hasAutoTriggered.current = true
       generate()
     }
-  }, [cachedContent, generate])
+  }, [cachedContent, aiEnabled, generate])
 
   // Cleanup abort controller on unmount
   useEffect(() => {
@@ -117,7 +129,7 @@ export function AiDescription({
             <Sparkles className="size-5" />
             About This Biomarker
           </CardTitle>
-          {localCachedAt && !localIsStale && !isStreaming && (
+          {localCachedAt && !localIsStale && !isStreaming && aiEnabled && (
             <div className="flex items-center gap-2">
               <Badge variant="secondary">
                 Cached {formatRelativeTime(localCachedAt)}
@@ -137,7 +149,7 @@ export function AiDescription({
       </CardHeader>
       <CardContent>
         {/* Stale cache banner */}
-        {localIsStale && !isStreaming && (
+        {localIsStale && !isStreaming && aiEnabled && (
           <div className="mb-4 flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 dark:border-amber-900/50 dark:bg-amber-950/30">
             <p className="flex-1 text-sm text-amber-700 dark:text-amber-300">
               Biomarker data has changed since this description was generated.
@@ -149,8 +161,13 @@ export function AiDescription({
           </div>
         )}
 
+        {/* Not set up: a note, not an error */}
+        {((error && isAiNotConfiguredMessage(error)) || (!aiEnabled && !content)) && (
+          <AiUnavailableNote message="Marker descriptions need AI, which is not set up on this server." />
+        )}
+
         {/* Error state */}
-        {error && (
+        {error && !isAiNotConfiguredMessage(error) && (
           <div className="space-y-3 rounded-lg border border-destructive/50 bg-destructive/10 p-4">
             <p className="text-sm text-destructive">{error}</p>
             <Button size="sm" variant="outline" onClick={generate}>
@@ -161,7 +178,12 @@ export function AiDescription({
 
         {/* Content (cached or streaming) */}
         {content && (
-          <InterpretationContent content={content} isStreaming={isStreaming} />
+          <>
+            <InterpretationContent content={content} isStreaming={isStreaming} />
+            <p className="mt-3 text-xs text-muted-foreground">
+              Not medical advice. Talk to your doctor before you change treatment.
+            </p>
+          </>
         )}
 
         {/* Loading state with no content yet */}
@@ -173,7 +195,7 @@ export function AiDescription({
         )}
 
         {/* No content and not loading (should not normally happen) */}
-        {!content && !isStreaming && !error && !cachedContent && (
+        {!content && !isStreaming && !error && !cachedContent && aiEnabled && (
           <p className="text-sm text-muted-foreground">
             No description available yet.
           </p>

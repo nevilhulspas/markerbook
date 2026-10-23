@@ -28,6 +28,7 @@ import type { Biomarker } from '@/lib/database.types'
 import type { MatchedMarker } from '@/lib/extraction/types'
 import { withRowIds } from '@/lib/import/marker-list-ops'
 import { prepareMarkersForSave } from '@/lib/import/prepare-markers-for-save'
+import { findSameDateTests } from '@/lib/import/same-date-tests'
 import type { ImportFileItem } from '@/lib/multi-import/types'
 import { APP_LOCALE } from '@/lib/locale'
 
@@ -76,8 +77,19 @@ export function FileReviewPanel({
   const [isSaving, setIsSaving] = useState(false)
   const [target, setTarget] = useState<'new' | 'existing'>('new')
   const [targetTestId, setTargetTestId] = useState<string>('')
+  // A "new test" save on a date that already has a test waits here until the
+  // user picks: add to that test, or save a separate one.
+  const [sameDateCheck, setSameDateCheck] = useState<{
+    metadata: ImportMetadata
+    tests: BloodTestWithCount[]
+  } | null>(null)
 
-  async function handleSave(metadata: ImportMetadata) {
+  async function handleSave(
+    metadata: ImportMetadata,
+    opts: { allowSameDate?: boolean; existingTestId?: string } = {}
+  ) {
+    const saveTarget = opts.existingTestId ? 'existing' : target
+    const saveTestId = opts.existingTestId ?? targetTestId
     const { markers, duplicateNames } = prepareMarkersForSave(matchedMarkers)
 
     if (duplicateNames.length > 0) {
@@ -87,15 +99,24 @@ export function FileReviewPanel({
       return
     }
 
-    if (target === 'existing' && !targetTestId) {
+    if (saveTarget === 'existing' && !saveTestId) {
       toast.error('Pick the existing test to add to.')
       return
     }
 
+    if (saveTarget === 'new' && !opts.allowSameDate) {
+      const sameDate = findSameDateTests(existingTests, metadata.date || formatToday())
+      if (sameDate.length > 0) {
+        setSameDateCheck({ metadata, tests: sameDate })
+        return
+      }
+    }
+    setSameDateCheck(null)
+
     setIsSaving(true)
 
-    if (target === 'existing') {
-      const result = await appendResultsToBloodTest(targetTestId, markers)
+    if (saveTarget === 'existing') {
+      const result = await appendResultsToBloodTest(saveTestId, markers)
       setIsSaving(false)
       if (result.success) {
         const summary =
@@ -219,6 +240,45 @@ export function FileReviewPanel({
           </Select>
         )}
       </div>
+
+      {sameDateCheck && (
+        <div
+          role="alert"
+          className="flex flex-col gap-3 rounded-md border border-yellow-200 bg-yellow-50 px-4 py-3 text-sm text-yellow-800 sm:flex-row sm:items-center sm:justify-between dark:border-yellow-800 dark:bg-yellow-950/50 dark:text-yellow-200"
+        >
+          <div className="flex items-start gap-2">
+            <AlertTriangle className="mt-0.5 size-4 shrink-0" />
+            <span>
+              You already have a test on{' '}
+              {formatTestDate(sameDateCheck.tests[0].test_date)}:{' '}
+              {sameDateCheck.tests.map((t) => t.name).join(', ')}. Is this the
+              same report?
+            </span>
+          </div>
+          <div className="flex shrink-0 flex-wrap gap-2">
+            <Button
+              size="sm"
+              disabled={isSaving}
+              onClick={() => {
+                const testId = sameDateCheck.tests[0].id
+                setTarget('existing')
+                setTargetTestId(testId)
+                handleSave(sameDateCheck.metadata, { existingTestId: testId })
+              }}
+            >
+              Add to that test
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={isSaving}
+              onClick={() => handleSave(sameDateCheck.metadata, { allowSameDate: true })}
+            >
+              Save as a separate test
+            </Button>
+          </div>
+        </div>
+      )}
 
       <div className="flex flex-col gap-4 lg:flex-row">
         <div className="w-full min-w-0 lg:sticky lg:top-4 lg:w-[40%] lg:self-start">

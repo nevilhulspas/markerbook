@@ -1,4 +1,5 @@
 import type { MatchedMarker } from '@/lib/extraction/types'
+import type { ResultQualifier } from '@/lib/blood-tests/qualifier'
 
 /**
  * A marker entry ready to be passed to `createBloodTest`.
@@ -12,9 +13,17 @@ import type { MatchedMarker } from '@/lib/extraction/types'
  *                            keyed on the marker name
  */
 export type PreparedMarkerEntry =
-  | { biomarker_id: string; value: number; unit: string; ref_range_low?: number | null; ref_range_high?: number | null }
-  | { capture_loinc_code: string; name?: string; value: number; unit: string; ref_range_low?: number | null; ref_range_high?: number | null }
-  | { capture_custom: true; name: string; value: number; unit: string; ref_range_low?: number | null; ref_range_high?: number | null }
+  | ({ biomarker_id: string } & PreparedValue)
+  | ({ capture_loinc_code: string; name?: string } & PreparedValue)
+  | ({ capture_custom: true; name: string } & PreparedValue)
+
+interface PreparedValue {
+  value: number
+  qualifier?: ResultQualifier | null
+  unit: string
+  ref_range_low?: number | null
+  ref_range_high?: number | null
+}
 
 interface PrepareMarkersResult {
   markers: PreparedMarkerEntry[]
@@ -93,6 +102,7 @@ export function prepareMarkersForSave(
   const markers: PreparedMarkerEntry[] = selectedMarkers.map((marker) => {
     const base = {
       value: marker.value,
+      qualifier: marker.qualifier ?? null,
       unit: marker.unit || marker.catalog_unit || 'ratio',
       ref_range_low: marker.ref_range_low ?? null,
       ref_range_high: marker.ref_range_high ?? null,

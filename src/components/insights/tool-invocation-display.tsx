@@ -12,7 +12,7 @@ const TOOL_LABELS: Record<string, string> = {
   build_lab_test_lists: 'Building lab test lists',
   list_lab_tests: 'Listing lab catalogue',
   web_search: 'Searching the web',
-  // AUT-854 follow-up: next-to-test tools — friendly chat-side labels so the
+  // Next-to-test tools — friendly chat-side labels so the
   // user doesn't see raw tool names.
   add_to_next_to_test: 'Adding to next-to-test',
   add_many_to_next_to_test: 'Adding tests to next-to-test',
@@ -138,7 +138,7 @@ function ToolResultContent({
 }) {
   const data = result as Record<string, unknown>
 
-  // AUT-854 follow-up — friendly per-tool renderers for the next-to-test
+  // Friendly per-tool renderers for the next-to-test
   // family. These all share a tiny shape: { added | ok | error, entry? }.
 
   // Batch-add summary: render the per-status counts + the first few item

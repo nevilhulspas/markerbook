@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { formatProfile } from '../prompt'
 import type { ProfileContext } from '../types'
 
-// AUT-854: covers the medical-history extensions to formatProfile().
+// Covers the medical-history extensions to formatProfile().
 // The shape contract is: any field that is null/undefined is silently omitted,
 // any present field renders as its own line, and the conditions list renders
 // as a bulleted sub-list with "(ongoing)" when end_date is missing.

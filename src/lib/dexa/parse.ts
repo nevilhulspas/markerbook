@@ -5,6 +5,7 @@ import { buildDexaExtractionPrompt } from '@/lib/dexa/extraction-prompt'
 import { rawExtractionSchema, normalizeExtraction, type DexaExtraction } from '@/lib/validations/dexa-import'
 import type { MediaType } from '@/lib/health-documents/media-type'
 import { toFileContentBlocks } from '@/lib/health-documents/file-content'
+import { deriveFfmi } from '@/lib/body/metrics'
 
 /** Fractional age in years at onDate (ISO) for someone born dob (ISO). */
 export function ageYearsAt(dob: string, onDate: string): number | null {
@@ -12,6 +13,28 @@ export function ageYearsAt(dob: string, onDate: string): number | null {
   const o = new Date(onDate).getTime()
   if (Number.isNaN(d) || Number.isNaN(o) || o < d) return null
   return Math.round(((o - d) / (365.25 * 86_400_000)) * 10) / 10
+}
+
+/**
+ * Fill a scan's missing height and age from the profile, then derive FFMI if
+ * the report did not print it. FFMI needs the height, so it must be derived
+ * after the height fallback: before, a scan without a printed height never
+ * got an FFMI. Mutates and returns `data`.
+ */
+export function applyProfileFallback(
+  data: DexaExtraction,
+  profile: { date_of_birth: string | null; height_cm: number | null } | null
+): DexaExtraction {
+  if (profile) {
+    if (data.scan.height_cm == null && profile.height_cm != null) data.scan.height_cm = profile.height_cm
+    if (data.scan.age_years == null && profile.date_of_birth) {
+      data.scan.age_years = ageYearsAt(profile.date_of_birth, data.scan.scan_date)
+    }
+  }
+  if (data.scan.ffmi == null) {
+    data.scan.ffmi = deriveFfmi(data.scan.lean_mass_g, data.scan.bmc_g, data.scan.height_cm)
+  }
+  return data
 }
 
 /** Parse one DEXA file's bytes -> normalized extraction, with profile fallback. */
@@ -36,11 +59,7 @@ export async function parseDexaBytes(
       .select('date_of_birth, height_cm')
       .eq('id', userId)
       .maybeSingle()
-    const p = profile as { date_of_birth: string | null; height_cm: number | null } | null
-    if (p) {
-      if (data.scan.height_cm == null && p.height_cm != null) data.scan.height_cm = p.height_cm
-      if (data.scan.age_years == null && p.date_of_birth) data.scan.age_years = ageYearsAt(p.date_of_birth, data.scan.scan_date)
-    }
+    applyProfileFallback(data, profile as { date_of_birth: string | null; height_cm: number | null } | null)
   }
   return data
 }

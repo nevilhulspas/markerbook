@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache'
 
 import { createClient } from '@/lib/supabase/server'
 import { getSessionUser } from '@/lib/supabase/session'
+import { userErrorMessage } from '@/lib/supabase/errors'
 import { bodyLogEntrySchema, type BodyLogInput } from '@/lib/validations/body-log'
 import type { BodyLogEntry } from '@/lib/database.types'
 
@@ -40,7 +41,11 @@ export async function saveLogEntry(input: BodyLogInput): Promise<{ error: string
     waist_cm: parsed.data.waist_cm ?? null,
     notes: parsed.data.notes ?? null,
   })
-  if (error) return { error: error.message }
+  if (error) {
+    return {
+      error: userErrorMessage('saveLogEntry', error, 'Could not save the entry. Please try again.'),
+    }
+  }
   revalidatePath('/body')
   return { error: null }
 }
@@ -50,7 +55,15 @@ export async function deleteLogEntry(id: string): Promise<{ error: string | null
   if (!user) return { error: authError ?? 'You must be signed in.' }
 
   const { error } = await supabase.from('body_log_entries').delete().eq('id', id)
-  if (error) return { error: error.message }
+  if (error) {
+    return {
+      error: userErrorMessage(
+        'deleteLogEntry',
+        error,
+        'Could not delete the entry. Please try again.'
+      ),
+    }
+  }
   revalidatePath('/body')
   return { error: null }
 }

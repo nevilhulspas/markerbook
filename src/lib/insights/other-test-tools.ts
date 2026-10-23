@@ -117,6 +117,8 @@ export function createOtherTestTools(supabase: TypedSupabaseClient, userId: stri
         notes: z.string().max(5000).nullable().optional(),
         readings: z.array(readingSchema).optional().describe('Pass to REPLACE all readings; omit to keep them.'),
       }),
+      // Replacing every reading overwrites stored results: the user confirms it.
+      needsApproval: ({ readings }) => readings !== undefined,
       execute: async ({ id, readings, ...meta }) => {
         const { data: existing } = await supabase
           .from('other_tests')
@@ -187,6 +189,7 @@ export function createOtherTestTools(supabase: TypedSupabaseClient, userId: stri
       description:
         'Delete an "Other test" and all its readings by id. IRREVERSIBLE — only after the user confirmed deleting THIS test (restate its name + date first).',
       inputSchema: z.object({ id: z.string() }),
+      needsApproval: true,
       execute: async ({ id }) => {
         const { data: existing } = await supabase
           .from('other_tests')

@@ -11,3 +11,14 @@ export function isUniqueViolation(error: unknown): boolean {
     (error as { code?: unknown }).code === '23505'
   )
 }
+
+/**
+ * Logs a raw Supabase/Postgres error with its context and returns `message`,
+ * a plain sentence for the screen. Database error text (constraint names,
+ * column names, SQL details) means nothing to the user and leaks the schema,
+ * so actions return this instead of `error.message`.
+ */
+export function userErrorMessage(context: string, error: unknown, message: string): string {
+  console.error(`${context} failed:`, error)
+  return message
+}

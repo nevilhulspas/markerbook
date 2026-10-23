@@ -4,11 +4,15 @@ import type Anthropic from '@anthropic-ai/sdk'
 import { revalidatePath } from 'next/cache'
 
 import { getSessionUser } from '@/lib/supabase/session'
+import { isOwnedPath } from '@/lib/supabase/storage-path'
 import { takeAiRequest } from '@/lib/ai/quota'
+import { aiFailureMessage, isAiConfigured } from '@/lib/ai/config'
+import { AI_NOT_CONFIGURED_MESSAGE } from '@/lib/ai/messages'
 import { supabaseAdmin } from '@/lib/supabase/admin'
+import { userErrorMessage } from '@/lib/supabase/errors'
 import { buildDexaExtractionPrompt } from '@/lib/dexa/extraction-prompt'
 import { extractDocumentJson } from '@/lib/ai/extract-document'
-import { ageYearsAt } from '@/lib/dexa/parse'
+import { applyProfileFallback } from '@/lib/dexa/parse'
 import {
   sniffMediaType,
   UNSUPPORTED_FILE_MESSAGE,
@@ -55,6 +59,7 @@ export async function extractDexaReport(
 
   const { supabase, user, authError } = await getSessionUser()
   if (!user) return { success: false, error: authError ?? 'Not authenticated' }
+  if (!isAiConfigured()) return { success: false, error: AI_NOT_CONFIGURED_MESSAGE }
 
   const buffers = await Promise.all(files.map((f) => f.arrayBuffer()))
 
@@ -110,20 +115,12 @@ export async function extractDexaReport(
         .select('date_of_birth, height_cm')
         .eq('id', user.id)
         .maybeSingle()
-      const p = profile as { date_of_birth: string | null; height_cm: number | null } | null
-      if (p) {
-        if (data.scan.height_cm == null && p.height_cm != null) {
-          data.scan.height_cm = p.height_cm
-        }
-        if (data.scan.age_years == null && p.date_of_birth) {
-          data.scan.age_years = ageYearsAt(p.date_of_birth, data.scan.scan_date)
-        }
-      }
+      applyProfileFallback(data, profile as { date_of_birth: string | null; height_cm: number | null } | null)
     }
   } catch (err) {
     return {
       success: false,
-      error: err instanceof Error ? err.message : 'Extraction failed',
+      error: aiFailureMessage('extractDexaReport', err),
     }
   }
 
@@ -165,6 +162,9 @@ export async function saveDexaScan(input: {
 
   const { user, authError } = await getSessionUser()
   if (!user) return { success: false, scanId: null, error: authError ?? 'Not authenticated' }
+  if (input.storagePath && !isOwnedPath(user.id, input.storagePath)) {
+    return { success: false, scanId: null, error: 'This file is not authorized for your account.' }
+  }
 
   const { data: created, error: scanErr } = await supabaseAdmin
     .from('dexa_scans')
@@ -177,7 +177,11 @@ export async function saveDexaScan(input: {
     .select('id')
     .single()
   if (scanErr || !created) {
-    return { success: false, scanId: null, error: scanErr?.message ?? 'Failed to save scan' }
+    return {
+      success: false,
+      scanId: null,
+      error: userErrorMessage('saveDexaScan', scanErr, 'Could not save the scan. Please try again.'),
+    }
   }
 
   if (regions.length > 0) {
@@ -185,7 +189,11 @@ export async function saveDexaScan(input: {
     const { error: regionErr } = await supabaseAdmin.from('dexa_regions').insert(rows)
     if (regionErr) {
       await supabaseAdmin.from('dexa_scans').delete().eq('id', created.id)
-      return { success: false, scanId: null, error: regionErr.message }
+      return {
+        success: false,
+        scanId: null,
+        error: userErrorMessage('saveDexaScan regions', regionErr, 'Could not save the scan. Please try again.'),
+      }
     }
   }
 

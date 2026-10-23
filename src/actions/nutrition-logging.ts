@@ -4,7 +4,9 @@ import { revalidatePath } from 'next/cache'
 
 import { createClient } from '@/lib/supabase/server'
 import { getSessionUser } from '@/lib/supabase/session'
-import { takeAiRequest } from '@/lib/ai/quota'
+import { countedAiCall, takeAiRequest } from '@/lib/ai/quota'
+import { isAiConfigured } from '@/lib/ai/config'
+import { AI_NOT_CONFIGURED_MESSAGE } from '@/lib/ai/messages'
 import {
   isUndoCommand,
   parseSaveCommand,
@@ -83,6 +85,7 @@ export async function logFood(
   }
 
   // ── Normal logging ────────────────────────────────────────────────────────
+  if (!isAiConfigured()) return { ok: false, error: AI_NOT_CONFIGURED_MESSAGE }
   const quota = await takeAiRequest(user.id)
   if (!quota.ok) return { ok: false, error: quota.error }
 
@@ -106,7 +109,7 @@ export async function logFood(
           return (data ?? []) as NevoFood[]
         },
         searchOff,
-        rerank: rerankCandidates,
+        rerank: countedAiCall(user.id, rerankCandidates, null),
         parse: parseFoodTextV2,
         insertRows: async (rows: FoodLogInsertRow[]) => {
           const { error } = await supabase.from('food_logs').insert(rows)

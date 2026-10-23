@@ -1,9 +1,10 @@
 import { supabaseAdmin } from '@/lib/supabase/admin'
-import { createClient } from '@/lib/supabase/server'
-import { resolveUserIdByToken } from '@/lib/nutrition/log-token'
+import { authenticateNutritionRequest } from '@/lib/nutrition/request-auth'
 import { isUndoCommand, parseSaveCommand } from '@/lib/nutrition/parse'
 import { parseFoodTextV2 } from '@/lib/nutrition/parse'
-import { takeAiRequest } from '@/lib/ai/quota'
+import { countedAiCall, takeAiRequest } from '@/lib/ai/quota'
+import { isAiConfigured } from '@/lib/ai/config'
+import { AI_NOT_CONFIGURED_MESSAGE } from '@/lib/ai/messages'
 import { rerankCandidates, type LibraryItem } from '@/lib/nutrition/match'
 import { loadLibraryItems } from '@/lib/nutrition/library'
 import { searchOff } from '@/lib/nutrition/off'
@@ -11,26 +12,10 @@ import { logSubmission, type FoodLogInsertRow } from '@/lib/nutrition/log-core'
 import type { FoodLog, MealType, NevoFood } from '@/lib/database.types'
 import type { MatchSource } from '@/lib/database.types'
 
-function readToken(req: Request): string | null {
-  const header = req.headers.get('authorization')
-  if (header?.toLowerCase().startsWith('bearer ')) return header.slice(7).trim()
-  return new URL(req.url).searchParams.get('token')
-}
-
-/** Token auth (iPhone Shortcut) when a token is supplied — an explicit bad
- *  token stays a hard 401. Otherwise the logged-in session cookie (native
- *  Log Food intent, whose URLSession shares the app's cookies) authenticates. */
-async function authenticate(req: Request): Promise<string | null> {
-  const token = readToken(req)
-  if (token) return resolveUserIdByToken(token)
-
-  const supabase = await createClient()
-  const { data } = await supabase.auth.getUser()
-  return data.user?.id ?? null
-}
-
 export async function POST(req: Request): Promise<Response> {
-  const userId = await authenticate(req)
+  // Token (iPhone Shortcut) or the session cookie (native Log Food intent,
+  // whose URLSession shares the app's cookies).
+  const userId = await authenticateNutritionRequest(req)
   if (!userId) return Response.json({ error: 'Unauthorized' }, { status: 401 })
 
   let body: {
@@ -200,6 +185,11 @@ export async function POST(req: Request): Promise<Response> {
     })
   }
 
+  // ── AI set up? Everything below reads the meal with Claude ─────────────────
+  if (!isAiConfigured()) {
+    return Response.json({ error: AI_NOT_CONFIGURED_MESSAGE }, { status: 503 })
+  }
+
   // ── Load library (admin, filtered by user_id) ─────────────────────────────
   let library: LibraryItem[] = []
   try {
@@ -224,7 +214,7 @@ export async function POST(req: Request): Promise<Response> {
           return (data ?? []) as NevoFood[]
         },
         searchOff,
-        rerank: rerankCandidates,
+        rerank: countedAiCall(userId, rerankCandidates, null),
         parse: parseFoodTextV2,
         insertRows: async (rows: FoodLogInsertRow[]) => {
           const { error } = await supabaseAdmin.from('food_logs').insert(rows)

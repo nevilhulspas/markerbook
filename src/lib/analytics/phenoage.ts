@@ -21,33 +21,94 @@ export interface PhenoAgeReadiness {
   totalRequired: number
 }
 
+/**
+ * The nine PhenoAge inputs. Rows are found by LOINC code first (codes in
+ * order of preference), because catalogue names drift: prod results for RDW
+ * live on 'RDW-CV', and the 'RDW' row is archived. `catalogName` is the label
+ * the card shows and the last-resort name match for rows without a code.
+ */
 export const PHENOAGE_MARKERS = [
-  { catalogName: 'Albumin', key: 'albumin' as const, unit: 'g/L' },
-  { catalogName: 'Creatinine', key: 'creatinine' as const, unit: 'umol/L' },
+  {
+    catalogName: 'Albumin',
+    key: 'albumin' as const,
+    unit: 'g/L',
+    loincCodes: ['1751-7', '61151-7', '61152-5'],
+  },
+  {
+    catalogName: 'Creatinine',
+    key: 'creatinine' as const,
+    unit: 'umol/L',
+    loincCodes: ['2160-0', '38483-4', '14682-9'],
+  },
   {
     catalogName: 'Glucose (Fasting)',
     key: 'glucose' as const,
     unit: 'mmol/L',
+    loincCodes: ['1558-6', '14771-0', '2345-7'],
   },
-  { catalogName: 'hs-CRP', key: 'crp' as const, unit: 'mg/L' },
+  {
+    catalogName: 'hs-CRP',
+    key: 'crp' as const,
+    unit: 'mg/L',
+    loincCodes: ['30522-7', '1988-5'],
+  },
   {
     catalogName: 'Lymphocytes',
     key: 'lymphocytePercent' as const,
     unit: '%',
+    loincCodes: ['26478-8', '736-9'],
   },
-  { catalogName: 'MCV', key: 'mcv' as const, unit: 'fL' },
-  { catalogName: 'RDW', key: 'rdw' as const, unit: '%' },
+  {
+    catalogName: 'MCV',
+    key: 'mcv' as const,
+    unit: 'fL',
+    loincCodes: ['787-2', '30428-7'],
+  },
+  {
+    catalogName: 'RDW',
+    key: 'rdw' as const,
+    unit: '%',
+    loincCodes: ['788-0', '30385-9'],
+  },
   {
     catalogName: 'ALP',
     key: 'alkalinePhosphatase' as const,
     unit: 'U/L',
+    loincCodes: ['6768-6'],
   },
   {
     catalogName: 'White Blood Cells',
     key: 'wbc' as const,
     unit: 'x10^3/uL',
+    loincCodes: ['26464-8', '6690-2', '33256-9'],
   },
 ] as const
+
+export type PhenoAgeMarker = (typeof PHENOAGE_MARKERS)[number]
+
+/**
+ * Find the grid row that holds a value for `marker` in test `testId`: the
+ * first LOINC code (in preference order) with a value wins, then a name or
+ * short-name match. Rows without a value in that test are skipped, so an empty
+ * duplicate row never hides the one that has the result.
+ */
+export function findPhenoAgeRow(
+  rows: GridRow[],
+  marker: PhenoAgeMarker,
+  testId: string
+): GridRow | undefined {
+  const hasValue = (r: GridRow) => r.values[testId]?.value != null
+  for (const code of marker.loincCodes) {
+    const row = rows.find((r) => r.biomarker.loinc_code === code && hasValue(r))
+    if (row) return row
+  }
+  return rows.find(
+    (r) =>
+      hasValue(r) &&
+      (r.biomarker.name === marker.catalogName ||
+        r.biomarker.short_name === marker.catalogName)
+  )
+}
 
 /**
  * Calculate PhenoAge (biological age) using the Levine 2018 algorithm.
@@ -101,6 +162,25 @@ export function calculatePhenoAge(input: PhenoAgeInput): number {
 }
 
 /**
+ * Whole years between a date of birth and `onDate`, both 'YYYY-MM-DD' (a
+ * longer ISO string is cut to its date part). PhenoAge must use the age on the
+ * test date, not today's age: an old test would otherwise look biologically
+ * younger every year. Returns null for an unparseable date.
+ */
+export function ageOnDate(dateOfBirth: string, onDate: string): number | null {
+  const parse = (d: string) => {
+    const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(d)
+    return m ? { y: Number(m[1]), m: Number(m[2]), d: Number(m[3]) } : null
+  }
+  const dob = parse(dateOfBirth)
+  const at = parse(onDate)
+  if (!dob || !at) return null
+  let age = at.y - dob.y
+  if (at.m < dob.m || (at.m === dob.m && at.d < dob.d)) age--
+  return age
+}
+
+/**
  * Check if the grid data contains all 9 PhenoAge markers for a given test.
  */
 export function checkPhenoAgeReadiness(
@@ -111,13 +191,7 @@ export function checkPhenoAgeReadiness(
   const missing: string[] = []
 
   for (const marker of PHENOAGE_MARKERS) {
-    const row = rows.find(
-      (r) =>
-        r.biomarker.name === marker.catalogName ||
-        r.biomarker.short_name === marker.catalogName
-    )
-
-    if (row && row.values[testId]?.value != null) {
+    if (findPhenoAgeRow(rows, marker, testId)) {
       present.push(marker.catalogName)
     } else {
       missing.push(marker.catalogName)

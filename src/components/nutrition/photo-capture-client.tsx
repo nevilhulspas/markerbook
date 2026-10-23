@@ -46,7 +46,7 @@ export function PhotoCaptureClient({ captureToken }: { captureToken: string | nu
   const searchAbortRef = useRef<AbortController | null>(null)
   // The Add flow gets its own in-flight controller + loading flag so it can run
   // fully independently of a Change search — sharing them let an aborted swap's
-  // `finally` clear the add spinner mid-flight (Greptile P1).
+  // `finally` clear the add spinner mid-flight.
   const addAbortRef = useRef<AbortController | null>(null)
   const [phase, setPhase] = useState<Phase>('capturing')
   const [blob, setBlob] = useState<Blob | null>(null)
@@ -161,7 +161,7 @@ export function PhotoCaptureClient({ captureToken }: { captureToken: string | nu
     const trimmed = query.trim()
     if (!trimmed) return
     // Abort any previous in-flight search so cancelling mid-flight doesn't
-    // silently apply a stale result (Greptile finding).
+    // silently apply a stale result.
     searchAbortRef.current?.abort()
     const ac = new AbortController()
     searchAbortRef.current = ac

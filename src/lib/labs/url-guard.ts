@@ -51,6 +51,12 @@ function isPrivateIpv4(ip: string): boolean {
   if (a === 192 && b === 168) return true
   // 100.64.0.0/10 — CGNAT
   if (a === 100 && b >= 64 && b <= 127) return true
+  // 192.0.0.0/24 — IETF protocol assignments
+  if (a === 192 && b === 0 && octets[2] === 0) return true
+  // 198.18.0.0/15 — benchmarking
+  if (a === 198 && (b === 18 || b === 19)) return true
+  // 224.0.0.0/4 multicast and 240.0.0.0/4 reserved (incl. broadcast)
+  if (a >= 224) return true
 
   return false
 }
@@ -99,10 +105,9 @@ function isPrivateIpv6(ip: string): boolean {
  *
  * Returns the parsed URL on success.
  *
- * Known limitation: DNS-rebinding TOCTOU — the host is resolved here but the
- * subsequent fetch resolves DNS again, so a record that flips to a private IP
- * between the two lookups could bypass this guard. Mitigating it fully needs
- * pinning the resolved IP through to the fetch (out of scope here).
+ * DNS rebinding (the record flips to a private IP between this lookup and the
+ * fetch's own) is handled at connect time by guardedFetch's transport
+ * (pinned-fetch.ts), which re-checks the address the socket really uses.
  */
 export async function assertSafeScrapeUrl(rawUrl: string): Promise<URL> {
   let url: URL

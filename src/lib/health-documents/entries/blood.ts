@@ -15,9 +15,9 @@ export const bloodDocumentType: HealthDocumentType<BloodParseResult> = {
     title: 'Blood test',
     dateLabel: result.test_date,
     lines: [
-      // Count matched + capturable: both will be saved (capturable markers are
-      // written via commitCapture at save time).
-      `${matchedMarkers.filter((m) => m.matched || m.capture_loinc_code).length} of ${matchedMarkers.length} markers matched`,
+      // Count matched + capturable + custom: all are saved (new catalogue rows
+      // are written via commitCapture / commitCustomCapture at save time).
+      `${matchedMarkers.filter((m) => m.matched || m.capture_loinc_code || m.capture_custom).length} of ${matchedMarkers.length} markers matched`,
       result.lab_name ? `Lab: ${result.lab_name}` : `Sample: ${result.sample_type}`,
     ],
   }),

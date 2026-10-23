@@ -7,7 +7,7 @@ import type { ExportListItem, FinderBiomarker, FinderTest, LabRow, LabTestMeta }
 /**
  * Resolve free-text lab names (as the model typed them) to approved lab rows.
  * Case-insensitive: first an exact name match, else a substring match in either
- * direction ("Bodimed" ↔ "BODIMED", "Lina" ↔ "Lina Laboratory"). Each input
+ * direction ("City lab" ↔ "CITY LAB", "Acme" ↔ "Acme Laboratory"). Each input
  * resolves to at most one lab (first match wins); names that match nothing are
  * returned in `unmatched` so the caller can tell the user plainly.
  */

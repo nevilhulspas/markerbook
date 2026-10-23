@@ -1,4 +1,4 @@
-// AUT-854: server-action tests for medical_conditions CRUD.
+// Server-action tests for medical_conditions CRUD.
 // Mirrors the in-memory Supabase mock pattern from next-to-test.test.ts.
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'

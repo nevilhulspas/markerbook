@@ -6,6 +6,7 @@ import { toast } from 'sonner'
 
 import { saveOtherInterpretation } from '@/actions/other-tests'
 import { Button } from '@/components/ui/button'
+import { AiUnavailableNote } from '@/components/interpretation/ai-unavailable-note'
 import { InterpretationContent } from '@/components/interpretation/interpretation-content'
 import { ThinkingIndicator } from '@/components/ui/thinking-indicator'
 import { readTextStream } from '@/lib/ai/text-stream'
@@ -18,9 +19,12 @@ import { readTextStream } from '@/lib/ai/text-stream'
 export function OtherInterpretPanel({
   testId,
   initialContent,
+  aiEnabled = true,
 }: {
   testId: string
   initialContent: string | null
+  /** False when the server has no Anthropic key (isAiConfigured). */
+  aiEnabled?: boolean
 }) {
   const [content, setContent] = useState(initialContent ?? '')
   const [isStreaming, setIsStreaming] = useState(false)
@@ -56,7 +60,7 @@ export function OtherInterpretPanel({
       }
     } catch (err) {
       if (err instanceof DOMException && err.name === 'AbortError') return
-      setError(err instanceof Error ? err.message : 'Failed to interpret')
+      setError(err instanceof Error ? err.message : 'Could not interpret this test. Please try again.')
     } finally {
       setIsStreaming(false)
     }
@@ -65,6 +69,9 @@ export function OtherInterpretPanel({
   const hasContent = content.trim().length > 0
 
   if (!hasContent && !isStreaming) {
+    if (!aiEnabled) {
+      return <AiUnavailableNote message="AI interpretation is not set up on this server." />
+    }
     return (
       <div className="space-y-2">
         <Button onClick={run}>
@@ -74,6 +81,7 @@ export function OtherInterpretPanel({
         <p className="text-xs text-muted-foreground">
           Uses AI to explain what this result means in the context of your profile.
         </p>
+        {error && <p className="text-sm text-destructive">{error}</p>}
       </div>
     )
   }
@@ -87,14 +95,21 @@ export function OtherInterpretPanel({
         <InterpretationContent content={content} isStreaming={isStreaming} />
       )}
       {error && <p className="text-sm text-destructive">{error}</p>}
-      <Button variant="outline" size="sm" onClick={run} disabled={isStreaming}>
-        {isStreaming ? (
-          <Loader2 className="size-4 animate-spin" />
-        ) : (
-          <RefreshCw className="size-4" />
-        )}
-        {isStreaming ? 'Interpreting…' : 'Re-interpret'}
-      </Button>
+      {!isStreaming && (
+        <p className="text-xs text-muted-foreground">
+          Not medical advice. Talk to your doctor before you change treatment.
+        </p>
+      )}
+      {aiEnabled && (
+        <Button variant="outline" size="sm" onClick={run} disabled={isStreaming}>
+          {isStreaming ? (
+            <Loader2 className="size-4 animate-spin" />
+          ) : (
+            <RefreshCw className="size-4" />
+          )}
+          {isStreaming ? 'Interpreting…' : 'Re-interpret'}
+        </Button>
+      )}
     </div>
   )
 }

@@ -13,8 +13,10 @@ import {
   type TestWithResults,
 } from '@/lib/grid/build-grid-data'
 import {
+  ageOnDate,
   calculatePhenoAge,
   checkPhenoAgeReadiness,
+  findPhenoAgeRow,
   PHENOAGE_MARKERS,
   type PhenoAgeInput,
 } from '@/lib/analytics/phenoage'
@@ -33,17 +35,6 @@ import { getRequestUser } from '@/lib/supabase/request-user'
 
 export const metadata: Metadata = {
   title: 'Dashboard | Markerbook',
-}
-
-function computeAge(dateOfBirth: string): number {
-  const dob = new Date(dateOfBirth)
-  const today = new Date()
-  let age = today.getFullYear() - dob.getFullYear()
-  const monthDiff = today.getMonth() - dob.getMonth()
-  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < dob.getDate())) {
-    age--
-  }
-  return age
 }
 
 export default async function DashboardPage() {
@@ -116,15 +107,21 @@ export default async function DashboardPage() {
     panelLookup.panels.size > 0 ? panelLookup : undefined
   )
 
-  // Compute chronological age
-  const chronologicalAge =
-    profile?.date_of_birth ? computeAge(profile.date_of_birth) : null
-
-  // Find the latest test ID (last in sorted-ascending array)
-  const latestTestId =
+  // Find the latest test (last in sorted-ascending array)
+  const latestTest =
     gridData.testDates.length > 0
-      ? gridData.testDates[gridData.testDates.length - 1].id
+      ? gridData.testDates[gridData.testDates.length - 1]
       : null
+  const latestTestId = latestTest?.id ?? null
+
+  // Chronological age on the date of the test PhenoAge is computed from, so
+  // the two ages compare like for like. Without a test, today's age.
+  const chronologicalAge = profile?.date_of_birth
+    ? ageOnDate(
+        profile.date_of_birth,
+        latestTest?.date ?? new Date().toISOString().slice(0, 10)
+      )
+    : null
 
   // Check PhenoAge readiness
   const readiness = latestTestId
@@ -143,11 +140,7 @@ export default async function DashboardPage() {
     const input: Partial<PhenoAgeInput> = { age: chronologicalAge }
 
     for (const marker of PHENOAGE_MARKERS) {
-      const row = gridData.rows.find(
-        (r) =>
-          r.biomarker.name === marker.catalogName ||
-          r.biomarker.short_name === marker.catalogName
-      )
+      const row = findPhenoAgeRow(gridData.rows, marker, latestTestId)
 
       if (row) {
         const cell = row.values[latestTestId]
@@ -225,12 +218,12 @@ export default async function DashboardPage() {
           </CardContent>
         </Card>
 
-        {/* Health Profile Card */}
+        {/* Profile Card */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <User className="size-4" />
-              Health Profile
+              Profile
             </CardTitle>
             <CardDescription>
               {profileCompleted === profileTotal

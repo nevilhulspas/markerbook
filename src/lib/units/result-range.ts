@@ -3,6 +3,7 @@ import {
   findReferenceRange,
   getRangeStatus,
   getRangeStatusFromRanges,
+  inlineRange,
   type RangeStatus,
 } from '@/lib/grid/reference-range'
 import { convertUnit, type MarkerUnits } from './convert'
@@ -52,10 +53,12 @@ export function resolveResultRange(
   // Inline biomarker range columns are in the catalogue unit.
   const v = convertUnit(value, unit, biomarker.unit, marker)
   if (v === null) return { status: 'unknown', low: null, high: null, unit: null }
+  const { low, high } = inlineRange(biomarker, sex)
+  if (low == null && high == null) return { status: 'unknown', low: null, high: null, unit: null }
   return {
     status: getRangeStatus(v, biomarker, sex),
-    low: biomarker.ref_range_low,
-    high: biomarker.ref_range_high,
+    low,
+    high,
     unit: biomarker.unit,
   }
 }

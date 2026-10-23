@@ -1,6 +1,12 @@
+import type { Metadata } from 'next'
+
 import { PhotoCaptureClient } from '@/components/nutrition/photo-capture-client'
 
 export const dynamic = 'force-dynamic'
+
+export const metadata: Metadata = {
+  title: 'Photo of a meal | Markerbook',
+}
 
 export default async function PhotoCapturePage({
   searchParams,

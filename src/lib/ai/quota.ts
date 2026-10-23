@@ -49,3 +49,17 @@ export async function takeAiRequest(
 export function aiLimitResponse(error: string): Response {
   return new Response(error, { status: error === AI_LIMIT_REACHED ? 429 : 503 })
 }
+
+/**
+ * Wrap a secondary model call (a rerank, an extraction inside a chat tool) so
+ * every call takes its own request from the user's limit — the request that
+ * started the flow counts only once, but a flow can make many calls. Over the
+ * limit the call is skipped and `fallback` is returned instead.
+ */
+export function countedAiCall<A extends unknown[], R>(
+  userId: string,
+  fn: (...args: A) => Promise<R>,
+  fallback: R
+): (...args: A) => Promise<R> {
+  return async (...args: A) => ((await takeAiRequest(userId)).ok ? fn(...args) : fallback)
+}

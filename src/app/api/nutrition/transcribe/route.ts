@@ -1,29 +1,21 @@
-import { resolveUserIdByToken } from '@/lib/nutrition/log-token'
-import { createClient } from '@/lib/supabase/server'
+import { authenticateNutritionRequest } from '@/lib/nutrition/request-auth'
 import { takeAiRequest } from '@/lib/ai/quota'
 
-function readToken(req: Request): string | null {
-  const header = req.headers.get('authorization')
-  if (header?.toLowerCase().startsWith('bearer ')) return header.slice(7).trim()
-  return new URL(req.url).searchParams.get('token')
-}
-
-/** Token auth (iPhone Shortcut) when a token is supplied — an explicit bad
- *  token stays a hard 401. Otherwise the logged-in session cookie (in-app
- *  voice recorder) authenticates. */
-async function authenticate(req: Request): Promise<string | null> {
-  const token = readToken(req)
-  if (token) return resolveUserIdByToken(token)
-
-  const supabase = await createClient()
-  const { data } = await supabase.auth.getUser()
-  return data.user?.id ?? null
-}
+/** Whisper's own upload limit; anything larger would only fail upstream. */
+const MAX_AUDIO_BYTES = 25 * 1024 * 1024
+/** Room for the multipart framing around the file. */
+const MAX_BODY_BYTES = MAX_AUDIO_BYTES + 64 * 1024
 
 export async function POST(req: Request): Promise<Response> {
-  // Auth
-  const userId = await authenticate(req)
+  // Auth: token (iPhone Shortcut) or the session cookie (in-app voice recorder).
+  const userId = await authenticateNutritionRequest(req)
   if (!userId) return Response.json({ error: 'Unauthorized' }, { status: 401 })
+
+  // Refuse an oversized upload before reading it into memory.
+  const declared = Number(req.headers.get('content-length') ?? '0')
+  if (declared > MAX_BODY_BYTES) {
+    return Response.json({ error: 'Audio file is too large (max 25 MB)' }, { status: 413 })
+  }
 
   // Check for OpenAI key
   const openaiKey = process.env.OPENAI_API_KEY
@@ -50,6 +42,9 @@ export async function POST(req: Request): Promise<Response> {
 
   if (!file) {
     return Response.json({ error: 'No audio file in request' }, { status: 400 })
+  }
+  if (file.size > MAX_AUDIO_BYTES) {
+    return Response.json({ error: 'Audio file is too large (max 25 MB)' }, { status: 413 })
   }
 
   const quota = await takeAiRequest(userId)

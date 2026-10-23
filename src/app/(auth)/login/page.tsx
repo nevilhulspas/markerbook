@@ -19,7 +19,7 @@ export default async function LoginPage({
   const nextPath = sanitizeNextPath(next)
 
   // Don't show the login form to a user who already has a valid session —
-  // send them on to where they were headed (AUT-919).
+  // send them on to where they were headed.
   const {
     data: { user },
   } = await getRequestUser()

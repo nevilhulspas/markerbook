@@ -198,6 +198,12 @@ export function BloodTestForm({
                 {errors.markers.message}
               </p>
             )}
+            {Array.isArray(errors.markers) && errors.markers.some(Boolean) && (
+              <p className="text-sm text-destructive">
+                Check the markers: each one needs a biomarker and a number (for
+                example 4.2, 0, -1.5 or &lt;0.5).
+              </p>
+            )}
             <Controller
               control={control}
               name="markers"

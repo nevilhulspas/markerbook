@@ -212,8 +212,33 @@ describe('adminSetLabStatus', () => {
     mockRequireAdmin.mockResolvedValue(adminUser)
   })
 
+  it('approving a lab also approves the tests its import left pending', async () => {
+    labsResult = { data: null, error: null }
+    labTestSaveResult = { data: [{ id: 't1' }, { id: 't2' }], error: null }
+
+    const result = await adminSetLabStatus('lab-1', 'approved')
+
+    const testUpdates = updateCalls.filter((c) => c.table === 'lab_tests')
+    expect(testUpdates).toHaveLength(2)
+    for (const u of testUpdates) {
+      expect(u.data).toMatchObject({ status: 'approved', reviewed_by: 'admin-1' })
+    }
+    expect(eqCalls).toContainEqual(['id', 't1'])
+    expect(eqCalls).toContainEqual(['id', 't2'])
+    expect(result).toEqual({ error: null })
+  })
+
+  it('rejecting a lab leaves its tests alone', async () => {
+    labsResult = { data: null, error: null }
+
+    await adminSetLabStatus('lab-1', 'rejected')
+
+    expect(updateCalls.filter((c) => c.table === 'lab_tests')).toHaveLength(0)
+  })
+
   it('sets status, reviewed_by, reviewed_at, review_notes and revalidates', async () => {
     labsResult = { data: null, error: null }
+    labTestSaveResult = { data: [], error: null } // no pending tests
 
     const result = await adminSetLabStatus('lab-1', 'approved', 'Looks good')
 

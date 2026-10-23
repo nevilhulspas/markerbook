@@ -12,7 +12,7 @@ import {
 } from 'recharts'
 
 import type { RmrTest } from '@/lib/database.types'
-import { APP_LOCALE } from '@/lib/locale'
+import { formatCalendarDate } from '@/lib/dates/calendar'
 
 /**
  * Measured RMR (kcal/day) over time. Tests arrive newest-first; we reverse to
@@ -24,10 +24,8 @@ export function RmrTrendChart({ tests }: { tests: RmrTest[] }) {
       [...tests]
         .sort((a, b) => a.test_date.localeCompare(b.test_date))
         .map((t) => ({
-          label: new Date(t.test_date).toLocaleDateString(APP_LOCALE, {
-            month: 'short',
-            day: 'numeric',
-          }),
+          // test_date is a calendar day: format it without a zone shift.
+          label: formatCalendarDate(t.test_date, { month: 'short', day: 'numeric' }),
           rmr_kcal: Math.round(t.rmr_kcal),
         })),
     [tests]

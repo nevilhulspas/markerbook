@@ -42,7 +42,7 @@ export type VoiceMode = 'dictation' | 'recording' | 'unsupported'
  *  `webkitSpeechRecognition`, so a pure feature check picks dictation, which
  *  then dies silently (WebKit speech has no Capacitor permission plumbing and
  *  surfaces no error we can toast on) — and only recording mode powers the
- *  deep-link auto-submit (AUT-962).
+ *  deep-link auto-submit.
  */
 export function getVoiceMode(): VoiceMode {
   const canRecord =

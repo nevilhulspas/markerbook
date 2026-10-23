@@ -30,6 +30,7 @@ import { AssistantMessage } from './assistant-message'
 import { ThinkingIndicator } from '@/components/ui/thinking-indicator'
 import { ACCEPTED_UPLOAD_ACCEPT_ATTR, filesFromTransfer } from '@/lib/insights/clipboard-files'
 import { describesConnectionFailure } from '@/lib/insights/thread-recovery'
+import { AiUnavailableNote } from '@/components/interpretation/ai-unavailable-note'
 
 const STARTERS = [
   'Give me an overview of my health',
@@ -55,6 +56,26 @@ interface InsightsChatProps {
   onToolAnswer: (toolCallId: string, answer: ToolAnswer) => void
   onNewThread: () => void
   isAdmin: boolean
+  /** False when the server has no Anthropic API key: input and starters are off. */
+  aiEnabled: boolean
+}
+
+/** The AI SDK's own text for a server error it does not pass on. */
+const SDK_GENERIC_ERROR = 'An error occurred.'
+
+/**
+ * The line shown for a failed turn. A dropped connection gets plain words:
+ * the browser's own wording is "Load failed" on iOS and "Failed to fetch" on
+ * Chrome. The server sends plain sentences for AI failures; the SDK's generic
+ * "An error occurred." (and an empty message) become one here too.
+ */
+function chatErrorText(error: Error): string {
+  if (describesConnectionFailure(error)) return 'The connection dropped before the answer came back.'
+  const message = error.message.trim()
+  if (!message || message === SDK_GENERIC_ERROR) {
+    return 'Something went wrong while answering. Please try again.'
+  }
+  return message
 }
 
 /** A composer attachment: uploading from the moment it's attached, ready once
@@ -80,6 +101,7 @@ export function InsightsChat({
   onToolAnswer,
   onNewThread,
   isAdmin,
+  aiEnabled,
 }: InsightsChatProps) {
   const [input, setInput] = useState('')
   const [pendingAtts, setPendingAtts] = useState<PendingAttachment[]>([])
@@ -315,7 +337,7 @@ export function InsightsChat({
   // Failed-only attachments (with no text) can't be sent — keep the button dead
   // so submit doesn't silently clear them.
   const canSend =
-    !!input.trim() || pendingAtts.some((a) => a.status !== 'error')
+    aiEnabled && (!!input.trim() || pendingAtts.some((a) => a.status !== 'error'))
 
   const handleSend = () => {
     if (!canSend) return
@@ -488,7 +510,8 @@ export function InsightsChat({
                   key={s}
                   type="button"
                   onClick={() => onStarterClick(s)}
-                  className="rounded-full border bg-background px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:border-primary hover:text-foreground"
+                  disabled={!aiEnabled}
+                  className="rounded-full border bg-background px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:border-primary hover:text-foreground disabled:pointer-events-none disabled:opacity-50"
                 >
                   {s}
                 </button>
@@ -545,19 +568,14 @@ export function InsightsChat({
       )}
       </div>
 
-      {/* Error. A dropped connection gets plain words and a way out: the
-          browser's own wording is "Load failed" on iOS and "Failed to fetch"
-          on Chrome, and the per-message Regenerate button the old copy pointed
-          at only exists once an answer HAS text — which is exactly what a
-          dropped answer lacks. An unrecognised failure keeps its message, so a
-          real bug still says what went wrong. */}
+      {/* Error, with a way out: the per-message Regenerate button only exists
+          once an answer HAS text — which is exactly what a dropped answer
+          lacks. See chatErrorText for the wording. */}
       {error && (
         <div className="shrink-0 border-t px-4 py-2">
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
             <p className="text-sm text-destructive">
-              {describesConnectionFailure(error)
-                ? 'The connection dropped before the answer came back.'
-                : error.message}
+              {chatErrorText(error)}
             </p>
             <button
               type="button"
@@ -649,7 +667,7 @@ export function InsightsChat({
             size="icon"
             variant="outline"
             className="size-[42px] shrink-0"
-            disabled={isLoading}
+            disabled={isLoading || !aiEnabled}
             onClick={() => fileInputRef.current?.click()}
             title="Attach a PDF or image"
           >
@@ -663,7 +681,8 @@ export function InsightsChat({
             onKeyDown={handleKeyDown}
             onFocus={() => setInputFocused(true)}
             onBlur={() => setInputFocused(false)}
-            placeholder="How can I help?"
+            placeholder={aiEnabled ? 'How can I help?' : 'Chat is not available'}
+            disabled={!aiEnabled}
             className="field-sizing-fixed min-h-[42px] max-h-[240px] flex-1 resize-none overflow-y-auto"
             rows={1}
           />
@@ -691,6 +710,15 @@ export function InsightsChat({
             </Button>
           )}
         </div>
+        {!aiEnabled && (
+          <AiUnavailableNote
+            className="mx-3 mb-2"
+            message="Chat needs AI, which is not set up on this server. Ask the admin to add an Anthropic API key."
+          />
+        )}
+        <p className="px-3 pb-2 text-center text-xs text-muted-foreground">
+          Not medical advice. Talk to your doctor before you change treatment.
+        </p>
       </div>
     </div>
   )

@@ -101,7 +101,7 @@ export function RecipeForm({ existing, onClose }: RecipeFormProps) {
   )
   const [ingredientsError, setIngredientsError] = useState('')
 
-  // AUT-955: retro confirm dialog — set when the edited meal has logged entries.
+  // Retro confirm dialog — set when the edited meal has logged entries.
   const [retroPrompt, setRetroPrompt] = useState<{ count: number } | null>(null)
   const [applyRetro, setApplyRetro] = useState(false)
   const [retroSince, setRetroSince] = useState('')

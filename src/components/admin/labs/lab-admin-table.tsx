@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react'
 import { ChevronDown, ChevronUp } from 'lucide-react'
 
 import type { Lab } from '@/lib/database.types'
+import type { AdminLab } from '@/actions/admin/labs'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -33,7 +34,7 @@ interface BiomarkerOption {
 }
 
 interface LabAdminTableProps {
-  labs: Lab[]
+  labs: AdminLab[]
   biomarkers: BiomarkerOption[]
 }
 

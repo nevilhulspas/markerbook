@@ -12,13 +12,25 @@ function revalidateLabs(): void {
   revalidatePath('/labs')
 }
 
-export async function adminListLabs(): Promise<Lab[]> {
+export interface AdminLab extends Lab {
+  /** Tests waiting for review (user suggestions, imports of a pending lab). */
+  pendingTestCount: number
+}
+
+export async function adminListLabs(): Promise<AdminLab[]> {
   await requireAdmin()
-  const { data } = await supabaseAdmin
-    .from('labs')
-    .select('*')
-    .order('created_at', { ascending: false })
-  return (data ?? []) as Lab[]
+  const [{ data }, { data: pendingTests }] = await Promise.all([
+    supabaseAdmin.from('labs').select('*').order('created_at', { ascending: false }),
+    supabaseAdmin.from('lab_tests').select('lab_id').eq('status', 'pending'),
+  ])
+  const pendingByLab = new Map<string, number>()
+  for (const t of pendingTests ?? []) {
+    pendingByLab.set(t.lab_id, (pendingByLab.get(t.lab_id) ?? 0) + 1)
+  }
+  return ((data ?? []) as Lab[]).map((lab) => ({
+    ...lab,
+    pendingTestCount: pendingByLab.get(lab.id) ?? 0,
+  }))
 }
 
 export interface AdminLabTestWithBiomarkers extends LabTest {
@@ -116,6 +128,38 @@ export async function adminSetLabStatus(
     })
     .eq('id', id)
   if (error) return { error: error.message }
+
+  // Approving a user-suggested lab also publishes the tests its import left
+  // pending. One at a time: a pending test whose name is already approved for
+  // this lab (unique index) stays pending instead of failing the rest.
+  if (status === 'approved') {
+    const { data: pendingTests } = await supabaseAdmin
+      .from('lab_tests')
+      .select('id')
+      .eq('lab_id', id)
+      .eq('status', 'pending')
+    let skipped = 0
+    for (const t of pendingTests ?? []) {
+      const { error: testError } = await supabaseAdmin
+        .from('lab_tests')
+        .update({
+          status: 'approved',
+          reviewed_by: admin.id,
+          reviewed_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', t.id)
+        .eq('status', 'pending')
+      if (testError) skipped++
+    }
+    if (skipped > 0) {
+      revalidateLabs()
+      return {
+        error: `Lab approved, but ${skipped} pending test(s) could not be approved (duplicate names?). Review them under Tests.`,
+      }
+    }
+  }
+
   revalidateLabs()
   return { error: null }
 }

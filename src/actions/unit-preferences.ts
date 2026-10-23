@@ -1,6 +1,7 @@
 'use server'
 
 import { getSessionUser } from '@/lib/supabase/session'
+import { userErrorMessage } from '@/lib/supabase/errors'
 import type { UnitPreferenceMap } from '@/lib/grid/unit-conversion'
 
 export async function getUnitPreferences(): Promise<UnitPreferenceMap> {
@@ -32,7 +33,16 @@ export async function setUnitPreference(
       .eq('user_id', user.id)
       .eq('biomarker_id', biomarkerId)
 
-    if (error) return { success: false, error: error.message }
+    if (error) {
+      return {
+        success: false,
+        error: userErrorMessage(
+          'setUnitPreference reset',
+          error,
+          'Could not save your unit choice. Please try again.'
+        ),
+      }
+    }
     return { success: true }
   }
 
@@ -48,6 +58,15 @@ export async function setUnitPreference(
       { onConflict: 'user_id,biomarker_id' }
     )
 
-  if (error) return { success: false, error: error.message }
+  if (error) {
+    return {
+      success: false,
+      error: userErrorMessage(
+        'setUnitPreference',
+        error,
+        'Could not save your unit choice. Please try again.'
+      ),
+    }
+  }
   return { success: true }
 }

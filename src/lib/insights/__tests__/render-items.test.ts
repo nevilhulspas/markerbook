@@ -275,3 +275,12 @@ describe('askUserAnswerText', () => {
     expect(askUserAnswerText(null)).toBe('')
   })
 })
+
+describe('buildRenderItems — approval cards', () => {
+  it('shows a gated tool as a card while it waits, and as a chip once it ran', () => {
+    const waiting = { type: 'tool-delete_blood_test', toolCallId: 'c', state: 'approval-requested', approval: { id: 'a' } }
+    const ran = { ...waiting, state: 'output-available', output: {} }
+    expect(buildRenderItems([waiting])[0].kind).toBe('interactive')
+    expect(buildRenderItems([ran])[0].kind).toBe('activity')
+  })
+})

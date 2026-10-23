@@ -1,6 +1,7 @@
 'use server'
 
 import { getSessionUser } from '@/lib/supabase/session'
+import { userErrorMessage } from '@/lib/supabase/errors'
 
 export async function toggleFavorite(
   biomarkerId: string
@@ -31,7 +32,15 @@ export async function toggleFavorite(
     .from('biomarker_favorites')
     .insert({ user_id: user.id, biomarker_id: biomarkerId })
 
-  if (error) return { error: error.message }
+  if (error) {
+    return {
+      error: userErrorMessage(
+        'toggleFavorite',
+        error,
+        'Could not update your favorites. Please try again.'
+      ),
+    }
+  }
   return { favorited: true }
 }
 

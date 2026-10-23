@@ -1,10 +1,10 @@
 /**
- * "Stop this answer" — the deliberate half of a cancelled run (OTH-41).
+ * "Stop this answer" — the deliberate half of a cancelled run.
  *
  * The chat's Stop button aborts the browser's own request, which the server
  * cannot distinguish from a phone losing signal — and by design it must not,
  * because a dropped connection has to leave the run alone so the answer
- * survives (OTH-40). So Stop also posts here, and this is what actually ends
+ * survives. So Stop also posts here, and this is what actually ends
  * the run.
  */
 import { createClient } from '@/lib/supabase/server'

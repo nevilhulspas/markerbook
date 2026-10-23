@@ -42,6 +42,7 @@ function createBuilder(table: string) {
   const builder: Record<string, unknown> = {
     select: () => builder,
     eq: () => builder,
+    in: () => builder,
     gt: () => builder,
     order: () => builder,
     limit: () => builder,
@@ -78,7 +79,7 @@ const ARGS = { labId: 'lab-1', url: 'https://bodimed.com/produkt/reverse-t3/', u
 describe('suggestLabTestFromUrl', () => {
   beforeEach(resetState)
 
-  it('adds a new, non-duplicate test as approved with submitted_by', async () => {
+  it('adds a new, non-duplicate test as pending (for admin review) with submitted_by', async () => {
     const result = await suggestLabTestFromUrl(ARGS)
     expect(result.added).toEqual(['Reverse T3'])
     expect(result.duplicates).toEqual([])
@@ -88,7 +89,7 @@ describe('suggestLabTestFromUrl', () => {
     expect(rows[0]).toMatchObject({
       lab_id: 'lab-1',
       name: 'Reverse T3',
-      status: 'approved',
+      status: 'pending',
       submitted_by: 'user-1',
     })
     expect(mockLinkLabTestBiomarkers).toHaveBeenCalledWith({ labId: 'lab-1', onlyUnlinked: true })

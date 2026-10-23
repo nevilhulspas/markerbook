@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { getAnthropic } from '@/lib/ai/client'
+import { chargeAiCall } from '@/lib/ai/charge'
 import { FAST_MODEL, FAST_THINKING } from '@/lib/ai/models'
 import { extractArrayObjects, extractJsonObject } from '@/lib/ai/json'
 
@@ -245,6 +246,7 @@ export async function matchTestsToBiomarkers(
     const numbered = chunk.map((n, i) => `${i + 1}. ${n}`).join('\n')
     let matched = 0
     try {
+      await chargeAiCall()
       const response = await getAnthropic().messages.create({
         model: MODEL,
         thinking: FAST_THINKING,

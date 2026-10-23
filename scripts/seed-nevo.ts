@@ -1,8 +1,7 @@
 /**
  * Seed the nevo_foods table from the RIVM NEVO 2025 CSV export.
  *
- * Usage (with NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SECRET_KEY set, e.g.
- * `set -a; source .env.local; set +a`):
+ * Usage (reads NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SECRET_KEY from .env.local):
  *   npx tsx scripts/seed-nevo.ts /path/to/NEVO2025_v9.0.csv        # dry run
  *   npx tsx scripts/seed-nevo.ts /path/to/NEVO2025_v9.0.csv --commit
  */
@@ -11,6 +10,12 @@ import { readFileSync } from 'node:fs'
 import { createClient } from '@supabase/supabase-js'
 
 import { parseNevoCsv } from '../src/lib/nutrition/nevo-csv'
+
+try {
+  process.loadEnvFile('.env.local')
+} catch {
+  // no .env.local: rely on the environment
+}
 
 const commit = process.argv.includes('--commit')
 

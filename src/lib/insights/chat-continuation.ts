@@ -23,7 +23,19 @@ export const INTERACTIVE_TOOLS = [
 export const CLIENT_ANSWERED_TOOLS = ['ask_user', 'confirm_health_document_index']
 
 /**
- * `sendAutomaticallyWhen` predicate for the insights chat (OTH-18).
+ * A tool part the USER answered on an approval card (tool-approval.ts). Its
+ * tool does have a server `execute`, but it has not run yet: the approval is
+ * the client's answer, exactly like an `ask_user` pick, and the server runs the
+ * tool (or reports the refusal) only on the resumed request. So it counts as a
+ * client answer below. A server tool that simply FINISHED never reaches this
+ * state — that case still never resumes.
+ */
+function isApprovalAnswer(part: { state: string }): boolean {
+  return part.state === 'approval-responded'
+}
+
+/**
+ * `sendAutomaticallyWhen` predicate for the insights chat.
  *
  * The stock `lastAssistantMessageIsCompleteWithToolCalls` fires whenever the
  * last assistant message ends with ANY completed client-visible tool calls.
@@ -58,15 +70,21 @@ export function lastAssistantMessageAwaitsInteractiveTool({
 
   if (lastStepToolParts.length === 0) return false
 
-  // Every tool in the final step must have a result (nothing still streaming)…
+  // Every tool in the final step must have a result or the user's approval
+  // answer (nothing still streaming, no card still open)…
   const allComplete = lastStepToolParts.every(
-    (part) => part.state === 'output-available' || part.state === 'output-error',
+    (part) =>
+      part.state === 'output-available' ||
+      part.state === 'output-error' ||
+      part.state === 'output-denied' ||
+      isApprovalAnswer(part),
   )
-  // …and at least one of them must be a client-answered tool whose result the
-  // client just supplied. A step ending purely in server-executed tools means
-  // the run was cut short (cap/abort) — resending would regenerate, not resume.
-  const hasClientAnswered = lastStepToolParts.some((part) =>
-    CLIENT_ANSWERED_TOOLS.includes(getToolName(part)),
+  // …and at least one of them must be a client answer the client just
+  // supplied: a client-answered tool, or an approval card. A step ending purely
+  // in server-executed tools means the run was cut short (cap/abort) —
+  // resending would regenerate, not resume.
+  const hasClientAnswered = lastStepToolParts.some(
+    (part) => CLIENT_ANSWERED_TOOLS.includes(getToolName(part)) || isApprovalAnswer(part),
   )
   return allComplete && hasClientAnswered
 }
@@ -74,7 +92,7 @@ export function lastAssistantMessageAwaitsInteractiveTool({
 /**
  * Is a card on screen still waiting for the user's click?
  *
- * `ask_user` and the document card are answered in the UI: their tool part
+ * `ask_user`, the document card and approval cards are answered in the UI: their tool part
  * sits unresolved until the user picks, and that click is the ONLY thing that
  * resumes the run. They are also never persisted in that state, so anything
  * rebuilt from the database is missing them — which makes this the guard
@@ -88,8 +106,9 @@ export function hasUnansweredInteractiveTool(messages: UIMessage[]): boolean {
     .filter(isToolUIPart)
     .some(
       (part) =>
-        CLIENT_ANSWERED_TOOLS.includes(getToolName(part)) &&
-        part.state !== 'output-available' &&
-        part.state !== 'output-error',
+        part.state === 'approval-requested' ||
+        (CLIENT_ANSWERED_TOOLS.includes(getToolName(part)) &&
+          part.state !== 'output-available' &&
+          part.state !== 'output-error'),
     )
 }

@@ -1,4 +1,18 @@
 import { describe, it, expect, vi } from 'vitest'
+
+// The live column check is covered in shared-catalog.test.ts; here the
+// database is taken to have the created_by column.
+vi.mock('@/lib/catalog/shared-catalog', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/catalog/shared-catalog')>()),
+  creatorFields: async (_db: unknown, userId: string | null | undefined) =>
+    userId ? { created_by: userId } : {},
+}))
+
+vi.mock('server-only', () => ({}))
+const { mockTakeAiRequest } = vi.hoisted(() => ({
+  mockTakeAiRequest: vi.fn(async () => ({ ok: true }) as { ok: boolean }),
+}))
+vi.mock('@/lib/ai/quota', () => ({ takeAiRequest: mockTakeAiRequest }))
 import type Anthropic from '@anthropic-ai/sdk'
 import type { Biomarker } from '@/lib/database.types'
 import type { ReportMarker, ResolveDeps, CommitCaptureDeps, CommitCustomCaptureDeps } from '../resolve'
@@ -391,12 +405,18 @@ describe('resolveMarker — Group C: deterministic fallback + threshold', () => 
 
 /**
  * Like buildDbStub but also records the last row passed to `.insert()` on the
- * 'biomarkers' table so we can assert on what was written.
+ * 'biomarkers' table, and every `.upsert()` (the creator's display-unit
+ * preference), so we can assert on what was written.
  */
 function buildDbStubWithInsertCapture(
   responses: Record<string, unknown>,
-): { db: never; lastInsertedRow: { value: Record<string, unknown> | null } } {
+): {
+  db: never
+  lastInsertedRow: { value: Record<string, unknown> | null }
+  upserts: { table: string; row: Record<string, unknown> }[]
+} {
   const lastInsertedRow: { value: Record<string, unknown> | null } = { value: null }
+  const upserts: { table: string; row: Record<string, unknown> }[] = []
 
   const db = {
     from(table: string) {
@@ -422,12 +442,16 @@ function buildDbStubWithInsertCapture(
             }),
           }
         },
+        upsert: (row: unknown) => {
+          upserts.push({ table, row: row as Record<string, unknown> })
+          return Promise.resolve({ data: null, error: null })
+        },
       }
       return chain
     },
   }
 
-  return { db: db as never, lastInsertedRow }
+  return { db: db as never, lastInsertedRow, upserts }
 }
 
 describe('commitCapture — Group D: write path', () => {
@@ -468,7 +492,63 @@ describe('commitCapture — Group D: write path', () => {
     })
   })
 
-  it('uses the printed report range when present and does NOT call estimateRange', async () => {
+  it('stores the LOINC unit on the shared row, never the user unit', async () => {
+    const { db, lastInsertedRow } = buildDbStubWithInsertCapture({
+      loinc_terms: { data: [activeLoincTerm], error: null },
+      loinc_display: { data: [displayRow], error: null },
+      'insert:biomarkers': { data: { id: 'bm-ferritin' }, error: null },
+    })
+    const fakeEstimateRange = vi.fn<() => Promise<ResolvedRange | null>>().mockResolvedValue(null)
+    const fakeAi = {} as unknown as Anthropic
+
+    const deps: CommitCaptureDeps = { db, estimateRange: fakeEstimateRange, ai: fakeAi }
+    await commitCapture('2276-4', { unit: 'µg/L' }, deps)
+
+    expect(lastInsertedRow.value).toMatchObject({ unit: 'ng/mL' })
+    // The range estimate is anchored on the LOINC unit too.
+    expect(fakeEstimateRange).toHaveBeenCalledWith('2276-4', 'Ferritin', 'ng/mL', fakeAi)
+  })
+
+  it('writes UCUM example units in lab spelling', async () => {
+    const { db, lastInsertedRow } = buildDbStubWithInsertCapture({
+      loinc_terms: {
+        data: [{ ...activeLoincTerm, example_ucum_units: '10*3/uL' }],
+        error: null,
+      },
+      loinc_display: { data: [displayRow], error: null },
+      'insert:biomarkers': { data: { id: 'bm-x' }, error: null },
+    })
+
+    const deps: CommitCaptureDeps = { db, estimateRange: vi.fn().mockResolvedValue(null) }
+    await commitCapture('2276-4', { unit: '10^9/L' }, deps)
+
+    expect(lastInsertedRow.value).toMatchObject({ unit: '10^3/uL' })
+  })
+
+  it('leaves the unit empty and skips the range when LOINC has no unit', async () => {
+    const { db, lastInsertedRow } = buildDbStubWithInsertCapture({
+      loinc_terms: {
+        data: [{ ...activeLoincTerm, example_ucum_units: null }],
+        error: null,
+      },
+      loinc_display: { data: [displayRow], error: null },
+      'insert:biomarkers': { data: { id: 'bm-x' }, error: null },
+    })
+    const fakeEstimateRange = vi.fn<() => Promise<ResolvedRange | null>>().mockResolvedValue({
+      low: 1,
+      high: 2,
+      source: 'ai_estimated',
+    })
+
+    const deps: CommitCaptureDeps = { db, estimateRange: fakeEstimateRange }
+    await commitCapture('2276-4', { unit: 'mg/L' }, deps)
+
+    expect(lastInsertedRow.value).toMatchObject({ unit: '' })
+    expect(lastInsertedRow.value).not.toHaveProperty('ref_range_low')
+    expect(fakeEstimateRange).not.toHaveBeenCalled()
+  })
+
+  it('never copies a printed report range into the shared row', async () => {
     const { db, lastInsertedRow } = buildDbStubWithInsertCapture({
       loinc_terms: { data: [activeLoincTerm], error: null },
       loinc_display: { data: [displayRow], error: null },
@@ -476,31 +556,24 @@ describe('commitCapture — Group D: write path', () => {
     })
 
     const fakeEstimateRange = vi.fn<() => Promise<ResolvedRange | null>>().mockResolvedValue({
-      low: 99,
-      high: 999,
+      low: 15,
+      high: 150,
       source: 'ai_estimated',
     })
 
     const deps: CommitCaptureDeps = { db, estimateRange: fakeEstimateRange }
-    const id = await commitCapture(
-      '2276-4',
-      { unit: 'ng/mL', ref_range_low: 12, ref_range_high: 300 },
-      deps,
-    )
+    // A crafted payload may still carry report range fields.
+    const marker = { unit: 'ng/mL', ref_range_low: 1, ref_range_high: 99999 }
+    await commitCapture('2276-4', marker, deps)
 
-    expect(id).toBe('bm-ferritin')
-    // estimateRange must NOT have been called (report range wins)
-    expect(fakeEstimateRange).not.toHaveBeenCalled()
-
-    // Inserted row must carry the report range + range_source
     expect(lastInsertedRow.value).toMatchObject({
-      ref_range_low: 12,
-      ref_range_high: 300,
-      range_source: 'report',
+      ref_range_low: 15,
+      ref_range_high: 150,
+      range_source: 'ai_estimated',
     })
   })
 
-  it('calls estimateRange and sets ai_estimated columns when no printed range', async () => {
+  it('calls estimateRange and sets ai_estimated columns', async () => {
     const { db, lastInsertedRow } = buildDbStubWithInsertCapture({
       loinc_terms: { data: [activeLoincTerm], error: null },
       loinc_display: { data: [displayRow], error: null },
@@ -523,10 +596,7 @@ describe('commitCapture — Group D: write path', () => {
     const id = await commitCapture('2276-4', { unit: 'ng/mL' }, deps)
 
     expect(id).toBe('bm-ferritin')
-    // estimateRange must have been called once
     expect(fakeEstimateRange).toHaveBeenCalledOnce()
-
-    // Inserted row must carry the AI-estimated range + range_source
     expect(lastInsertedRow.value).toMatchObject({
       ref_range_low: 12,
       ref_range_high: 300,
@@ -550,12 +620,11 @@ describe('commitCapture — Group D: write path', () => {
     const deps: CommitCaptureDeps = { db, estimateRange: fakeEstimateRange }
     await commitCapture('2276-4', { unit: 'ng/mL' }, deps)
 
-    // No range columns and range_source should be absent/undefined
     expect(lastInsertedRow.value).not.toHaveProperty('ref_range_low')
     expect(lastInsertedRow.value).not.toHaveProperty('range_source')
   })
 
-  it('stores the raw lab name as an alias when it differs from the LOINC clean name', async () => {
+  it('never stores the raw lab name as an alias on the shared row', async () => {
     const { db, lastInsertedRow } = buildDbStubWithInsertCapture({
       loinc_terms: { data: [activeLoincTerm], error: null },
       loinc_display: { data: [displayRow], error: null }, // clean_name: 'Ferritin'
@@ -563,30 +632,14 @@ describe('commitCapture — Group D: write path', () => {
     })
 
     const deps: CommitCaptureDeps = { db, estimateRange: vi.fn().mockResolvedValue(null) }
-    await commitCapture('2276-4', { name: 'S-Ferritine', unit: 'ng/mL' }, deps)
+    await commitCapture('2276-4', { name: 'Vitamin D', unit: 'ng/mL' }, deps)
 
-    // Display name comes from the LOINC clean_name; the lab's raw spelling is
-    // kept as an alias so a future import of 'S-Ferritine' fast-path matches.
-    expect(lastInsertedRow.value).toMatchObject({
-      name: 'Ferritin',
-      aliases: ['S-Ferritine'],
-    })
-  })
-
-  it('does not alias the raw name when it equals the clean name', async () => {
-    const { db, lastInsertedRow } = buildDbStubWithInsertCapture({
-      loinc_terms: { data: [activeLoincTerm], error: null },
-      loinc_display: { data: [displayRow], error: null }, // clean_name: 'Ferritin'
-      'insert:biomarkers': { data: { id: 'bm-ferritin' }, error: null },
-    })
-
-    const deps: CommitCaptureDeps = { db, estimateRange: vi.fn().mockResolvedValue(null) }
-    await commitCapture('2276-4', { name: 'Ferritin', unit: 'ng/mL' }, deps)
-
+    // A crafted name could otherwise hijack another marker's spelling for
+    // every user's future imports.
     expect(lastInsertedRow.value).toMatchObject({ name: 'Ferritin', aliases: [] })
   })
 
-  it('falls back to the raw lab name (never the unit) when no LOINC clean name exists', async () => {
+  it('falls back to the LOINC long common name (never the raw lab name or the unit)', async () => {
     const { db, lastInsertedRow } = buildDbStubWithInsertCapture({
       loinc_terms: { data: [activeLoincTerm], error: null },
       // no display row → no clean_name
@@ -597,10 +650,66 @@ describe('commitCapture — Group D: write path', () => {
     const deps: CommitCaptureDeps = { db, estimateRange: vi.fn().mockResolvedValue(null) }
     await commitCapture('2276-4', { name: 'S-Ferritine', unit: 'ng/mL' }, deps)
 
-    // Name falls back to the raw lab name, NOT the unit ('ng/mL')
-    expect(lastInsertedRow.value).toMatchObject({ name: 'S-Ferritine', unit: 'ng/mL' })
-    // And since name === chosen display name, no self-alias
-    expect(lastInsertedRow.value).toMatchObject({ aliases: [] })
+    expect(lastInsertedRow.value).toMatchObject({
+      name: 'Ferritin [Mass/volume] in Serum or Plasma',
+      aliases: [],
+    })
+  })
+
+  it('records the creator and keeps their own unit as display preference', async () => {
+    const { db, lastInsertedRow, upserts } = buildDbStubWithInsertCapture({
+      loinc_terms: { data: [activeLoincTerm], error: null },
+      loinc_display: { data: [displayRow], error: null },
+      'insert:biomarkers': { data: { id: 'bm-ferritin' }, error: null },
+    })
+
+    const deps: CommitCaptureDeps = {
+      db,
+      estimateRange: vi.fn().mockResolvedValue(null),
+      createdBy: 'user-1',
+    }
+    await commitCapture('2276-4', { unit: 'pmol/L' }, deps)
+
+    expect(lastInsertedRow.value).toMatchObject({ created_by: 'user-1', unit: 'ng/mL' })
+    expect(upserts).toEqual([
+      {
+        table: 'user_unit_preferences',
+        row: { user_id: 'user-1', biomarker_id: 'bm-ferritin', preferred_unit: 'pmol/L' },
+      },
+    ])
+  })
+
+  it("skips the range estimate when the creator is over the AI limit", async () => {
+    const { db, lastInsertedRow } = buildDbStubWithInsertCapture({
+      loinc_terms: { data: [activeLoincTerm], error: null },
+      loinc_display: { data: [displayRow], error: null },
+      'insert:biomarkers': { data: { id: 'bm-ferritin' }, error: null },
+    })
+    mockTakeAiRequest.mockResolvedValueOnce({ ok: false })
+    const estimateRange = vi.fn().mockResolvedValue(null)
+
+    await commitCapture('2276-4', { unit: 'ng/mL' }, { db, estimateRange, createdBy: 'user-1' })
+
+    expect(mockTakeAiRequest).toHaveBeenCalledWith('user-1')
+    expect(estimateRange).not.toHaveBeenCalled()
+    expect(lastInsertedRow.value).toMatchObject({ created_by: 'user-1' })
+  })
+
+  it('adds no preference when the creator unit is the catalogue unit', async () => {
+    const { db, upserts } = buildDbStubWithInsertCapture({
+      loinc_terms: { data: [activeLoincTerm], error: null },
+      loinc_display: { data: [displayRow], error: null },
+      'insert:biomarkers': { data: { id: 'bm-ferritin' }, error: null },
+    })
+
+    const deps: CommitCaptureDeps = {
+      db,
+      estimateRange: vi.fn().mockResolvedValue(null),
+      createdBy: 'user-1',
+    }
+    await commitCapture('2276-4', { unit: 'µg/L' }, deps) // same unit as ng/mL
+
+    expect(upserts).toEqual([])
   })
 
   it('re-selects the existing row on a 23505 unique-violation (lost insert race)', async () => {
@@ -646,18 +755,18 @@ describe('commitCapture — Group D: write path', () => {
 // ---------------------------------------------------------------------------
 
 describe('commitCustomCapture — Group E: custom write path', () => {
-  it('inserts a custom row (is_custom true, loinc_code null) and returns the id', async () => {
+  it('inserts a custom row with no catalogue unit and returns the id', async () => {
     const { db, lastInsertedRow } = buildDbStubWithInsertCapture({
       'insert:biomarkers': { data: { id: 'bm-aaepa' }, error: null },
     })
 
-    const deps: CommitCustomCaptureDeps = { db, estimateRangeByName: vi.fn().mockResolvedValue(null) }
+    const deps: CommitCustomCaptureDeps = { db }
     const id = await commitCustomCapture({ name: 'AA/EPA', unit: 'ratio' }, deps)
 
     expect(id).toBe('bm-aaepa')
     expect(lastInsertedRow.value).toMatchObject({
       name: 'AA/EPA',
-      unit: 'ratio',
+      unit: '',
       category: 'Other',
       loinc_code: null,
       is_custom: true,
@@ -665,47 +774,54 @@ describe('commitCustomCapture — Group E: custom write path', () => {
     })
   })
 
-  it('never calls loinc_terms/loinc_display and prefers the printed report range', async () => {
+  it('never copies a printed report range into the shared row', async () => {
     const { db, lastInsertedRow } = buildDbStubWithInsertCapture({
       'insert:biomarkers': { data: { id: 'bm-amh' }, error: null },
     })
-    const fakeEstimate = vi.fn<() => Promise<ResolvedRange | null>>().mockResolvedValue({
-      low: 1, high: 2, source: 'ai_estimated',
+
+    const deps: CommitCustomCaptureDeps = { db }
+    const marker = { name: 'Anti-Müllerian Hormone', unit: 'ng/mL', ref_range_low: 0.147, ref_range_high: 7.49 }
+    await commitCustomCapture(marker, deps)
+
+    expect(lastInsertedRow.value).toMatchObject({ is_custom: true, unit: '' })
+    expect(lastInsertedRow.value).not.toHaveProperty('ref_range_low')
+    expect(lastInsertedRow.value).not.toHaveProperty('range_source')
+  })
+
+  it('cleans and length-limits the name and category', async () => {
+    const { db, lastInsertedRow } = buildDbStubWithInsertCapture({
+      'insert:biomarkers': { data: { id: 'bm-x' }, error: null },
     })
 
-    const deps: CommitCustomCaptureDeps = { db, estimateRangeByName: fakeEstimate }
+    const deps: CommitCustomCaptureDeps = { db }
     await commitCustomCapture(
-      { name: 'Anti-Müllerian Hormone', unit: 'ng/mL', ref_range_low: 0.147, ref_range_high: 7.49 },
+      { name: `  DGLA‮\u0000  ${'x'.repeat(300)}`, unit: 'mg/l', category: `Fatty\nacids${'y'.repeat(100)}` },
       deps,
     )
 
-    // report range wins — the name-based estimator is never consulted
-    expect(fakeEstimate).not.toHaveBeenCalled()
-    expect(lastInsertedRow.value).toMatchObject({
-      is_custom: true,
-      ref_range_low: 0.147,
-      ref_range_high: 7.49,
-      range_source: 'report',
-    })
+    const row = lastInsertedRow.value as { name: string; category: string }
+    expect(row.name.startsWith('DGLA x')).toBe(true)
+    expect(Array.from(row.name).length).toBeLessThanOrEqual(120)
+    expect(row.name).not.toMatch(/[\u0000‮]/)
+    expect(row.category.startsWith('Fatty acids')).toBe(true)
+    expect(row.category.length).toBeLessThanOrEqual(60)
   })
 
-  it('falls back to a name-based AI estimate when no report range is present', async () => {
-    const { db, lastInsertedRow } = buildDbStubWithInsertCapture({
+  it("records the creator and keeps the creator's unit as display preference", async () => {
+    const { db, lastInsertedRow, upserts } = buildDbStubWithInsertCapture({
       'insert:biomarkers': { data: { id: 'bm-dgla' }, error: null },
     })
-    const fakeEstimate = vi.fn<() => Promise<ResolvedRange | null>>().mockResolvedValue({
-      low: 30, high: 90, source: 'ai_estimated',
-    })
 
-    const deps: CommitCustomCaptureDeps = { db, estimateRangeByName: fakeEstimate, ai: {} as unknown as Anthropic }
+    const deps: CommitCustomCaptureDeps = { db, createdBy: 'user-1' }
     await commitCustomCapture({ name: 'DGLA', unit: 'mg/l' }, deps)
 
-    expect(fakeEstimate).toHaveBeenCalledOnce()
-    expect(lastInsertedRow.value).toMatchObject({
-      ref_range_low: 30,
-      ref_range_high: 90,
-      range_source: 'ai_estimated',
-    })
+    expect(lastInsertedRow.value).toMatchObject({ created_by: 'user-1', unit: '' })
+    expect(upserts).toEqual([
+      {
+        table: 'user_unit_preferences',
+        row: { user_id: 'user-1', biomarker_id: 'bm-dgla', preferred_unit: 'mg/l' },
+      },
+    ])
   })
 
   it('re-selects the existing row on a 23505 name unique-violation', async () => {
@@ -715,7 +831,7 @@ describe('commitCustomCapture — Group E: custom write path', () => {
       biomarkers: { data: { id: 'existing-custom' }, error: null },
     }) as never
 
-    const deps: CommitCustomCaptureDeps = { db, estimateRangeByName: vi.fn().mockResolvedValue(null) }
+    const deps: CommitCustomCaptureDeps = { db }
     const id = await commitCustomCapture({ name: 'AA/EPA', unit: 'ratio' }, deps)
 
     expect(id).toBe('existing-custom')
@@ -723,9 +839,57 @@ describe('commitCustomCapture — Group E: custom write path', () => {
 
   it('throws when the marker name is empty', async () => {
     const { db } = buildDbStubWithInsertCapture({})
-    const deps: CommitCustomCaptureDeps = { db, estimateRangeByName: vi.fn().mockResolvedValue(null) }
+    const deps: CommitCustomCaptureDeps = { db }
     await expect(commitCustomCapture({ name: '   ', unit: 'ratio' }, deps)).rejects.toThrow(
       /name is required/,
     )
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Group containers (regression: total bilirubin landed on Bilirubin (Direct))
+// ---------------------------------------------------------------------------
+
+describe('resolveMarker — group containers', () => {
+  const bilirubinTerm = {
+    loinc_num: '1975-2', component: 'Bilirubin', property: 'MCnc', system: 'Ser/Plas',
+    scale_typ: 'Qn', method_typ: null, long_common_name: 'Bilirubin.total', short_name: null,
+    example_ucum_units: 'mg/dL', classtype: 1, status: 'ACTIVE',
+  }
+  const parent = makeBiomarker({ id: 'bil', name: 'Bilirubin', loinc_code: '1975-2' })
+  const direct = makeBiomarker({
+    id: 'dbil', name: 'Bilirubin (Direct)', parent_id: 'bil', variant_name: 'direct', loinc_code: '1968-7',
+  })
+  const deps = (): ResolveDeps => ({
+    db: buildDbStub({ loinc_terms: { data: [bilirubinTerm], error: null } }) as never,
+    searchLoinc: async () => [],
+  })
+
+  it('never maps "Bilirubin" to the direct child of a container', async () => {
+    const result = await resolveMarker({ name: 'Bilirubin', unit: 'mg/dL' }, [parent, direct], deps())
+    expect(result).toEqual({ status: 'unresolved', name: 'Bilirubin' })
+  })
+
+  it('does not match a LOINC code owned by a container', async () => {
+    const result = await resolveMarker(
+      { name: 'Bili tot', unit: 'mg/dL', loinc_code: '1975-2' }, [parent, direct], deps()
+    )
+    expect(result.status).toBe('unresolved')
+  })
+
+  it('uses the total variant when the container has one', async () => {
+    const total = makeBiomarker({ id: 'tbil', name: 'Bilirubin (Total)', parent_id: 'bil', variant_name: 'total' })
+    const result = await resolveMarker(
+      { name: 'Bili tot', unit: 'mg/dL', loinc_code: '1975-2' }, [parent, direct, total], deps()
+    )
+    expect(result).toEqual({ status: 'matched', biomarkerId: 'tbil', via: 'ai_code' })
+  })
+
+  it('lands total bilirubin on "Bilirubin" once it is a standalone marker', async () => {
+    const standaloneDirect = { ...direct, parent_id: null, variant_name: null }
+    const result = await resolveMarker(
+      { name: 'Total bilirubin', unit: 'mg/dL', loinc_code: '1975-2' }, [parent, standaloneDirect], deps()
+    )
+    expect(result).toEqual({ status: 'matched', biomarkerId: 'bil', via: 'ai_code' })
   })
 })

@@ -152,7 +152,7 @@ Personalized interpretation of the value considering the user's profile:
 
 ### 3. ## How to Improve
 Specific, actionable advice:
-- Supplements with specific dosages (e.g., "Vitamin D3, 2000-4000 IU daily with a fatty meal")
+- Supplement options worth discussing with a doctor (e.g., "Vitamin D3 is a common option to discuss with your doctor"). Never give doses, amounts or dosing schedules
 - Specific foods (name them, not just food groups)
 - Exercise types, sleep habits, lifestyle adjustments
 - Personalize to the user's activity level and sex
@@ -162,6 +162,7 @@ Which other markers from this test relate to this one and how. 2-3 sentences wea
 
 ## Critical Rules
 - NEVER diagnose conditions. Use phrases like "this pattern is consistent with" or "this may suggest" rather than "you have"
+- NEVER give supplement or medication doses, amounts or schedules, and never suggest starting, stopping or changing a medication. Name options for the user to discuss with their doctor
 - Do NOT cause unnecessary alarm. Mildly abnormal values are often meaningless in isolation
 - End with exactly this line: \`---\\n*This is not medical advice. Consult your healthcare provider for diagnosis and treatment.*\``
 
@@ -189,7 +190,7 @@ Connections between markers that tell a bigger story (e.g., "Your lipid panel co
 
 ### 4. ## Recommendations
 Top 3-5 actionable items prioritized by impact:
-- Specific supplements with dosages
+- Supplement options to discuss with a doctor (name them; never give doses, amounts or dosing schedules)
 - Specific foods (name them)
 - Lifestyle changes (exercise types, sleep habits)
 - Personalized to the user's profile (age, sex, activity level)
@@ -199,6 +200,7 @@ Which markers deserve attention at the next test and why. Help the user understa
 
 ## Critical Rules
 - NEVER diagnose conditions. Use phrases like "this pattern is consistent with" or "this may suggest"
+- NEVER give supplement or medication doses, amounts or schedules, and never suggest starting, stopping or changing a medication. Name options for the user to discuss with their doctor
 - Do NOT cause unnecessary alarm
 - End with exactly this line: \`---\\n*This is not medical advice. Consult your healthcare provider for diagnosis and treatment.*\``
 

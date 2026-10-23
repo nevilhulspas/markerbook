@@ -40,7 +40,7 @@ interface Props {
   status: 'pending' | 'done'
   note: string | null
   dueDate: string | null
-  // AUT-864: surfaces the "Move to another list" picker in the edit popover.
+  // Surfaces the "Move to another list" picker in the edit popover.
   // When omitted (or only one list exists) the picker is hidden so it doesn't
   // clutter callers that have no choice to offer.
   currentListId: string
@@ -149,7 +149,7 @@ function EditPopover({
   const [open, setOpen] = useState(false)
   const [noteValue, setNoteValue] = useState(note ?? '')
   const [dueValue, setDueValue] = useState(dueDate ?? '')
-  // AUT-864: list selector — only renders when there's more than one list
+  // List selector — only renders when there's more than one list
   // to choose between.
   const [listValue, setListValue] = useState(currentListId)
   const [pending, startTransition] = useTransition()
@@ -209,7 +209,7 @@ function EditPopover({
                   dueDate: dueValue || null,
                 })
                 if ('error' in r) {
-                  toast.error(`Couldn't save — ${r.error}`)
+                  toast.error(r.error)
                   return
                 }
                 // List moves go through bulkMoveEntries so an entry that
@@ -221,7 +221,7 @@ function EditPopover({
                 if (listValue !== currentListId) {
                   const mv = await bulkMoveEntries([entryId], listValue, { sourceWins: true })
                   if ('error' in mv) {
-                    toast.error(`Couldn't move — ${mv.error}`)
+                    toast.error(mv.error)
                     return
                   }
                   if (mv.merged > 0) toast.success('Merged with the entry already on that list')

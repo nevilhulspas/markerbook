@@ -59,7 +59,7 @@ const opts = { toolCallId: 't', messages: [], context: {} }
 
 describe('createHealthRecordTools', () => {
   it('exposes the full health-record CRUD tool set', () => {
-    const tools = createHealthRecordTools(makeDb(), 'user-1')
+    const tools = createHealthRecordTools(makeDb(), '11111111-1111-4111-8111-111111111111')
     expect(Object.keys(tools).sort()).toEqual([
       'add_blood_results',
       'attach_document_to_record',
@@ -87,7 +87,7 @@ describe('createHealthRecordTools', () => {
 
   it('create_blood_test refuses a same-date duplicate unless explicitly allowed', async () => {
     const existing = [{ id: 'bt-1', name: 'Blood test 2026-06-01', test_date: '2026-06-01' }]
-    const tools = createHealthRecordTools(makeDb(existing), 'user-1')
+    const tools = createHealthRecordTools(makeDb(existing), '11111111-1111-4111-8111-111111111111')
     const out = (await tools.create_blood_test.execute!(
       { test_date: '2026-06-01', markers: [{ name: 'Ferritin', value: 80 }] },
       opts
@@ -97,13 +97,13 @@ describe('createHealthRecordTools', () => {
   })
 
   it('log_body_entry requires at least one metric', async () => {
-    const tools = createHealthRecordTools(makeDb(), 'user-1')
+    const tools = createHealthRecordTools(makeDb(), '11111111-1111-4111-8111-111111111111')
     const out = await tools.log_body_entry.execute!({ logged_on: '2026-06-01' }, opts)
     expect(out).toMatchObject({ error: expect.stringMatching(/at least one/i) })
   })
 
   it('update_health_test rejects numeric fields outside the per-type whitelist', async () => {
-    const tools = createHealthRecordTools(makeDb(), 'user-1')
+    const tools = createHealthRecordTools(makeDb(), '11111111-1111-4111-8111-111111111111')
     const out = await tools.update_health_test.execute!(
       { type: 'rmr', id: 'r1', values: { body_fat_pct: 20 } },
       opts
@@ -112,7 +112,7 @@ describe('createHealthRecordTools', () => {
   })
 
   it('update_health_test rejects metadata fields that do not apply to the type', async () => {
-    const tools = createHealthRecordTools(makeDb(), 'user-1')
+    const tools = createHealthRecordTools(makeDb(), '11111111-1111-4111-8111-111111111111')
     const out = await tools.update_health_test.execute!(
       { type: 'dexa', id: 'd1', name: 'My scan' },
       opts
@@ -121,20 +121,20 @@ describe('createHealthRecordTools', () => {
   })
 
   it('update_food_log with no fields returns an error instead of touching the DB', async () => {
-    const tools = createHealthRecordTools(makeDb(), 'user-1')
+    const tools = createHealthRecordTools(makeDb(), '11111111-1111-4111-8111-111111111111')
     const out = await tools.update_food_log.execute!({ id: 'f1' }, opts)
     expect(out).toMatchObject({ error: expect.stringMatching(/no fields/i) })
   })
 
   it('update_blood_test reports not-found when the row does not exist (no-op write)', async () => {
     // makeDb() resolves the .update(...).select() chain to an empty array → 0 rows touched.
-    const tools = createHealthRecordTools(makeDb(), 'user-1')
+    const tools = createHealthRecordTools(makeDb(), '11111111-1111-4111-8111-111111111111')
     const out = await tools.update_blood_test.execute!({ testId: 'nope', name: 'X' }, opts)
     expect(out).toMatchObject({ error: expect.stringMatching(/not found/i) })
   })
 
   it('attach_document_to_record errors when the message has no attachment', async () => {
-    const tools = createHealthRecordTools(makeDb(), 'user-1', [])
+    const tools = createHealthRecordTools(makeDb(), '11111111-1111-4111-8111-111111111111', [])
     const out = await tools.attach_document_to_record.execute!(
       { recordType: 'blood', recordId: 'bt-1' },
       opts
@@ -143,8 +143,8 @@ describe('createHealthRecordTools', () => {
   })
 
   it("attach_document_to_record refuses another user's file (authz guard)", async () => {
-    const tools = createHealthRecordTools(makeDb(), 'user-1', [
-      { storagePath: 'user-2/full.pdf', mediaType: 'application/pdf', filename: 'full.pdf' },
+    const tools = createHealthRecordTools(makeDb(), '11111111-1111-4111-8111-111111111111', [
+      { storagePath: '22222222-2222-4222-8222-222222222222/33333333-3333-4333-8333-333333333331.pdf', mediaType: 'application/pdf', filename: 'full.pdf' },
     ])
     const out = await tools.attach_document_to_record.execute!(
       { recordType: 'blood', recordId: 'bt-1' },
@@ -155,9 +155,9 @@ describe('createHealthRecordTools', () => {
 
   it('attach_document_to_record links the upload and reports whether it replaced a previous file', async () => {
     const tools = createHealthRecordTools(
-      makeDb([{ id: 'bt-1', pdf_storage_path: 'user-1/half.pdf' }]),
-      'user-1',
-      [{ storagePath: 'user-1/full.pdf', mediaType: 'application/pdf', filename: 'full.pdf' }]
+      makeDb([{ id: 'bt-1', pdf_storage_path: '11111111-1111-4111-8111-111111111111/33333333-3333-4333-8333-333333333332.pdf' }]),
+      '11111111-1111-4111-8111-111111111111',
+      [{ storagePath: '11111111-1111-4111-8111-111111111111/33333333-3333-4333-8333-333333333331.pdf', mediaType: 'application/pdf', filename: 'full.pdf' }]
     )
     const out = await tools.attach_document_to_record.execute!(
       { recordType: 'blood', recordId: 'bt-1' },

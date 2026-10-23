@@ -3,8 +3,13 @@
 import { revalidatePath } from 'next/cache'
 
 import { getSessionUser } from '@/lib/supabase/session'
+import { isOwnedPath } from '@/lib/supabase/storage-path'
+import { cleanCatalogText, creatorFields } from '@/lib/catalog/shared-catalog'
 import { takeAiRequest } from '@/lib/ai/quota'
+import { aiFailureMessage, isAiConfigured } from '@/lib/ai/config'
+import { AI_NOT_CONFIGURED_MESSAGE } from '@/lib/ai/messages'
 import { supabaseAdmin } from '@/lib/supabase/admin'
+import { userErrorMessage } from '@/lib/supabase/errors'
 import {
   extensionFor,
   sniffMediaType,
@@ -22,6 +27,8 @@ const ACCEPTED_TYPES = new Set([
   'image/webp',
 ])
 
+const SAVE_FAILED = 'Could not save the microbiome test. Please try again.'
+
 export type MicrobiomeExtractionResponse =
   | { success: true; data: MicrobiomeExtraction; storagePath?: string }
   | { success: false; error: string }
@@ -36,6 +43,7 @@ export async function extractMicrobiomeReport(
 
   const { user, authError } = await getSessionUser()
   if (!user) return { success: false, error: authError ?? 'Not authenticated' }
+  if (!isAiConfigured()) return { success: false, error: AI_NOT_CONFIGURED_MESSAGE }
 
   // Verify the actual file type from its bytes — the client-supplied MIME is
   // untrusted, and a file that is not a PDF or image would only fail at the AI
@@ -59,7 +67,7 @@ export async function extractMicrobiomeReport(
   } catch (err) {
     return {
       success: false,
-      error: err instanceof Error ? err.message : 'Extraction failed',
+      error: aiFailureMessage('extractMicrobiomeReport', err),
     }
   }
 
@@ -89,12 +97,21 @@ export async function saveMicrobiomeReport(input: {
   if (!parsed.success) {
     return { success: false, testId: null, error: 'Invalid extraction payload' }
   }
-  const { test, results, scores } = parsed.data
+  const { test, scores } = parsed.data
+  // Taxa are a shared catalogue: only clean, length-limited names go in.
+  const results = parsed.data.results.flatMap((r) => {
+    const name = cleanCatalogText(r.name)
+    return name ? [{ ...r, name }] : []
+  })
 
   const { user, authError } = await getSessionUser()
   if (!user) return { success: false, testId: null, error: authError ?? 'Not authenticated' }
+  if (input.storagePath && !isOwnedPath(user.id, input.storagePath)) {
+    return { success: false, testId: null, error: 'This file is not authorized for your account.' }
+  }
 
-  // 1. Resolve / create taxa, keyed by (name, rank).
+  // 1. Resolve / create taxa, keyed by (name, rank). Existing taxa are never
+  // changed here; a new one is inserted with this report's category.
   const { data: existingTaxa } = await supabaseAdmin
     .from('microbiome_taxa')
     .select('id, name, rank')
@@ -112,8 +129,9 @@ export async function saveMicrobiomeReport(input: {
   // Deduplicate new taxa within this report.
   const newTaxaMap = new Map<
     string,
-    { name: string; rank: string; category: string | null }
+    { name: string; rank: string; category: string | null; created_by?: string }
   >()
+  const creator = await creatorFields(supabaseAdmin, user.id)
   for (const r of toCreate) {
     const key = taxonKey(r.name, r.rank)
     if (!newTaxaMap.has(key)) {
@@ -121,23 +139,38 @@ export async function saveMicrobiomeReport(input: {
         name: r.name,
         rank: r.rank,
         category: r.category ?? null,
+        ...creator,
       })
     }
   }
 
   if (newTaxaMap.size > 0) {
+    // ON CONFLICT DO NOTHING: a taxon another import added meanwhile keeps its
+    // own fields. Those rows are not returned, so read their ids afterwards.
     const { data: created, error: createErr } = await supabaseAdmin
       .from('microbiome_taxa')
       .upsert(Array.from(newTaxaMap.values()), {
         onConflict: 'name,rank',
-        ignoreDuplicates: false,
+        ignoreDuplicates: true,
       })
       .select('id, name, rank')
     if (createErr) {
-      return { success: false, testId: null, error: createErr.message }
+      return { success: false, testId: null, error: userErrorMessage('saveMicrobiomeReport taxa', createErr, SAVE_FAILED) }
     }
     for (const t of created ?? []) {
       taxonId.set(taxonKey(t.name, t.rank), t.id)
+    }
+    const missing = Array.from(newTaxaMap.values()).filter(
+      (t) => !taxonId.has(taxonKey(t.name, t.rank))
+    )
+    if (missing.length > 0) {
+      const { data: raced } = await supabaseAdmin
+        .from('microbiome_taxa')
+        .select('id, name, rank')
+        .in('name', missing.map((t) => t.name))
+      for (const t of raced ?? []) {
+        taxonId.set(taxonKey(t.name, t.rank), t.id)
+      }
     }
   }
 
@@ -158,7 +191,7 @@ export async function saveMicrobiomeReport(input: {
     return {
       success: false,
       testId: null,
-      error: testErr?.message ?? 'Failed to create test',
+      error: userErrorMessage('saveMicrobiomeReport test', testErr, SAVE_FAILED),
     }
   }
 
@@ -189,7 +222,7 @@ export async function saveMicrobiomeReport(input: {
         .from('microbiome_tests')
         .delete()
         .eq('id', createdTest.id)
-      return { success: false, testId: null, error: error.message }
+      return { success: false, testId: null, error: userErrorMessage('saveMicrobiomeReport results', error, SAVE_FAILED) }
     }
   }
 
@@ -221,7 +254,7 @@ export async function saveMicrobiomeReport(input: {
         .from('microbiome_tests')
         .delete()
         .eq('id', createdTest.id)
-      return { success: false, testId: null, error: scoreErr.message }
+      return { success: false, testId: null, error: userErrorMessage('saveMicrobiomeReport scores', scoreErr, SAVE_FAILED) }
     }
   }
 

@@ -2,18 +2,22 @@ import type { TypedSupabaseClient } from '@/lib/supabase/database'
 import type Anthropic from '@anthropic-ai/sdk'
 import type { Biomarker } from '@/lib/database.types'
 import type { BiomarkerToMatch, LoincCandidate, LoincTerm } from './types'
-import { matchBiomarkers } from '@/lib/extraction/match-biomarkers'
+import { groupContainerIds, matchBiomarkers } from '@/lib/extraction/match-biomarkers'
 import { rankCandidates } from './score'
 import { searchLoinc as defaultSearchLoinc } from './nlm-client'
 import { isUniqueViolation } from '@/lib/supabase/errors'
-import {
-  rangeFromReport,
-  estimateRange as defaultEstimateRange,
-  estimateRangeByName as defaultEstimateRangeByName,
-} from './ranges'
+import { estimateRange as defaultEstimateRange } from './ranges'
 import type { ResolvedRange } from './ranges'
 import type { TableInsert } from '@/lib/supabase/database'
 import { getAnthropic } from '@/lib/ai/client'
+import { takeAiRequest } from '@/lib/ai/quota'
+import {
+  cleanCatalogText,
+  creatorFields,
+  loincUnitToLabUnit,
+  rememberCreatorUnit,
+  MAX_CATALOG_CATEGORY_LENGTH,
+} from '@/lib/catalog/shared-catalog'
 
 // The named column list for `loinc_terms` reads — mirrors the explicit-columns
 // style in display.ts. `class` is included because capture uses it for category.
@@ -65,17 +69,19 @@ export interface CommitCaptureDeps {
   ai?: Anthropic
   /** Override the estimateRange function (injectable for tests). */
   estimateRange?: typeof defaultEstimateRange
+  /** The signed-in user who triggered the write: recorded as `created_by` and
+   *  given their own unit as display preference. */
+  createdBy?: string | null
 }
 
 /**
- * Deps for `commitCustomCapture`. Same shape as CommitCaptureDeps but the range
- * estimator is name-based (no LOINC code).
+ * Deps for `commitCustomCapture`. No AI: a custom row has no trusted source for
+ * a unit or range, so it gets neither.
  */
 export interface CommitCustomCaptureDeps {
   db: TypedSupabaseClient
-  ai?: Anthropic
-  /** Override the name-based estimateRange function (injectable for tests). */
-  estimateRangeByName?: typeof defaultEstimateRangeByName
+  /** See CommitCaptureDeps.createdBy. */
+  createdBy?: string | null
 }
 
 // ---------------------------------------------------------------------------
@@ -160,6 +166,26 @@ async function fetchLabActiveTerms(
   return data.map(rowToLoincTerm)
 }
 
+/**
+ * The catalogue row that owns a LOINC code, never a group container. A
+ * container (a row other rows use as parent) only groups its variants and is
+ * not a measurement, so when it owns the code its "total" variant is used, and
+ * with no total variant there is no match.
+ */
+function findByLoincCode(catalog: Biomarker[], code: string): Biomarker | undefined {
+  const containers = groupContainerIds(catalog)
+  const owner = catalog.find((b) => b.loinc_code === code)
+  if (!owner) return undefined
+  if (!containers.has(owner.id)) return owner
+  return catalog.find((b) => b.parent_id === owner.id && b.variant_name === 'total')
+}
+
+/** True when a group container owns the code (so a new capture must not be made for it). */
+function isContainerCode(catalog: Biomarker[], code: string): boolean {
+  const containers = groupContainerIds(catalog)
+  return catalog.some((b) => b.loinc_code === code && containers.has(b.id))
+}
+
 // Lazily-created default AI client (avoids constructing it in tests / when not needed)
 let _defaultAiClient: Anthropic | null = null
 function getDefaultAiClient(): Anthropic {
@@ -210,9 +236,14 @@ export async function resolveMarker(
 
     if (term) {
       // Check if an existing catalog biomarker already owns this code
-      const existing = catalog.find((b) => b.loinc_code === marker.loinc_code)
+      const existing = findByLoincCode(catalog, marker.loinc_code)
       if (existing) {
         return { status: 'matched', biomarkerId: existing.id, via: 'ai_code' }
+      }
+      // A group container owns it: a capture would hit the unique code index
+      // and land on the container, so leave the marker unresolved.
+      if (isContainerCode(catalog, marker.loinc_code)) {
+        return { status: 'unresolved', name: marker.name }
       }
 
       // Resolved to a new capturable LOINC code — read the clean name but do NOT write
@@ -256,9 +287,12 @@ export async function resolveMarker(
   }
 
   // Check if an existing catalog biomarker already owns this code
-  const existingByCode = catalog.find((b) => b.loinc_code === top.code)
+  const existingByCode = findByLoincCode(catalog, top.code)
   if (existingByCode) {
     return { status: 'matched', biomarkerId: existingByCode.id, via: 'fallback' }
+  }
+  if (isContainerCode(catalog, top.code)) {
+    return { status: 'unresolved', name: marker.name }
   }
 
   // Resolved to a new capturable LOINC code — read the clean name but do NOT write
@@ -282,17 +316,21 @@ export async function resolveMarker(
  * On unique-violation (Postgres code 23505) re-selects the existing row.
  * Returns the biomarker id.
  *
+ * The row is shared by every user, so it is built from LOINC data only: name,
+ * category and unit come from the LOINC term, and the reference range is an
+ * estimate for that code in that unit. The caller's name, unit and printed
+ * range are never copied into it; the user's unit stays on their own result
+ * and becomes their display preference (`deps.createdBy`).
+ *
  * Must be called with a service-role client (`deps.db`).
  */
 export async function commitCapture(
   loincCode: string,
   marker: {
-    /** The lab's raw marker name — stored as an alias when it differs from the
-     *  chosen display name, so future imports of the same spelling fast-path match. */
+    /** The lab's raw marker name. Not stored on the shared row. */
     name?: string
+    /** The unit of the user's result. Not stored on the shared row. */
     unit: string
-    ref_range_low?: number | null
-    ref_range_high?: number | null
   },
   deps: CommitCaptureDeps,
 ): Promise<string> {
@@ -305,10 +343,6 @@ export async function commitCapture(
     .eq('loinc_num', loincCode)
 
   const displayRow = displayRows?.[0]
-  // Display name precedence: LOINC clean_name → the lab's raw marker name → 'Unknown'.
-  // Never fall back to the unit (that would name a biomarker after its unit).
-  const cleanName = (displayRow?.clean_name as string | null) ?? marker.name ?? 'Unknown'
-  const abbreviation = (displayRow?.abbreviation as string | null) || null
 
   // Validate the LOINC code BEFORE any write. `loincCode` comes from the client
   // save payload, so a crafted/buggy payload could pass a code that isn't a
@@ -329,30 +363,41 @@ export async function commitCapture(
     )
   }
 
-  const category = (termRow.class as string | null) ?? 'Other'
+  // Display name precedence: LOINC clean_name → LOINC long common name → the
+  // LOINC component. Never the lab's raw name (a later import of that spelling
+  // still finds this row by its LOINC code) and never the unit.
+  const cleanName =
+    cleanCatalogText(displayRow?.clean_name as string | null) ??
+    cleanCatalogText(termRow.long_common_name as string | null) ??
+    cleanCatalogText(termRow.component as string | null) ??
+    loincCode
+  const abbreviation = cleanCatalogText(displayRow?.abbreviation as string | null, 40)
+  const category =
+    cleanCatalogText(termRow.class as string | null, MAX_CATALOG_CATEGORY_LENGTH) ?? 'Other'
   const component = (termRow.component as string | null) ?? cleanName
+  // LOINC's example unit in lab spelling; '' when LOINC has none (the row then
+  // has no catalogue unit and every user sees their own).
+  const unit = loincUnitToLabUnit(termRow.example_ucum_units as string | null) ?? ''
 
-  // ---------------------------------------------------------------------------
-  // Determine reference range: report-printed range wins; else AI estimate.
-  // ---------------------------------------------------------------------------
-  let resolvedRange: ResolvedRange | null = rangeFromReport(marker)
-
-  if (!resolvedRange) {
+  // Reference range: an estimate for this LOINC code in the catalogue unit.
+  // Without a unit there is nothing to anchor a range to.
+  // The estimate is a model call of its own: it counts against the limit of
+  // the user whose save triggered it, and is skipped (no range) over it.
+  let resolvedRange: ResolvedRange | null = null
+  if (unit && (!deps.createdBy || (await takeAiRequest(deps.createdBy)).ok)) {
     const estimateFn = deps.estimateRange ?? defaultEstimateRange
     const ai = deps.ai ?? getDefaultAiClient()
-    resolvedRange = await estimateFn(loincCode, component, marker.unit, ai)
+    resolvedRange = await estimateFn(loincCode, component, unit, ai)
   }
 
-  // Build the row to insert. Don't make the row its own alias — only keep the
-  // raw lab marker name as an alias when it differs from the chosen display
-  // name, so future imports of the same lab spelling fast-path match this row.
   const row: TableInsert<'biomarkers'> = {
     name: cleanName,
     short_name: abbreviation,
-    unit: marker.unit,
-    aliases: marker.name && marker.name !== cleanName ? [marker.name] : [],
+    unit,
+    aliases: [],
     category,
     loinc_code: loincCode,
+    ...(await creatorFields(db, deps.createdBy)),
   }
 
   if (resolvedRange) {
@@ -372,6 +417,7 @@ export async function commitCapture(
     .single()
 
   if (!insertError && inserted) {
+    await rememberCreatorUnit(db, deps.createdBy, inserted.id, marker.unit, unit)
     return inserted.id
   }
 
@@ -401,54 +447,39 @@ export async function commitCapture(
  * Insert a new biomarker that never resolved to a LOINC code — a "custom"
  * catalog entry (specialty analyte, ratio, etc.). Parallels `commitCapture` but
  * skips all LOINC validation/lookup: it writes `loinc_code: null`,
- * `is_custom: true`, uses the lab's own name/category, prefers the printed
- * report range and otherwise asks Haiku for a name-based estimate.
+ * `is_custom: true` and the lab's own (cleaned) name and category.
+ *
+ * Nothing trusted says which unit or range such a marker has, so the shared
+ * row gets neither: no catalogue unit ('') and no reference range. The
+ * creator's unit becomes their own display preference (`deps.createdBy`).
  *
  * Identity is the biomarker NAME (globally UNIQUE), so on a unique-violation it
  * re-selects the existing live row — two imports of "AA/EPA" converge on one
- * catalog entry. Must be called with a service-role client (`deps.db`).
+ * catalog entry, which is left unchanged. Must be called with a service-role
+ * client (`deps.db`).
  */
 export async function commitCustomCapture(
   marker: {
     name: string
+    /** The unit of the user's result. Not stored on the shared row. */
     unit: string
     /** Catalog category; defaults to 'Other' when the caller has none. */
     category?: string | null
-    ref_range_low?: number | null
-    ref_range_high?: number | null
   },
   deps: CommitCustomCaptureDeps,
 ): Promise<string> {
   const { db } = deps
-  const name = marker.name.trim()
+  const name = cleanCatalogText(marker.name)
   if (!name) throw new Error('commitCustomCapture: marker name is required')
-
-  // Report-printed range wins; else a name-based AI estimate (may be null — the
-  // marker is then saved without a reference band, which is fine).
-  let resolvedRange: ResolvedRange | null = rangeFromReport(marker)
-  if (!resolvedRange) {
-    const estimateFn = deps.estimateRangeByName ?? defaultEstimateRangeByName
-    const ai = deps.ai ?? getDefaultAiClient()
-    resolvedRange = await estimateFn(name, marker.unit, ai)
-  }
 
   const row: TableInsert<'biomarkers'> = {
     name,
-    unit: marker.unit,
-    category: marker.category ?? 'Other',
+    unit: '',
+    category: cleanCatalogText(marker.category, MAX_CATALOG_CATEGORY_LENGTH) ?? 'Other',
     aliases: [],
     loinc_code: null,
     is_custom: true,
-  }
-
-  if (resolvedRange) {
-    row.ref_range_low = resolvedRange.low
-    row.ref_range_high = resolvedRange.high
-    if (resolvedRange.lowMale !== undefined) row.ref_range_low_male = resolvedRange.lowMale
-    if (resolvedRange.highMale !== undefined) row.ref_range_high_male = resolvedRange.highMale
-    if (resolvedRange.lowFemale !== undefined) row.ref_range_low_female = resolvedRange.lowFemale
-    if (resolvedRange.highFemale !== undefined) row.ref_range_high_female = resolvedRange.highFemale
-    row.range_source = resolvedRange.source
+    ...(await creatorFields(db, deps.createdBy)),
   }
 
   const { data: inserted, error: insertError } = await db
@@ -458,6 +489,7 @@ export async function commitCustomCapture(
     .single()
 
   if (!insertError && inserted) {
+    await rememberCreatorUnit(db, deps.createdBy, inserted.id, marker.unit, '')
     return inserted.id
   }
 

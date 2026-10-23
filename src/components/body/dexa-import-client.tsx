@@ -17,6 +17,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
+import { AiUnavailableNote } from '@/components/interpretation/ai-unavailable-note'
 
 type Phase = 'idle' | 'extracting' | 'review' | 'saving'
 
@@ -33,7 +34,12 @@ const EDIT_FIELDS: { key: keyof DexaScanExtract; label: string }[] = [
   { key: 'bone_t_score', label: 'Bone T-score' },
 ]
 
-export function DexaImportClient() {
+interface DexaImportClientProps {
+  /** False when the server has no Anthropic API key: reading files is off. */
+  aiEnabled: boolean
+}
+
+export function DexaImportClient({ aiEnabled }: DexaImportClientProps) {
   const router = useRouter()
   const [phase, setPhase] = useState<Phase>('idle')
   const [files, setFiles] = useState<File[]>([])
@@ -73,7 +79,7 @@ export function DexaImportClient() {
     },
     maxFiles: MAX_FILES,
     maxSize: 32 * 1024 * 1024,
-    disabled: phase === 'extracting' || phase === 'saving',
+    disabled: !aiEnabled || phase === 'extracting' || phase === 'saving',
   })
 
   async function handleProcess() {
@@ -81,7 +87,13 @@ export function DexaImportClient() {
     setPhase('extracting')
     const fd = new FormData()
     for (const f of files) fd.append('file', f)
-    const result: DexaExtractionResponse = await extractDexaReport(fd)
+    let result: DexaExtractionResponse
+    try {
+      result = await extractDexaReport(fd)
+    } catch (err) {
+      console.error('extractDexaReport call failed:', err)
+      result = { success: false, error: 'Could not read this file. Please try again.' }
+    }
 
     if (!result.success) {
       toast.error(result.error)
@@ -184,12 +196,16 @@ export function DexaImportClient() {
 
   return (
     <div className="max-w-2xl space-y-4">
+      {!aiEnabled && (
+        <AiUnavailableNote message="Reading DEXA reports needs AI, which is not set up on this server. You can still log weight and body fat on the Body page." />
+      )}
       <div
         {...getRootProps()}
         className={cn(
           'flex min-h-56 cursor-pointer flex-col items-center justify-center rounded-lg border border-dashed p-8 text-center transition-colors',
           isDragActive ? 'border-primary bg-primary/5' : 'hover:border-foreground/30',
-          extracting && 'pointer-events-none opacity-70'
+          extracting && 'pointer-events-none opacity-70',
+          !aiEnabled && 'cursor-not-allowed opacity-60'
         )}
       >
         <input {...getInputProps()} />

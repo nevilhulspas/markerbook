@@ -10,6 +10,8 @@ export interface GridCellData {
   value: number
   unit: string
   resultId: string
+  /** '<' / '>' etc. for a result such as "<0.5"; absent for a plain value. */
+  qualifier?: string | null
 }
 
 export interface GridRow {

@@ -198,9 +198,9 @@ npm run setup      # checks your tools, starts the database, writes .env.local
 npm run dev        # http://localhost:3000
 ```
 
-Sign up with the e-mail address you gave the setup: that account becomes admin
-automatically. Want to look around first? `npm run demo` loads made-up results into
-your account.
+Sign up with the e-mail address you gave the setup, then run `npm run make-admin`
+to make that account admin (sign out and back in to see the Admin section). Want to
+look around first? `npm run demo` loads made-up results into your account.
 
 ### Run it for real
 
@@ -241,6 +241,7 @@ docker run -p 3000:3000 --env-file .env.local markerbook
 | `npm run typecheck` | `tsc --noEmit` |
 | `npm test` | Vitest |
 | `npm run gen:types` | Regenerate database types from the linked Supabase project |
+| `npm run gen:types:local` | Regenerate database types from the local Supabase stack (`supabase start`) |
 
 Adding a new kind of health test (for example a SIBO breath test) is one registry
 entry; the chat upload and indexing pick it up on their own. See

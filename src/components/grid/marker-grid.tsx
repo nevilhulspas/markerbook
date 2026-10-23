@@ -19,7 +19,7 @@ import {
   createGridColumns,
   type CellClickData,
 } from '@/lib/grid/grid-columns'
-import { findReferenceRange, getRangeStatus, getRangeStatusFromRanges, type RangeStatus } from '@/lib/grid/reference-range'
+import { findReferenceRange, getRangeStatus, getRangeStatusFromRanges, inlineRange, type RangeStatus } from '@/lib/grid/reference-range'
 import { normalizeUnit } from '@/lib/grid/unit-conversion'
 import {
   convertRowsToDisplayUnits,
@@ -59,6 +59,8 @@ interface MarkerGridProps {
   annotations?: Annotation[]
   supplements?: Supplement[]
   unitPreferences?: [string, string][]
+  /** False when the server has no Anthropic key (isAiConfigured). */
+  aiEnabled?: boolean
 }
 
 /**
@@ -94,6 +96,7 @@ export function MarkerGrid({
   annotations: annotationsProp,
   supplements: supplementsProp,
   unitPreferences: unitPrefsProp,
+  aiEnabled = true,
 }: MarkerGridProps) {
   const [analyzedTestIds, setAnalyzedTestIds] = useState(
     () => new Set(analyzedTestIdsProp ?? [])
@@ -168,7 +171,7 @@ export function MarkerGrid({
   }, [])
 
   // Interpretation state
-  const interpretation = useInterpretation()
+  const interpretation = useInterpretation({ aiEnabled })
   // The hook object is new on every render; its functions are stable. Depend
   // on the functions so the column memo below does not rebuild per render.
   const { interpret, reset: resetInterpretation } = interpretation
@@ -178,15 +181,13 @@ export function MarkerGrid({
 
   // Chat state -- track context for the current interpretation
   const [chatContext, setChatContext] = useState<{
-    allTestResults: MarkerContext[]
-    profile: ProfileContext
-    markerName?: string
-  }>({ allTestResults: [], profile: {} })
+    bloodTestId?: string
+    testResultId?: string
+  }>({})
 
   const chat = useChat({
-    allTestResults: chatContext.allTestResults,
-    profile: chatContext.profile,
-    markerName: chatContext.markerName,
+    bloodTestId: chatContext.bloodTestId,
+    testResultId: chatContext.testResultId,
     initialInterpretation: interpretation.content || undefined,
   })
   const resetChat = chat.reset
@@ -309,15 +310,7 @@ export function MarkerGrid({
           status = getRangeStatusFromRanges(cellData.value, row.referenceRanges, cellData.unit, rangeSex)
         } else if (normalizeUnit(cellData.unit) === normalizeUnit(row.biomarker.unit)) {
           // Fallback to inline fields — only when their unit matches the cell's.
-          refLow = row.biomarker.ref_range_low
-          refHigh = row.biomarker.ref_range_high
-          if (userSex === 'male' && row.biomarker.ref_range_low_male != null) {
-            refLow = row.biomarker.ref_range_low_male
-            refHigh = row.biomarker.ref_range_high_male
-          } else if (userSex === 'female' && row.biomarker.ref_range_low_female != null) {
-            refLow = row.biomarker.ref_range_low_female
-            refHigh = row.biomarker.ref_range_high_female
-          }
+          ;({ low: refLow, high: refHigh } = inlineRange(row.biomarker, userSex))
           status = getRangeStatus(cellData.value, row.biomarker, userSex)
         } else {
           // Cell unit differs from the inline fields' unit — can't judge.
@@ -404,11 +397,7 @@ export function MarkerGrid({
 
     // Reset chat and set context for new interpretation
     resetChat()
-    setChatContext({
-      allTestResults,
-      profile: profileContext,
-      markerName: cell.biomarker.name,
-    })
+    setChatContext({ bloodTestId: cell.bloodTestId, testResultId: cell.testResultId })
 
     interpret(request, profileHash, markerContextHash)
   }, [buildAllTestResults, profile, userSex, convertedRows, interpret, resetChat])
@@ -449,11 +438,7 @@ export function MarkerGrid({
 
       // Reset chat and set context for new interpretation
       resetChat()
-      setChatContext({
-        allTestResults,
-        profile: profileContext,
-        markerName: test.name,
-      })
+      setChatContext({ bloodTestId: testId })
 
       interpret(request, profileHash, markerContextHash)
     },
@@ -809,7 +794,7 @@ export function MarkerGrid({
         onOpenChange={setModalOpen}
         data={selectedCell}
         trendData={selectedTrendData}
-        onInterpret={handleInterpret}
+        onInterpret={aiEnabled ? handleInterpret : undefined}
         isInterpretLoading={interpretation.isLoading || interpretation.isStreaming}
       />
 
@@ -823,6 +808,7 @@ export function MarkerGrid({
       />
 
       <InterpretationPanel
+        aiEnabled={aiEnabled}
         open={panelOpen}
         onOpenChange={handlePanelOpenChange}
         title={panelTitle}

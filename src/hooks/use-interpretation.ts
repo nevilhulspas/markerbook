@@ -9,6 +9,7 @@ import {
 import type { InterpretationRequest } from '@/lib/interpretation/types'
 import { REASONING_MODEL } from '@/lib/ai/models'
 import { readTextStream } from '@/lib/ai/text-stream'
+import { AI_NOT_CONFIGURED_MESSAGE } from '@/lib/ai/messages'
 
 interface UseInterpretationReturn {
   content: string
@@ -27,7 +28,17 @@ interface UseInterpretationReturn {
   reset: () => void
 }
 
-export function useInterpretation(): UseInterpretationReturn {
+interface UseInterpretationOptions {
+  /**
+   * False when the server has no Anthropic API key: cached interpretations
+   * still show, but nothing new is generated (error = AI_NOT_CONFIGURED_MESSAGE).
+   */
+  aiEnabled?: boolean
+}
+
+export function useInterpretation({
+  aiEnabled = true,
+}: UseInterpretationOptions = {}): UseInterpretationReturn {
   const [content, setContent] = useState('')
   const [isStreaming, setIsStreaming] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
@@ -48,6 +59,12 @@ export function useInterpretation(): UseInterpretationReturn {
       profileHash: string,
       markerContextHash: string
     ) => {
+      if (!aiEnabled) {
+        setIsLoading(false)
+        setError(AI_NOT_CONFIGURED_MESSAGE)
+        return
+      }
+
       // Abort any ongoing stream
       abortControllerRef.current?.abort()
 
@@ -96,14 +113,21 @@ export function useInterpretation(): UseInterpretationReturn {
           // User aborted -- not an error
           return
         }
+        // The server already sends plain sentences; a TypeError is fetch
+        // failing to reach it at all ("Failed to fetch" / "Load failed").
+        console.error('Interpretation failed:', err)
         const message =
-          err instanceof Error ? err.message : 'Failed to interpret'
+          err instanceof TypeError
+            ? 'Could not reach the server. Check your connection and try again.'
+            : err instanceof Error && err.message
+              ? err.message
+              : 'The interpretation could not be generated. Please try again.'
         setError(message)
       } finally {
         setIsStreaming(false)
       }
     },
-    []
+    [aiEnabled]
   )
 
   const interpret = useCallback(

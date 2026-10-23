@@ -3,11 +3,12 @@
 import { revalidatePath } from 'next/cache'
 
 import { getSessionUser } from '@/lib/supabase/session'
+import { userErrorMessage } from '@/lib/supabase/errors'
 import type { NextToTestStatus } from '@/lib/database.types'
 import { planBulkMove, type MoveRow } from '@/lib/next-to-test/merge'
 import { NOT_SIGNED_IN, type Err } from '@/lib/next-to-test/errors'
 
-// ---------- BULK OPERATIONS (AUT-864) ----------
+// ---------- BULK OPERATIONS ----------
 //
 // Used by the bulk-edit toolbar on /next-to-test. Each scoped to the
 // authenticated user via the user-context client and an explicit user_id
@@ -69,7 +70,15 @@ export async function bulkMoveEntries(
     .select('id, list_id, biomarker_id, lab_test_id, status, note, due_date')
     .in('id', ids)
     .eq('user_id', user.id)
-  if (rowsError) return { error: rowsError.message }
+  if (rowsError) {
+    return {
+      error: userErrorMessage(
+        'bulkMoveEntries read',
+        rowsError,
+        'Could not move the entries. Please try again.'
+      ),
+    }
+  }
   const selection = (rows ?? []) as MoveRow[]
 
   // 2. Fetch the target list's rows so collisions can be resolved into their
@@ -79,7 +88,15 @@ export async function bulkMoveEntries(
     .select('id, list_id, biomarker_id, lab_test_id, status, note, due_date')
     .eq('list_id', listId)
     .eq('user_id', user.id)
-  if (existingError) return { error: existingError.message }
+  if (existingError) {
+    return {
+      error: userErrorMessage(
+        'bulkMoveEntries existing',
+        existingError,
+        'Could not move the entries. Please try again.'
+      ),
+    }
+  }
   const targetRows = (existing ?? []) as MoveRow[]
 
   // 3. Partition: already-on-target is a no-op success, collisions merge into
@@ -102,7 +119,14 @@ export async function bulkMoveEntries(
     p_delete_ids: mergeSourceIds,
   })
   if (moveError) {
-    return { error: moveError.message === 'move_changed' ? MOVE_CHANGED : moveError.message }
+    if (moveError.message === 'move_changed') return { error: MOVE_CHANGED }
+    return {
+      error: userErrorMessage(
+        'bulkMoveEntries',
+        moveError,
+        'Could not move the entries. Please try again.'
+      ),
+    }
   }
 
   revalidatePath('/next-to-test')
@@ -130,7 +154,15 @@ export async function bulkUpdateEntryStatus(
     .in('id', ids)
     .eq('user_id', user.id)
     .select('id')
-  if (error) return { error: error.message }
+  if (error) {
+    return {
+      error: userErrorMessage(
+        'bulkUpdateEntryStatus',
+        error,
+        'Could not update the entries. Please try again.'
+      ),
+    }
+  }
   revalidatePath('/next-to-test')
   return { ok: true, count: (data ?? []).length }
 }
@@ -148,7 +180,15 @@ export async function bulkDeleteEntries(
     .in('id', ids)
     .eq('user_id', user.id)
     .select('id')
-  if (error) return { error: error.message }
+  if (error) {
+    return {
+      error: userErrorMessage(
+        'bulkDeleteEntries',
+        error,
+        'Could not delete the entries. Please try again.'
+      ),
+    }
+  }
   revalidatePath('/next-to-test')
   return { ok: true, count: (data ?? []).length }
 }

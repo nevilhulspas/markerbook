@@ -36,26 +36,30 @@ export default async function MicrobiomeTestDetailPage({
 
   return (
     <PageContainer width="wide" className="space-y-6">
-      <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" asChild>
-          <Link href="/microbiome">
-            <ArrowLeft className="size-4" />
-            <span className="sr-only">Back to microbiome tests</span>
-          </Link>
-        </Button>
-        <div className="flex-1">
-          <h1 className="text-3xl font-bold tracking-tight">{test.name}</h1>
-          <p className="text-muted-foreground">
-            {formatDate(test.test_date)}
-            {test.lab_name ? ` · ${test.lab_name}` : ''}
-          </p>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex min-w-0 items-center gap-4">
+          <Button variant="ghost" size="icon" className="shrink-0" asChild>
+            <Link href="/microbiome">
+              <ArrowLeft className="size-4" />
+              <span className="sr-only">Back to microbiome tests</span>
+            </Link>
+          </Button>
+          <div className="min-w-0">
+            <h1 className="break-words text-3xl font-bold tracking-tight">{test.name}</h1>
+            <p className="text-muted-foreground">
+              {formatDate(test.test_date)}
+              {test.lab_name ? ` · ${test.lab_name}` : ''}
+            </p>
+          </div>
         </div>
-        <Button variant="outline" size="sm" asChild>
-          <Link href={`/microbiome/${id}/edit`}>
-            <Pencil className="size-4" />
-            Edit
-          </Link>
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button variant="outline" size="sm" asChild>
+            <Link href={`/microbiome/${id}/edit`}>
+              <Pencil className="size-4" />
+              Edit
+            </Link>
+          </Button>
+        </div>
       </div>
 
       <MicrobiomeScores scores={test.microbiome_scores} />

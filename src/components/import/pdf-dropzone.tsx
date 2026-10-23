@@ -10,6 +10,8 @@ interface PdfDropzoneProps {
   onFilesAccepted: (files: File[]) => void
   isProcessing: boolean
   statusText?: string
+  /** Switch the dropzone off, e.g. when AI reading is not set up on the server. */
+  disabled?: boolean
 }
 
 const MAX_SIZE = 32 * 1024 * 1024 // 32MB
@@ -18,6 +20,7 @@ export function PdfDropzone({
   onFilesAccepted,
   isProcessing,
   statusText,
+  disabled = false,
 }: PdfDropzoneProps) {
   const [rejectionError, setRejectionError] = useState<string | null>(null)
 
@@ -61,7 +64,7 @@ export function PdfDropzone({
       'image/gif': ['.gif'],
     },
     maxSize: MAX_SIZE,
-    disabled: isProcessing,
+    disabled: isProcessing || disabled,
   })
 
   return (
@@ -71,8 +74,8 @@ export function PdfDropzone({
         className={cn(
           'flex min-h-[240px] cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed p-8 text-center transition-colors',
           isDragActive && 'border-primary bg-primary/5',
-          isProcessing && 'cursor-not-allowed opacity-60',
-          !isDragActive && !isProcessing && 'border-muted-foreground/25 hover:border-primary/50'
+          (isProcessing || disabled) && 'cursor-not-allowed opacity-60',
+          !isDragActive && !isProcessing && !disabled && 'border-muted-foreground/25 hover:border-primary/50'
         )}
       >
         <input {...getInputProps()} />

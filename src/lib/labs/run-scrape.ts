@@ -46,9 +46,11 @@ export async function getActiveScrapeJobId(labId: string): Promise<string | null
 /**
  * Core scrape pipeline (no auth gate — callers must enforce admin). Loads the
  * lab, crawls its website, extracts profile + tests via an LLM, fills only the
- * empty profile fields, and inserts new tests (deduped by name, status
- * 'approved'). Progress is reported through `onLog` (URLs / counts / sizes
- * only — never secrets or page bodies).
+ * empty profile fields, and inserts new tests (deduped by name). Tests of an
+ * approved lab are 'approved' (only admins scrape those); tests of a pending,
+ * user-suggested lab stay 'pending' until an admin approves the lab. Progress
+ * is reported through `onLog` (URLs / counts / sizes only — never secrets or
+ * page bodies).
  *
  * Expected failures (no website, empty fetch, insert error) THROW with a clear
  * message; callers translate these into their own error contract.
@@ -120,6 +122,7 @@ export async function runLabScrape({
       .filter((n) => n.length > 0)
   )
 
+  const testStatus: 'approved' | 'pending' = typedLab.status === 'approved' ? 'approved' : 'pending'
   const seenInBatch = new Set<string>()
   const rows: Array<{
     lab_id: string
@@ -129,7 +132,7 @@ export async function runLabScrape({
     currency: string | null
     turnaround_days: number | null
     sample_type: string | null
-    status: 'approved'
+    status: 'approved' | 'pending'
   }> = []
   let skipped = 0
 
@@ -149,7 +152,7 @@ export async function runLabScrape({
       currency: test.currency,
       turnaround_days: test.turnaround_days,
       sample_type: test.sample_type,
-      status: 'approved',
+      status: testStatus,
     })
   }
 
@@ -240,37 +243,9 @@ export async function runScrapeJob(jobId: string, labId: string): Promise<void> 
   try {
     const result = await runLabScrape({ labId, onLog })
 
-    // Auto-publish a user-submitted (pending) lab once the scrape gives it ≥1
-    // test. Rejected/errored/0-test scrapes leave it pending (hidden). Never
-    // touches an already-approved lab.
-    try {
-      const { data: lab } = await supabaseAdmin
-        .from('labs')
-        .select('status')
-        .eq('id', labId)
-        .maybeSingle()
-      if ((lab as { status?: string } | null)?.status === 'pending') {
-        const { count } = await supabaseAdmin
-          .from('lab_tests')
-          .select('id', { count: 'exact', head: true })
-          .eq('lab_id', labId)
-        if ((count ?? 0) > 0) {
-          // Atomic check-then-act: only advance pending → approved, so an admin
-          // who rejects the lab between the SELECT above and this UPDATE isn't
-          // silently overwritten.
-          await supabaseAdmin
-            .from('labs')
-            .update({ status: 'approved', updated_at: new Date().toISOString() })
-            .eq('id', labId)
-            .eq('status', 'pending')
-          onLog(`Published lab (${count} test(s) imported)`)
-        } else {
-          onLog('Kept pending: no tests found to publish')
-        }
-      }
-    } catch (e) {
-      console.error('runScrapeJob: auto-publish check failed', e)
-    }
+    // A user-suggested lab is never published here: it and its tests stay
+    // pending (hidden from other users) until an admin approves it in
+    // /admin/labs.
 
     await supabaseAdmin
       .from('scrape_jobs')

@@ -41,7 +41,7 @@ export function createLabTestTools(supabase: TypedSupabaseClient, userId: string
     ...createCatalogueTools(supabase),
     ask_user: createAskUserTool(),
 
-    // ----- next-to-test tools (AUT-848) -----
+    // ----- next-to-test tools -----
     ...createNextToTestTools(supabase, userId),
   }
 }

@@ -1,5 +1,7 @@
 import { z } from 'zod'
 
+import { RESULT_QUALIFIERS } from '@/lib/blood-tests/qualifier'
+
 /**
  * Schema for a single marker entry in the blood test save payload.
  *
@@ -22,9 +24,10 @@ export const markerEntrySchema = z
     capture_loinc_code: z.string().optional(),
     capture_custom: z.literal(true).optional(),
     name: z.string().optional(),
-    value: z
-      .number({ message: 'Value is required' })
-      .nonnegative('Value must be zero or positive'),
+    // Negative results are real (base excess, z-scores), so any finite number.
+    value: z.number({ message: 'Value is required' }),
+    /** '<' / '>' etc. when the lab reported "<0.5" or ">100"; null for a plain value. */
+    qualifier: z.enum(RESULT_QUALIFIERS).nullable().optional(),
     unit: z.string().min(1, 'Unit is required'),
     ref_range_low: z.number().nullable().optional(),
     ref_range_high: z.number().nullable().optional(),

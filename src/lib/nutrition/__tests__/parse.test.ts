@@ -8,7 +8,8 @@ vi.mock('@anthropic-ai/sdk', () => ({
 }))
 
 import { describe, it, expect } from 'vitest'
-import { isUndoCommand, computeEntryDate } from '../parse'
+import { isUndoCommand, computeEntryDate, bucketMealTime } from '../parse'
+import { appHour, appTodayISO } from '@/lib/dates/today'
 
 describe('isUndoCommand', () => {
   it('matches English + Dutch undo phrases', () => {
@@ -23,19 +24,36 @@ describe('isUndoCommand', () => {
 })
 
 describe('computeEntryDate', () => {
-  const now = new Date('2026-06-08T10:00:00')
-  it('applies a day offset', () => {
+  // 10:00 in Amsterdam (summer time, UTC+2).
+  const now = new Date('2026-06-08T08:00:00Z')
+  it('applies a day offset on the app calendar', () => {
     const d = computeEntryDate(-1, null, now)
-    expect(d.getDate()).toBe(7)
+    expect(appTodayISO(d)).toBe('2026-06-07')
+    expect(appHour(d)).toBe(10)
   })
-  it('sets dinner hour', () => {
+  it('sets dinner hour on the app clock', () => {
     const d = computeEntryDate(0, 'dinner', now)
-    expect(d.getHours()).toBe(19)
-    expect(d.getMinutes()).toBe(0)
+    expect(d.toISOString()).toBe('2026-06-08T17:00:00.000Z')
   })
   it('defaults to now when no offset/meal', () => {
     const d = computeEntryDate(null, null, now)
     expect(d.getTime()).toBe(now.getTime())
+  })
+  it("puts yesterday's dinner on yesterday in Amsterdam just after midnight (regression: server UTC)", () => {
+    // 00:30 on 9 June in Amsterdam is still 8 June in UTC.
+    const justAfterMidnight = new Date('2026-06-08T22:30:00Z')
+    const d = computeEntryDate(-1, 'dinner', justAfterMidnight)
+    expect(appTodayISO(d)).toBe('2026-06-08')
+    expect(appHour(d)).toBe(19)
+  })
+})
+
+describe('bucketMealTime uses the app clock (regression: server UTC)', () => {
+  it('buckets 12:30 in Amsterdam as lunch, though it is 10:30 UTC', () => {
+    expect(bucketMealTime(new Date('2026-06-08T10:30:00Z'))).toBe('lunch')
+  })
+  it('buckets 18:00 in Amsterdam (winter, 17:00 UTC) as dinner', () => {
+    expect(bucketMealTime(new Date('2026-01-08T17:00:00Z'))).toBe('dinner')
   })
 })
 

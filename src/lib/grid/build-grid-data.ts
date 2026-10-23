@@ -17,6 +17,7 @@ export interface TestWithResults {
     id: string
     value: number
     unit: string
+    qualifier?: string | null
     biomarkers: Biomarker | null
   }[]
 }
@@ -45,7 +46,7 @@ export function buildGridData(
   const biomarkerMap = new Map<string, Biomarker>()
   const rowData = new Map<
     string,
-    Record<string, { value: number; unit: string; resultId: string }>
+    Record<string, { value: number; unit: string; resultId: string; qualifier: string | null }>
   >()
 
   for (const test of tests) {
@@ -59,6 +60,7 @@ export function buildGridData(
         value: result.value,
         unit: result.unit,
         resultId: result.id,
+        qualifier: result.qualifier ?? null,
       }
     }
   }

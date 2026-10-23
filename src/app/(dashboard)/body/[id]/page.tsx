@@ -1,3 +1,4 @@
+import type { Metadata } from 'next'
 import Link from 'next/link'
 import { ArrowLeft, Pencil } from 'lucide-react'
 
@@ -17,6 +18,10 @@ function fmtDelta(abs: number | null): string | null {
   if (abs == null) return null
   const sign = abs > 0 ? '+' : ''
   return `${sign}${abs.toFixed(1)} vs prev`
+}
+
+export const metadata: Metadata = {
+  title: 'Body scan | Markerbook',
 }
 
 export default async function DexaScanDetailPage({
@@ -46,16 +51,16 @@ export default async function DexaScanDetailPage({
 
   return (
     <PageContainer width="wide" className="space-y-6">
-      <div className="flex items-center justify-between gap-4">
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" asChild>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex min-w-0 items-center gap-4">
+          <Button variant="ghost" size="icon" className="shrink-0" asChild>
             <Link href="/body">
               <ArrowLeft className="size-4" />
               <span className="sr-only">Back</span>
             </Link>
           </Button>
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight">
+          <div className="min-w-0">
+            <h1 className="break-words text-2xl font-bold tracking-tight">
               {new Date(scan.scan_date).toLocaleDateString(APP_LOCALE, {
                 year: 'numeric', month: 'long', day: 'numeric',
               })}
@@ -63,7 +68,7 @@ export default async function DexaScanDetailPage({
             <p className="text-muted-foreground">{scan.provider ?? 'DEXA scan'}</p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Button variant="outline" asChild>
             <Link href={`/body/${scan.id}/edit`}>
               <Pencil className="size-4" />

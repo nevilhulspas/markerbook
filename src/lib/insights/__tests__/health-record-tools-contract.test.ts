@@ -1,4 +1,7 @@
-import { describe, it, expect } from 'vitest'
+import { vi, describe, it, expect } from 'vitest'
+
+vi.mock('server-only', () => ({}))
+vi.mock('@/lib/ai/quota', () => ({ takeAiRequest: async () => ({ ok: true }) }))
 import { asSchema, type ToolSet } from 'ai'
 
 import { createHealthRecordTools } from '../health-record-tools'

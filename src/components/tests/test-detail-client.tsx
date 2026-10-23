@@ -4,8 +4,7 @@ import { useCallback, useState } from 'react'
 
 import type { BiomarkerUnit, Profile, ReferenceRange } from '@/lib/database.types'
 import type { BloodTestWithResults } from '@/actions/blood-tests'
-import { markerUnitsFor, resolveResultRange } from '@/lib/units/result-range'
-import { convertUnit } from '@/lib/units/convert'
+import { toMarkerContext } from '@/lib/interpretation/marker-context'
 import { hashProfile, hashMarkerContext } from '@/lib/interpretation/cache'
 import type {
   InterpretationRequest,
@@ -26,6 +25,8 @@ interface TestDetailClientProps {
   rangesByBiomarker?: Map<string, ReferenceRange[]>
   /** biomarker_units per biomarker, for unit conversion. */
   unitsByBiomarker?: Map<string, BiomarkerUnit[]>
+  /** False when the server has no Anthropic key (isAiConfigured). */
+  aiEnabled?: boolean
 }
 
 function formatShortDate(dateStr: string): string {
@@ -42,8 +43,9 @@ export function TestDetailClient({
   profile,
   rangesByBiomarker,
   unitsByBiomarker,
+  aiEnabled = true,
 }: TestDetailClientProps) {
-  const interpretation = useInterpretation()
+  const interpretation = useInterpretation({ aiEnabled })
   const [panelOpen, setPanelOpen] = useState(false)
 
   const handleFullTestInterpret = useCallback(() => {
@@ -51,31 +53,14 @@ export function TestDetailClient({
       profile?.sex === 'male' || profile?.sex === 'female'
         ? profile.sex
         : null
-    const allResults: MarkerContext[] = test.test_results.map((r) => {
-      // Mirror the server table: the range is compared in a unit the value
-      // converts to, and the value is sent in that same unit so the AI never
-      // reads a value against a range in another unit.
-      const marker = markerUnitsFor(r.biomarkers, unitsByBiomarker?.get(r.biomarkers.id))
-      const range = resolveResultRange(
-        r.value,
-        r.unit,
-        r.biomarkers,
+    const allResults: MarkerContext[] = test.test_results.map((r) =>
+      toMarkerContext(
+        r,
         rangesByBiomarker?.get(r.biomarkers.id) ?? [],
-        marker,
+        unitsByBiomarker?.get(r.biomarkers.id),
         rangeSex
       )
-      const inRangeUnit = range.unit ? convertUnit(r.value, r.unit, range.unit, marker) : null
-      return {
-        name: r.biomarkers.name,
-        shortName: r.biomarkers.short_name,
-        value: inRangeUnit ?? r.value,
-        unit: inRangeUnit !== null && range.unit ? range.unit : r.unit,
-        category: r.biomarkers.category,
-        refRangeLow: range.low,
-        refRangeHigh: range.high,
-        status: range.status,
-      }
-    })
+    )
 
     const profileContext: ProfileContext = {
       dateOfBirth: profile?.date_of_birth ?? null,
@@ -117,9 +102,11 @@ export function TestDetailClient({
         onClick={handleFullTestInterpret}
         isLoading={interpretation.isLoading}
         isStreaming={interpretation.isStreaming}
+        aiEnabled={aiEnabled}
       />
 
       <InterpretationPanel
+        aiEnabled={aiEnabled}
         open={panelOpen}
         onOpenChange={handlePanelOpenChange}
         title={test.name}

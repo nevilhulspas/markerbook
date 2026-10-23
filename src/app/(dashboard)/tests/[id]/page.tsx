@@ -4,11 +4,14 @@ import { ArrowLeft, Pencil } from 'lucide-react'
 
 import { getBloodTest } from '@/actions/blood-tests'
 import { createClient } from '@/lib/supabase/server'
+import { isAiConfigured } from '@/lib/ai/config'
 import type { BiomarkerUnit, Profile, ReferenceRange } from '@/lib/database.types'
 import { toClientProfile } from '@/lib/profile/client-profile'
 import type { RangeStatus } from '@/lib/grid/reference-range'
 import { describeResult, markerUnitsFor } from '@/lib/units/result-range'
 import { formatUnitValue } from '@/lib/units/convert'
+import { formatQualified } from '@/lib/blood-tests/qualifier'
+import { formatRangeBounds } from '@/lib/grid/reference-range'
 import { getUnitPreferences } from '@/actions/unit-preferences'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -28,6 +31,7 @@ import {
 } from '@/components/ui/table'
 import { DeleteTestButton } from '@/components/tests/delete-test-button'
 import { TestDetailClient } from '@/components/tests/test-detail-client'
+import { PageContainer } from '@/components/layout/page-container'
 import { APP_LOCALE } from '@/lib/locale'
 import { notFoundOrAuthOutage } from '@/lib/supabase/session'
 import { getRequestUser } from '@/lib/supabase/request-user'
@@ -139,24 +143,27 @@ export default async function TestDetailPage({
   )
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" asChild>
-          <Link href="/tests">
-            <ArrowLeft className="size-4" />
-            <span className="sr-only">Back to tests</span>
-          </Link>
-        </Button>
-        <div className="flex-1">
-          <h1 className="text-3xl font-bold tracking-tight">{test.name}</h1>
-          <p className="text-muted-foreground">{formatDate(test.test_date)}</p>
+    <PageContainer width="wide" className="space-y-6">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex min-w-0 items-center gap-4">
+          <Button variant="ghost" size="icon" className="shrink-0" asChild>
+            <Link href="/tests">
+              <ArrowLeft className="size-4" />
+              <span className="sr-only">Back to tests</span>
+            </Link>
+          </Button>
+          <div className="min-w-0">
+            <h1 className="break-words text-3xl font-bold tracking-tight">{test.name}</h1>
+            <p className="text-muted-foreground">{formatDate(test.test_date)}</p>
+          </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <TestDetailClient
             test={test}
             profile={toClientProfile((profile as Profile) ?? null)}
             rangesByBiomarker={rangesByBiomarker}
             unitsByBiomarker={unitsByBiomarker}
+            aiEnabled={isAiConfigured()}
           />
           <Button variant="outline" size="sm" asChild>
             <Link href={`/tests/${test.id}/edit`}>
@@ -223,11 +230,13 @@ export default async function TestDetailPage({
                 )
                 const status: RangeStatus = d.range.status
                 const { low, high, unit: rangeUnit } = d.rangeShown
+                // One-sided ranges ('< 5', '> 60') are shown too.
                 const rangeStr =
-                  low != null && high != null
-                    ? `${formatUnitValue(low)} - ${formatUnitValue(high)}${
-                        rangeUnit && rangeUnit !== d.shown.unit ? ` ${rangeUnit}` : ''
-                      }`
+                  low != null || high != null
+                    ? `${formatRangeBounds(
+                        low != null ? Number(formatUnitValue(low)) : null,
+                        high != null ? Number(formatUnitValue(high)) : null
+                      )}${rangeUnit && rangeUnit !== d.shown.unit ? ` ${rangeUnit}` : ''}`
                     : '--'
                 const convertedFromOther = d.shown.unit !== d.entered.unit
 
@@ -242,10 +251,10 @@ export default async function TestDetailPage({
                       </div>
                     </TableCell>
                     <TableCell className="font-mono">
-                      {formatUnitValue(d.shown.value)}
+                      {formatQualified(formatUnitValue(d.shown.value), result.qualifier)}
                       {convertedFromOther && (
                         <span className="block text-xs font-sans text-muted-foreground">
-                          entered as {formatUnitValue(d.entered.value)} {d.entered.unit}
+                          entered as {formatQualified(formatUnitValue(d.entered.value), result.qualifier)} {d.entered.unit}
                         </span>
                       )}
                     </TableCell>
@@ -261,6 +270,6 @@ export default async function TestDetailPage({
           </Table>
         </CardContent>
       </Card>
-    </div>
+    </PageContainer>
   )
 }

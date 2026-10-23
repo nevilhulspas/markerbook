@@ -61,7 +61,7 @@ export function shouldContinueTurn(
 ): boolean {
   if (continuationsSoFar >= MAX_TURN_CONTINUATIONS) return false
 
-  // The turn is WAITING for the user, not cut short (OTH-39). A run that ends
+  // The turn is WAITING for the user, not cut short. A run that ends
   // on `confirm_health_document_index` / `ask_user` has an unanswered
   // `tool_use` block, and resuming replays the conversation to Anthropic in
   // exactly the shape it rejects: "Tool result is missing for tool call
@@ -93,7 +93,7 @@ export function shouldContinueTurn(
   //    client-tool case returned above), and the model never got the step to
   //    read them. That turn may already hold a progress note ("I'll log your
   //    weights first…"), so check 2 misses it and the user is left with tool
-  //    chips and no answer (OTH-43). The SDK only finishes on `tool-calls`
+  //    chips and no answer. The SDK only finishes on `tool-calls`
   //    here; a turn the model finished itself ends on `stop`.
   if (end.finishReason === 'tool-calls') return true
 

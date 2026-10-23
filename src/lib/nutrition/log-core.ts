@@ -1,7 +1,8 @@
 import type { FoodSource, FoodLog, MealType } from '@/lib/database.types'
 import type { ExtractionV2 } from './types'
 import type { MatchedItem, MatchDeps, Macros100 } from './match'
-import { computeEntryDate, bucketMealTime } from './parse'
+import { computeEntryDate, bucketMealTime, MEAL_CLOCK } from './parse'
+import { appWallTime } from '@/lib/dates/today'
 import { scaleTo } from './macros'
 
 // ---------------------------------------------------------------------------
@@ -84,24 +85,8 @@ export function resolveEntryDate(
   now: Date = new Date()
 ): Date {
   if (dateOverride) {
-    // Build a temporary Date at noon UTC for the overridden day, then apply the
-    // meal-slot hour in local time so it lands in the right calendar day.
-    const base = new Date(`${dateOverride}T12:00:00`)
-    switch (mealType) {
-      case 'breakfast':
-        base.setHours(8, 0, 0, 0)
-        break
-      case 'lunch':
-        base.setHours(12, 30, 0, 0)
-        break
-      case 'snack':
-        base.setHours(15, 0, 0, 0)
-        break
-      case 'dinner':
-        base.setHours(19, 0, 0, 0)
-        break
-    }
-    return base
+    // The meal-slot hour on the overridden day, on the app's clock.
+    return appWallTime(dateOverride, ...MEAL_CLOCK[mealType])
   }
   return computeEntryDate(dateOffsetDays, mealType, now)
 }

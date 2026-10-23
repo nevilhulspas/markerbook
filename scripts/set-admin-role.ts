@@ -1,5 +1,7 @@
 // Usage: npm run make-admin -- <email-or-user-id>
-// (Usually not needed: set ADMIN_EMAIL and that account becomes admin when it signs up.)
+// Without an argument it uses the first address in ADMIN_EMAIL. This is the only
+// way to grant the admin role: signing up never does, because without enforced
+// e-mail confirmation anyone could register with the admin's address.
 
 import { createClient } from '@supabase/supabase-js'
 
@@ -19,7 +21,7 @@ if (!supabaseUrl || !serviceRoleKey) {
   process.exit(1)
 }
 
-const arg = process.argv[2]
+const arg = process.argv[2] ?? (process.env.ADMIN_EMAIL ?? '').split(',')[0]?.trim()
 
 if (!arg) {
   console.error('Usage: npm run make-admin -- <email-or-user-id>')
@@ -46,7 +48,7 @@ async function main() {
       process.exit(1)
     }
 
-    const user = data.users.find((u) => u.email === arg)
+    const user = data.users.find((u) => u.email?.toLowerCase() === arg.toLowerCase())
 
     if (!user) {
       console.error(`No user found with email: ${arg}`)

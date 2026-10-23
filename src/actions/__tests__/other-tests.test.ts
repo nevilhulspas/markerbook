@@ -176,7 +176,7 @@ describe('updateOtherTest', () => {
     state.insertError = { message: 'insert failed' }
 
     const { error } = await updateOtherTest('test-1', validExtraction)
-    expect(error).toBe('insert failed')
+    expect(error).toBe('Could not save the test. Please try again.')
 
     // First insert is the new rows; second is the snapshot rollback.
     expect(state.inserts).toHaveLength(2)
@@ -204,7 +204,7 @@ describe('updateOtherTest', () => {
   it('aborts before deleting when the readings snapshot fails', async () => {
     state.snapshotError = { message: 'snapshot failed' }
     const { error } = await updateOtherTest('test-1', validExtraction)
-    expect(error).toBe('snapshot failed')
+    expect(error).toBe('Could not save the test. Please try again.')
     // Must not touch the readings if we can't snapshot them first.
     expect(state.deletedTestIds).toHaveLength(0)
     expect(state.inserts).toHaveLength(0)
@@ -214,7 +214,7 @@ describe('updateOtherTest', () => {
   it('aborts when the parent update fails', async () => {
     state.updateError = { message: 'update failed' }
     const { error } = await updateOtherTest('test-1', validExtraction)
-    expect(error).toBe('update failed')
+    expect(error).toBe('Could not save the test. Please try again.')
     expect(state.deletedTestIds).toHaveLength(0)
     expect(state.inserts).toHaveLength(0)
     expect(mockRevalidatePath).not.toHaveBeenCalled()

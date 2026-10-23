@@ -17,10 +17,16 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
+import { AiUnavailableNote } from '@/components/interpretation/ai-unavailable-note'
 
 type Phase = 'idle' | 'extracting' | 'review' | 'saving'
 
-export function MicrobiomeImportClient() {
+interface MicrobiomeImportClientProps {
+  /** False when the server has no Anthropic API key: reading files is off. */
+  aiEnabled: boolean
+}
+
+export function MicrobiomeImportClient({ aiEnabled }: MicrobiomeImportClientProps) {
   const router = useRouter()
   const [phase, setPhase] = useState<Phase>('idle')
   const [extraction, setExtraction] = useState<MicrobiomeExtraction | null>(
@@ -43,8 +49,13 @@ export function MicrobiomeImportClient() {
       setPhase('extracting')
       const fd = new FormData()
       fd.append('file', file)
-      const result: MicrobiomeExtractionResponse =
-        await extractMicrobiomeReport(fd)
+      let result: MicrobiomeExtractionResponse
+      try {
+        result = await extractMicrobiomeReport(fd)
+      } catch (err) {
+        console.error('extractMicrobiomeReport call failed:', err)
+        result = { success: false, error: 'Could not read this file. Please try again.' }
+      }
 
       if (!result.success) {
         toast.error(result.error)
@@ -72,7 +83,7 @@ export function MicrobiomeImportClient() {
     },
     maxFiles: 1,
     maxSize: 32 * 1024 * 1024,
-    disabled: phase === 'extracting' || phase === 'saving',
+    disabled: !aiEnabled || phase === 'extracting' || phase === 'saving',
   })
 
   async function handleSave() {
@@ -173,41 +184,47 @@ export function MicrobiomeImportClient() {
   }
 
   return (
-    <div
-      {...getRootProps()}
-      className={cn(
-        'flex min-h-72 cursor-pointer flex-col items-center justify-center rounded-lg border border-dashed p-8 text-center transition-colors',
-        isDragActive ? 'border-primary bg-primary/5' : 'hover:border-foreground/30',
-        phase === 'extracting' && 'pointer-events-none opacity-70'
+    <div className="space-y-3">
+      {!aiEnabled && (
+        <AiUnavailableNote message="Reading microbiome reports needs AI, which is not set up on this server." />
       )}
-    >
-      <input {...getInputProps()} />
-      {phase === 'extracting' ? (
-        <>
-          <Loader2 className="mb-4 size-10 animate-spin text-muted-foreground" />
-          <p className="font-medium">Extracting your report…</p>
-          <p className="text-sm text-muted-foreground">
-            Reading taxa, reference ranges, and scores. This can take ~30s.
-          </p>
-        </>
-      ) : (
-        <>
-          <div className="mb-4 flex size-12 items-center justify-center rounded-full bg-muted">
-            {isDragActive ? (
-              <Upload className="size-6" />
-            ) : (
-              <Microscope className="size-6" />
-            )}
-          </div>
-          <p className="font-medium">
-            Drag & drop your microbiome report PDF or image
-          </p>
-          <p className="text-sm text-muted-foreground">or click to browse</p>
-          <p className="mt-2 text-xs text-muted-foreground">
-            Biovis, GI-MAP, GenovaGI, BiomeSight — PDFs and images up to 32MB
-          </p>
-        </>
-      )}
+      <div
+        {...getRootProps()}
+        className={cn(
+          'flex min-h-72 cursor-pointer flex-col items-center justify-center rounded-lg border border-dashed p-8 text-center transition-colors',
+          isDragActive ? 'border-primary bg-primary/5' : 'hover:border-foreground/30',
+          phase === 'extracting' && 'pointer-events-none opacity-70',
+          !aiEnabled && 'cursor-not-allowed opacity-60'
+        )}
+      >
+        <input {...getInputProps()} />
+        {phase === 'extracting' ? (
+          <>
+            <Loader2 className="mb-4 size-10 animate-spin text-muted-foreground" />
+            <p className="font-medium">Extracting your report…</p>
+            <p className="text-sm text-muted-foreground">
+              Reading taxa, reference ranges, and scores. This can take ~30s.
+            </p>
+          </>
+        ) : (
+          <>
+            <div className="mb-4 flex size-12 items-center justify-center rounded-full bg-muted">
+              {isDragActive ? (
+                <Upload className="size-6" />
+              ) : (
+                <Microscope className="size-6" />
+              )}
+            </div>
+            <p className="font-medium">
+              Drag & drop your microbiome report PDF or image
+            </p>
+            <p className="text-sm text-muted-foreground">or click to browse</p>
+            <p className="mt-2 text-xs text-muted-foreground">
+              Biovis, GI-MAP, GenovaGI, BiomeSight — PDFs and images up to 32MB
+            </p>
+          </>
+        )}
+      </div>
     </div>
   )
 }

@@ -1,8 +1,12 @@
 'use server'
 
 import { getSessionUser } from '@/lib/supabase/session'
+import { isOwnedPath } from '@/lib/supabase/storage-path'
 import { takeAiRequest } from '@/lib/ai/quota'
+import { aiFailureMessage, isAiConfigured } from '@/lib/ai/config'
+import { AI_NOT_CONFIGURED_MESSAGE } from '@/lib/ai/messages'
 import { supabaseAdmin } from '@/lib/supabase/admin'
+import { userErrorMessage } from '@/lib/supabase/errors'
 import type { ExtractionResponse } from '@/lib/extraction/types'
 import {
   extensionFor,
@@ -32,6 +36,7 @@ export async function extractFromPdf(
   if (!user) {
     return { success: false, error: authError ?? 'Not authenticated' }
   }
+  if (!isAiConfigured()) return { success: false, error: AI_NOT_CONFIGURED_MESSAGE }
 
   // Verify the actual file type from its bytes before storing anything — the
   // client-supplied MIME is untrusted, and a file that is not a PDF or image
@@ -56,7 +61,8 @@ export async function extractFromPdf(
     })
 
   if (uploadError) {
-    return { success: false, error: `Upload failed: ${uploadError.message}` }
+    console.error('extractFromPdf upload failed:', uploadError.message)
+    return { success: false, error: 'Could not upload the file. Please try again.' }
   }
 
   // Send to Claude for extraction + matching (shared with the chat indexing registry)
@@ -71,7 +77,7 @@ export async function extractFromPdf(
   } catch (err) {
     return {
       success: false,
-      error: err instanceof Error ? err.message : 'Extraction failed unexpectedly',
+      error: aiFailureMessage('extractFromPdf', err),
       storage_path: storagePath,
     }
   }
@@ -87,7 +93,7 @@ export async function getPdfSignedUrl(
   }
 
   // Verify the path belongs to this user
-  if (!storagePath.startsWith(`${user.id}/`)) {
+  if (!isOwnedPath(user.id, storagePath)) {
     return { url: null, error: 'Unauthorized' }
   }
 
@@ -96,7 +102,10 @@ export async function getPdfSignedUrl(
     .createSignedUrl(storagePath, 3600) // 1 hour
 
   if (error || !data?.signedUrl) {
-    return { url: null, error: error?.message ?? 'Failed to generate URL' }
+    return {
+      url: null,
+      error: userErrorMessage('getPdfSignedUrl', error, 'Could not open the file. Please try again.'),
+    }
   }
 
   return { url: data.signedUrl }

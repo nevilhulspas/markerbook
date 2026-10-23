@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { sumMacros, groupLogsByDay, localDayKey, groupDayIntoMealSections } from '../totals'
 import type { FoodLog } from '@/lib/database.types'
+import { appWallTime } from '@/lib/dates/today'
 
 let idCounter = 0
 function log(partial: Partial<FoodLog>): FoodLog {
@@ -27,14 +28,22 @@ describe('sumMacros', () => {
 describe('groupLogsByDay', () => {
   it('groups same-local-day entries and sorts days descending', () => {
     const groups = groupLogsByDay([
-      log({ entry_date: '2026-06-08T08:00:00', calories: 100 }),
-      log({ entry_date: '2026-06-08T20:00:00', calories: 200 }),
-      log({ entry_date: '2026-06-07T12:00:00', calories: 50 }),
+      log({ entry_date: appWallTime('2026-06-08', 8).toISOString(), calories: 100 }),
+      log({ entry_date: appWallTime('2026-06-08', 20).toISOString(), calories: 200 }),
+      log({ entry_date: appWallTime('2026-06-07', 12).toISOString(), calories: 50 }),
     ])
     expect(groups).toHaveLength(2)
     expect(groups[0].dayKey > groups[1].dayKey).toBe(true)
-    const jun8 = groups.find((g) => g.dayKey === localDayKey(new Date('2026-06-08T08:00:00')))
+    const jun8 = groups.find((g) => g.dayKey === '2026-06-08')
     expect(jun8?.totals.calories).toBe(300)
+  })
+})
+
+describe('groupLogsByDay on the app calendar (regression: server UTC)', () => {
+  it('puts a meal at 00:30 in Amsterdam on that day, not the UTC day before', () => {
+    const groups = groupLogsByDay([log({ entry_date: '2026-06-08T22:30:00.000Z', calories: 100 })])
+    expect(groups[0].dayKey).toBe('2026-06-09')
+    expect(localDayKey(new Date('2026-06-08T22:30:00.000Z'))).toBe('2026-06-09')
   })
 })
 
@@ -55,8 +64,8 @@ describe('groupDayIntoMealSections', () => {
   it('falls back to hour-bucket for null meal_type', () => {
     // 08:00 → breakfast, 19:00 → dinner
     const logs = [
-      log({ meal_type: null, entry_date: '2026-06-08T08:00:00', calories: 200 }),
-      log({ meal_type: null, entry_date: '2026-06-08T19:00:00', calories: 500 }),
+      log({ meal_type: null, entry_date: appWallTime('2026-06-08', 8).toISOString(), calories: 200 }),
+      log({ meal_type: null, entry_date: appWallTime('2026-06-08', 19).toISOString(), calories: 500 }),
     ]
     const sections = groupDayIntoMealSections(logs)
     expect(sections.map((s) => s.meal)).toContain('breakfast')

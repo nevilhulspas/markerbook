@@ -191,6 +191,7 @@ export function createNextToTestTools(supabase: TypedSupabaseClient, userId: str
       description:
         "Remove a next-to-test entry by id. Use when the user changes their mind about a saved item, wants to swap it (e.g. 'I prefer Lina, not BODIMED' — remove the old entry then call add_to_next_to_test for the new lab), or asks to clear it from the list. Only the entry owner's id should be passed; the tool refuses cross-user access.",
       inputSchema: z.object({ entryId: z.string() }),
+      needsApproval: true,
       execute: async ({ entryId }) => {
         // `.select().single()` so PostgREST returns PGRST116 on zero-row match
         // instead of a silent `{ error: null }` 200. Without this, the model

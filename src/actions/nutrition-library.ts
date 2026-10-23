@@ -229,7 +229,7 @@ export async function saveRecipe(
   if (v.id) {
     recipeId = v.id
 
-    // AUT-955: the retro update derives each entry's portion against the
+    // The retro update derives each entry's portion against the
     // recipe totals from BEFORE this edit — read them before mutating. Only
     // retro saves pay this extra query; plain saves skip it.
     let oldTotalGrams = 0
@@ -376,7 +376,7 @@ export async function getRecipeSummary(
 
 // ---------------------------------------------------------------------------
 // getRecipeLogStats — how many logged entries reference a recipe, and the
-// earliest entry date (prefill for the retro "since" cutoff). AUT-955.
+// earliest entry date (prefill for the retro "since" cutoff).
 // ---------------------------------------------------------------------------
 
 export async function getRecipeLogStats(

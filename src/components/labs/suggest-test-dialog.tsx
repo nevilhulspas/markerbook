@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useTransition } from 'react'
-import { useRouter } from 'next/navigation'
 import { Loader2, Plus } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
@@ -18,7 +17,6 @@ import {
 import { suggestLabTest } from '@/actions/lab-test-suggestions'
 
 export function SuggestTestDialog({ labId }: { labId: string }) {
-  const router = useRouter()
   const [open, setOpen] = useState(false)
   const [pending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
@@ -45,18 +43,17 @@ export function SuggestTestDialog({ labId }: { labId: string }) {
       if (added.length === 0) {
         setNotice(
           duplicates.length > 0
-            ? 'That test is already listed for this lab.'
+            ? 'That test is already listed or waiting for review.'
             : 'Nothing new to add from that page.'
         )
         return
       }
       const summary =
         duplicates.length > 0
-          ? `Added ${added.join(', ')} (${duplicates.length} already listed).`
-          : `Added ${added.join(', ')}.`
+          ? `Thanks! Sent ${added.join(', ')} for review (${duplicates.length} already listed). It appears here once an admin approves it.`
+          : `Thanks! Sent ${added.join(', ')} for review. It appears here once an admin approves it.`
       setNotice(summary)
       setUrl('')
-      router.refresh()
     })
   }
 
@@ -79,7 +76,8 @@ export function SuggestTestDialog({ labId }: { labId: string }) {
           <DialogTitle>Suggest a missing test</DialogTitle>
           <DialogDescription>
             Paste the link to the test&apos;s page on this lab&apos;s website. We&apos;ll
-            check the page, translate it, and add the test if it isn&apos;t already listed.
+            check the page, translate it, and send the test to an admin for review if it
+            isn&apos;t already listed.
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">

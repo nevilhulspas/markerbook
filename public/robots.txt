@@ -1,0 +1,3 @@
+# Markerbook holds personal health data: keep every page out of search engines.
+User-agent: *
+Disallow: /

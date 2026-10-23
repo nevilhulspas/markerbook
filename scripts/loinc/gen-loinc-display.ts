@@ -1,21 +1,27 @@
 /**
- * AUT-904 (v2) — Generate clean_name + abbreviation per LOINC code with Claude Haiku
- * 4.5, into public.loinc_display. Default run = the codes our biomarkers map to
+ * Generate clean_name + abbreviation per LOINC code with the app's FAST_MODEL
+ * (src/lib/ai/models.ts), into public.loinc_display. Default run = the codes our biomarkers map to
  * (so the review sheet is covered); `--all-lab` = every ACTIVE lab term
  * (classtype = 1) — the long tail, so unmatched markers in future imports get a
  * clean name instead of the raw LOINC string. Idempotent (skips codes already
  * generated), so it can be interrupted and re-run.
  *
- *   set -a; source .env.local; set +a; \
- *   env -u ANTHROPIC_BASE_URL npx tsx scripts/loinc/gen-loinc-display.ts [--all-lab]
- *
- * (ANTHROPIC_BASE_URL is unset so the SDK hits the real API with the .env.local key,
- *  not the Claude-Code proxy.)
+ * Reads NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SECRET_KEY and ANTHROPIC_API_KEY from
+ * .env.local (variables already set in the shell win).
+ *   npx tsx scripts/loinc/gen-loinc-display.ts [--all-lab]
  */
 import { createClient } from '@supabase/supabase-js'
 import Anthropic from '@anthropic-ai/sdk'
 
-const MODEL = 'claude-haiku-4-5'
+import { FAST_MODEL, FAST_THINKING } from '../../src/lib/ai/models'
+
+try {
+  process.loadEnvFile('.env.local')
+} catch {
+  // no .env.local: rely on the environment
+}
+
+const MODEL = FAST_MODEL
 const BATCH = 25
 
 const db = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SECRET_KEY!)
@@ -95,7 +101,7 @@ async function main() {
     if (error) throw new Error(error.message)
     const input = (terms as Term[]).map((t) => ({ loinc_num: t.loinc_num, long_common_name: t.long_common_name, component: t.component, short_name: t.short_name }))
     const resp = await ai.messages.create({
-      model: MODEL, max_tokens: 4096,
+      model: MODEL, max_tokens: 4096, thinking: FAST_THINKING,
       messages: [{ role: 'user', content: `${PROMPT}\n\nTERMS:\n${JSON.stringify(input)}` }],
     })
     const textBlock = resp.content.find((b) => b.type === 'text')

@@ -1,7 +1,9 @@
 import { describe, it, expect } from 'vitest'
 import {
+  ageOnDate,
   calculatePhenoAge,
   checkPhenoAgeReadiness,
+  findPhenoAgeRow,
   PHENOAGE_MARKERS,
 } from './phenoage'
 import type { GridRow } from '@/lib/grid/grid-types'
@@ -27,7 +29,7 @@ function makeBiomarker(overrides: Partial<Biomarker>): Biomarker {
     variant_name: null,
     panel_id: null,
     archived_at: null,
-    loinc_code: null,
+    loinc_code: overrides.loinc_code ?? null,
     is_custom: false,
     method: null,
     created_at: '2024-01-01T00:00:00Z',
@@ -217,5 +219,44 @@ describe('calculatePhenoAge worked example', () => {
       wbc: 6.5,
     })
     expect(age).toBeCloseTo(27.8, 0)
+  })
+})
+
+describe('PhenoAge matches by LOINC code (regression: RDW lives on RDW-CV)', () => {
+  const testId = 't1'
+  function row(name: string, loinc: string | null, value: number | null): GridRow {
+    return {
+      biomarker: makeBiomarker({ name, loinc_code: loinc }),
+      category: 'test',
+      values: value != null ? { [testId]: { value, unit: '%', resultId: 'r' } } : {},
+    }
+  }
+
+  it('finds RDW on a row named RDW-CV with LOINC 788-0', () => {
+    const rdw = PHENOAGE_MARKERS.find((m) => m.key === 'rdw')!
+    const rows = [row('RDW', null, null), row('RDW-CV', '788-0', 13.1)]
+    expect(findPhenoAgeRow(rows, rdw, testId)?.biomarker.name).toBe('RDW-CV')
+  })
+
+  it('is ready when every input is present only under other names', () => {
+    const rows = PHENOAGE_MARKERS.map((m) => row(`Lab ${m.key}`, m.loincCodes[0], 5))
+    expect(checkPhenoAgeReadiness(rows, testId).ready).toBe(true)
+  })
+
+  it('prefers hs-CRP over plain CRP when both have a value', () => {
+    const crp = PHENOAGE_MARKERS.find((m) => m.key === 'crp')!
+    const rows = [row('CRP', '1988-5', 4), row('hs-CRP', '30522-7', 1.2)]
+    expect(findPhenoAgeRow(rows, crp, testId)?.biomarker.name).toBe('hs-CRP')
+  })
+})
+
+describe('ageOnDate', () => {
+  it('uses the test date, not today', () => {
+    expect(ageOnDate('1980-06-15', '2020-06-14')).toBe(39)
+    expect(ageOnDate('1980-06-15', '2020-06-15')).toBe(40)
+    expect(ageOnDate('1980-06-15T00:00:00Z', '2021-01-01')).toBe(40)
+  })
+  it('returns null for an invalid date', () => {
+    expect(ageOnDate('n/a', '2020-01-01')).toBeNull()
   })
 })

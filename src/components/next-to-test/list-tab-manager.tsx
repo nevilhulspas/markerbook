@@ -263,7 +263,7 @@ function DeleteListItem({
               startTransition(async () => {
                 const { error } = await deleteNextToTestList(list.id)
                 if (error) {
-                  toast.error(`Couldn't delete the list — ${error}`)
+                  toast.error(error)
                   return
                 }
                 onDeleted()

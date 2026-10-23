@@ -1,6 +1,8 @@
 import { tool } from 'ai'
 import { z } from 'zod'
 import type { TypedSupabaseClient } from '@/lib/supabase/database'
+import { isOwnedAttachment, isOwnedPath } from '@/lib/supabase/storage-path'
+import { takeAiRequest } from '@/lib/ai/quota'
 
 import { detectMediaType, SNIFF_BYTES } from '@/lib/health-documents/media-type'
 import { getHealthDocumentType, HEALTH_DOCUMENT_TYPES } from '@/lib/health-documents/registry'
@@ -40,7 +42,7 @@ export function createDocumentIndexTools(
       execute: async ({ documentType, attachmentIndex }) => {
         const att = attachments[attachmentIndex ?? attachments.length - 1]
         if (!att) return { error: 'No attachment found on this message to index.' }
-        if (!att.storagePath.startsWith(`${userId}/`)) return { error: 'This file is not authorized for your account.' }
+        if (!isOwnedAttachment(userId, att)) return { error: 'This file is not authorized for your account.' }
 
         const type = getHealthDocumentType(documentType)
         if (!type) return { error: `Unknown document type: ${documentType}` }
@@ -50,13 +52,17 @@ export function createDocumentIndexTools(
         const paths = att.parts && att.parts.length > 0 ? att.parts : [att.storagePath]
         const buffers: Buffer[] = []
         for (const path of paths) {
-          if (!path.startsWith(`${userId}/`)) return { error: 'This file is not authorized for your account.' }
+          if (!isOwnedPath(userId, path)) return { error: 'This file is not authorized for your account.' }
           const { data: blob, error: dlErr } = await supabase.storage.from('lab-pdfs').download(path)
           if (dlErr || !blob) return { error: 'Could not read the uploaded file.' }
           buffers.push(Buffer.from(await blob.arrayBuffer()))
         }
         const mediaType = detectMediaType(new Uint8Array(buffers[0].subarray(0, SNIFF_BYTES)))
         if (!mediaType) return { error: 'The uploaded file is not a supported PDF or image.' }
+
+        // The parse is a full model call of its own on top of the chat turn.
+        const quota = await takeAiRequest(userId)
+        if (!quota.ok) return { error: quota.error }
 
         let extraction: unknown
         try {

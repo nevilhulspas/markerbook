@@ -42,7 +42,8 @@ A key test: Does this row represent a SPECIFIC substance/analyte that was measur
 
 ## For each actual test result, extract:
 - name: The specific biomarker/analyte name (e.g., "Glucose", "Hemoglobin", "TSH"). Use the most specific name from the report, not the section it's under
-- value: The numeric result value (as a number). For "<0.5" use 0.5, for ">100" use 100, for ranges like "3.5-4.5" use the midpoint
+- value: The numeric result value (as a number). For "<0.5" use 0.5, for ">100" use 100, for ranges like "3.5-4.5" use the midpoint. Keep a minus sign: "-2.1" is -2.1
+- qualifier: The comparison sign printed before the value: "<", "<=", ">" or ">=" (so "<0.5" is value 0.5 with qualifier "<"). Null for a plain value
 - unit: The unit of measurement. If no unit is shown (e.g., for ratios/indices), use "" (empty string)
 - confidence: "high" (clearly readable), "medium" (unusual format or partially obscured), "low" (guessed)
 - catalog_match: Match this marker to the closest entry from the biomarker catalog below. Use the EXACT catalog name (case-sensitive) if it matches. Set to null if there is no good match. Be generous with matching — different languages, abbreviations, and naming variations of the same test should still match.
@@ -145,6 +146,11 @@ export const EXTRACTION_SCHEMA = {
             description:
               'Upper bound of the reference range printed on the report in the same unit as value. Null if not shown.',
           },
+          qualifier: {
+            type: ['string', 'null'] as const,
+            description:
+              'Comparison sign printed before the value: "<", "<=", ">" or ">=" ("<0.5" → "<"). Null for a plain value.',
+          },
         },
         required: [
           'name',
@@ -155,6 +161,7 @@ export const EXTRACTION_SCHEMA = {
           'loinc_code',
           'ref_range_low',
           'ref_range_high',
+          'qualifier',
         ] as const,
         additionalProperties: false,
       },

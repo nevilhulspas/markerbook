@@ -1,3 +1,4 @@
+import type { Metadata } from 'next'
 import Link from 'next/link'
 import { ChevronLeftIcon } from 'lucide-react'
 
@@ -19,6 +20,10 @@ function parseEditParam(raw: string | undefined): InitialEdit {
     return id ? { kind: 'custom', id } : null
   }
   return null
+}
+
+export const metadata: Metadata = {
+  title: 'Food library | Markerbook',
 }
 
 export default async function LibraryPage({

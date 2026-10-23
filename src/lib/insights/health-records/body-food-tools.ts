@@ -43,6 +43,17 @@ export function createBodyFoodTools(supabase: TypedSupabaseClient, userId: strin
         waist_cm: z.number().positive().optional(),
         notes: z.string().optional(),
       }),
+      // A new day's entry runs straight away; overwriting that day's stored
+      // entry waits for the user's OK.
+      needsApproval: async ({ logged_on }) => {
+        const { data, error } = await supabase
+          .from('body_log_entries')
+          .select('id')
+          .eq('user_id', userId)
+          .eq('logged_on', logged_on ?? today())
+          .limit(1)
+        return error !== null || (data ?? []).length > 0
+      },
       execute: async ({ logged_on, ...fields }) => {
         if (fields.weight_kg == null && fields.body_fat_pct == null && fields.waist_cm == null) {
           return { error: 'Provide at least one of weight_kg, body_fat_pct or waist_cm.' }
@@ -80,6 +91,7 @@ export function createBodyFoodTools(supabase: TypedSupabaseClient, userId: strin
     delete_body_log_entry: tool({
       description: 'Delete one body-log entry by id (from list_body_log). Use only on explicit user request.',
       inputSchema: z.object({ id: z.string() }),
+      needsApproval: true,
       execute: async ({ id }) => {
         const { error } = await supabase
           .from('body_log_entries')
@@ -172,6 +184,7 @@ export function createBodyFoodTools(supabase: TypedSupabaseClient, userId: strin
         saturated_fat_g: z.number().nonnegative().nullable().optional(),
         notes: z.string().nullable().optional(),
       }),
+      needsApproval: true,
       execute: async ({ id, entry_date, ...patch }) => {
         const clean: TableUpdate<'food_logs'> = omitUndefined(patch)
         if (entry_date) clean.entry_date = new Date(`${entry_date}T12:00:00`).toISOString()
@@ -191,6 +204,7 @@ export function createBodyFoodTools(supabase: TypedSupabaseClient, userId: strin
     delete_food_log: tool({
       description: 'Delete a food log entry by id (soft delete — it disappears from the log). Use only on explicit user request.',
       inputSchema: z.object({ id: z.string() }),
+      needsApproval: true,
       execute: async ({ id }) => {
         const { error } = await supabase
           .from('food_logs')
@@ -231,6 +245,7 @@ export function createBodyFoodTools(supabase: TypedSupabaseClient, userId: strin
         carbs_g: z.number().int().nonnegative().nullable().optional(),
         fat_g: z.number().int().nonnegative().nullable().optional(),
       }),
+      needsApproval: true,
       execute: async ({ calories, protein_g, carbs_g, fat_g }) => {
         const patch: TableUpdate<'profiles'> = {}
         if (calories !== undefined) patch.nutrition_calorie_target = calories

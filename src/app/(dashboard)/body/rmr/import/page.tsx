@@ -5,6 +5,7 @@ import { ArrowLeft } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { PageContainer } from '@/components/layout/page-container'
 import { RmrImportClient } from '@/components/body/rmr-import-client'
+import { isAiConfigured } from '@/lib/ai/config'
 
 export const metadata: Metadata = { title: 'Import RMR test | Markerbook' }
 
@@ -26,7 +27,7 @@ export default function RmrImportPage() {
         </div>
       </div>
 
-      <RmrImportClient />
+      <RmrImportClient aiEnabled={isAiConfigured()} />
     </PageContainer>
   )
 }

@@ -31,6 +31,7 @@ import {
 } from '@/components/ui/select'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
+import { AiUnavailableNote } from '@/components/interpretation/ai-unavailable-note'
 
 type Phase = 'idle' | 'extracting' | 'review' | 'saving'
 
@@ -43,9 +44,16 @@ const emptyValue = (): OtherValueExtract => ({
   flag: null,
 })
 
-export function OtherImportClient() {
+interface OtherImportClientProps {
+  /** False when the server has no Anthropic API key: reading files is off, typing it in still works. */
+  aiEnabled: boolean
+}
+
+export function OtherImportClient({ aiEnabled }: OtherImportClientProps) {
   const router = useRouter()
   const [phase, setPhase] = useState<Phase>('idle')
+  // Typed in by hand (no file read): saved with source 'manual'.
+  const [manual, setManual] = useState(false)
   const [files, setFiles] = useState<File[]>([])
   const [test, setTest] = useState<OtherTestExtract | null>(null)
   const [values, setValues] = useState<OtherValueExtract[]>([])
@@ -80,7 +88,7 @@ export function OtherImportClient() {
     },
     maxFiles: MAX_FILES,
     maxSize: 32 * 1024 * 1024,
-    disabled: phase === 'extracting' || phase === 'saving',
+    disabled: !aiEnabled || phase === 'extracting' || phase === 'saving',
   })
 
   async function handleProcess() {
@@ -88,7 +96,13 @@ export function OtherImportClient() {
     setPhase('extracting')
     const fd = new FormData()
     for (const f of files) fd.append('file', f)
-    const result: OtherExtractionResponse = await extractOtherReport(fd)
+    let result: OtherExtractionResponse
+    try {
+      result = await extractOtherReport(fd)
+    } catch (err) {
+      console.error('extractOtherReport call failed:', err)
+      result = { success: false, error: 'Could not read this file. Please try again.' }
+    }
 
     if (!result.success) {
       toast.error(result.error)
@@ -98,6 +112,22 @@ export function OtherImportClient() {
     setTest(result.data.test)
     setValues(result.data.values)
     setStoragePath(result.storagePath)
+    setManual(false)
+    setPhase('review')
+  }
+
+  function handleEnterByHand() {
+    setTest({
+      test_name: '',
+      test_date: '',
+      provider: null,
+      outcome: 'not_applicable',
+      result_summary: null,
+      notes: null,
+    })
+    setValues([])
+    setStoragePath(undefined)
+    setManual(true)
     setPhase('review')
   }
 
@@ -131,7 +161,11 @@ export function OtherImportClient() {
     // Drop reading rows the user left without a label.
     const cleanValues = values.filter((v) => v.label.trim() !== '')
     const extraction: OtherExtraction = { test, values: cleanValues }
-    const result = await saveOtherTest({ extraction, storagePath, source: 'import' })
+    const result = await saveOtherTest({
+      extraction,
+      storagePath,
+      source: manual ? 'manual' : 'import',
+    })
     if (result.success) {
       toast.success('Test saved')
       router.push(`/other/${result.testId}`)
@@ -146,7 +180,7 @@ export function OtherImportClient() {
       <div className="max-w-3xl space-y-4">
         <Card>
           <CardHeader>
-            <CardTitle>Review extracted test</CardTitle>
+            <CardTitle>{manual ? 'Enter test' : 'Review extracted test'}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid gap-4 sm:grid-cols-2">
@@ -303,12 +337,22 @@ export function OtherImportClient() {
 
   return (
     <div className="max-w-3xl space-y-4">
+      {!aiEnabled && (
+        <div className="space-y-2">
+          <AiUnavailableNote message="Reading reports needs AI, which is not set up on this server. You can still type the test in." />
+          <Button variant="outline" onClick={handleEnterByHand}>
+            <Plus className="size-4" />
+            Enter by hand
+          </Button>
+        </div>
+      )}
       <div
         {...getRootProps()}
         className={cn(
           'flex min-h-56 cursor-pointer flex-col items-center justify-center rounded-lg border border-dashed p-8 text-center transition-colors',
           isDragActive ? 'border-primary bg-primary/5' : 'hover:border-foreground/30',
-          extracting && 'pointer-events-none opacity-70'
+          extracting && 'pointer-events-none opacity-70',
+          !aiEnabled && 'cursor-not-allowed opacity-60'
         )}
       >
         <input {...getInputProps()} />

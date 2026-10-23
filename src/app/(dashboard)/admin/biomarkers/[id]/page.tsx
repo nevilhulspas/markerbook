@@ -1,3 +1,4 @@
+import type { Metadata } from 'next'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { ArrowLeft } from 'lucide-react'
@@ -13,6 +14,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 
 interface PageProps {
   params: Promise<{ id: string }>
+}
+
+export const metadata: Metadata = {
+  title: 'Admin · Biomarker | Markerbook',
 }
 
 export default async function BiomarkerEditPage({ params }: PageProps) {

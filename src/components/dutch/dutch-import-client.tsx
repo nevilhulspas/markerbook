@@ -15,6 +15,7 @@ import { extractDutchPdf } from '@/actions/dutch-import'
 import { createDutchTest } from '@/actions/dutch-tests'
 import { Button } from '@/components/ui/button'
 import { PdfDropzone } from '@/components/import/pdf-dropzone'
+import { AiUnavailableNote } from '@/components/interpretation/ai-unavailable-note'
 import {
   DutchExtractionReview,
   type DutchImportMetadata,
@@ -29,10 +30,13 @@ type Step = 'upload' | 'processing' | 'review' | 'saving' | 'error'
 
 interface DutchImportClientProps {
   dutchBiomarkers: DutchMarker[]
+  /** False when the server has no Anthropic API key: reading files is off. */
+  aiEnabled: boolean
 }
 
 export function DutchImportClient({
   dutchBiomarkers,
+  aiEnabled,
 }: DutchImportClientProps) {
   const router = useRouter()
 
@@ -69,8 +73,9 @@ export function DutchImportClient({
         if (result.storage_path) setStoragePath(result.storage_path)
         setStep('error')
       }
-    } catch {
-      setErrorMessage('An unexpected error occurred during extraction.')
+    } catch (err) {
+      console.error('extractDutchPdf call failed:', err)
+      setErrorMessage('Could not read this file. Please try again.')
       setStep('error')
     }
   }
@@ -144,16 +149,22 @@ export function DutchImportClient({
   // Upload / Processing step
   if (step === 'upload' || step === 'processing') {
     return (
-      <PdfDropzone
-        onFilesAccepted={(acceptedFiles) => {
-          const firstFile = acceptedFiles[0]
-          if (firstFile) {
-            void handleFileAccepted(firstFile)
-          }
-        }}
-        isProcessing={step === 'processing'}
-        statusText={statusText}
-      />
+      <div className="space-y-3">
+        {!aiEnabled && (
+          <AiUnavailableNote message="Reading DUTCH reports needs AI, which is not set up on this server." />
+        )}
+        <PdfDropzone
+          onFilesAccepted={(acceptedFiles) => {
+            const firstFile = acceptedFiles[0]
+            if (firstFile) {
+              void handleFileAccepted(firstFile)
+            }
+          }}
+          isProcessing={step === 'processing'}
+          statusText={statusText}
+          disabled={!aiEnabled}
+        />
+      </div>
     )
   }
 

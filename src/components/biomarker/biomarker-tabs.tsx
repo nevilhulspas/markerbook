@@ -15,7 +15,7 @@ import { SuggestionForm } from '@/components/biomarker/suggestion-form'
 import { setUnitPreference } from '@/actions/unit-preferences'
 import { convertUnit, formatUnitValue } from '@/lib/units/convert'
 import type { NextToTestList } from '@/lib/database.types'
-import { APP_LOCALE } from '@/lib/locale'
+import { formatCalendarDate } from '@/lib/dates/calendar'
 import { AddToNextToTestPopover } from '@/components/next-to-test/add-to-next-to-test-popover'
 
 export interface CatalogItem {
@@ -50,11 +50,8 @@ interface BiomarkerTabsProps {
 }
 
 function formatDate(dateStr: string): string {
-  return new Date(dateStr).toLocaleDateString(APP_LOCALE, {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  })
+  // A test_date is a calendar day; never shift it by the viewer's zone.
+  return formatCalendarDate(dateStr)
 }
 
 // Category grouping: case-insensitive key (merges "Hematology"/"hematology"),

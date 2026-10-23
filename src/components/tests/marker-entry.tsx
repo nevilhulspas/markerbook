@@ -8,6 +8,7 @@ import type { MarkerEntryValues } from '@/lib/validations/blood-test'
 import { matchesBiomarkerQuery } from '@/lib/biomarkers/search'
 import { inputUnitOptions } from '@/lib/units/convert'
 import { markerUnitsFor } from '@/lib/units/result-range'
+import { formatQualified, parseQualifiedValue } from '@/lib/blood-tests/qualifier'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -171,8 +172,12 @@ export function MarkerEntry({
     ? biomarkers.find((b) => b.id === value.biomarker_id) ?? null
     : null
 
+  // The typed text, e.g. "4.2", "0", "-1.5" or "<0.5". A stored 0 is a real
+  // result and shows as "0", not as an empty field.
   const [numericValue, setNumericValue] = useState<string>(
-    value?.value != null && value.value > 0 ? String(value.value) : ''
+    value?.value != null && Number.isFinite(value.value)
+      ? formatQualified(String(value.value), value.qualifier)
+      : ''
   )
   const [unit, setUnit] = useState<string>(value?.unit ?? '')
 
@@ -182,10 +187,12 @@ export function MarkerEntry({
       const newUnit = biomarker.unit
       setUnit(newUnit)
 
-      const parsed = parseFloat(numericValue)
+      const parsed = parseQualifiedValue(numericValue)
       onChange({
         biomarker_id: biomarker.id,
-        value: Number.isNaN(parsed) || parsed <= 0 ? 0 : parsed,
+        // An empty value stays empty (NaN), so the form asks for one.
+        value: parsed?.value ?? Number.NaN,
+        qualifier: parsed?.qualifier ?? null,
         unit: newUnit,
       })
     },
@@ -202,10 +209,15 @@ export function MarkerEntry({
   function handleValueChange(raw: string) {
     setNumericValue(raw)
     if (!value) return
-    const parsed = parseFloat(raw)
-    if (!Number.isNaN(parsed) && parsed > 0) {
-      onChange({ ...value, value: parsed })
-    }
+    // Every edit reaches the form: 0, negatives and "<0.5" are saved, and a
+    // cleared or unreadable field is NaN, which the form rejects instead of
+    // silently keeping the old value.
+    const parsed = parseQualifiedValue(raw)
+    onChange({
+      ...value,
+      value: parsed?.value ?? Number.NaN,
+      qualifier: parsed?.qualifier ?? null,
+    })
   }
 
   function handleUnitChange(newUnit: string) {
@@ -295,10 +307,10 @@ export function MarkerEntry({
       <div className="w-full space-y-1 sm:w-28">
         <Label className="text-xs text-muted-foreground">Value</Label>
         <Input
-          type="number"
-          step="any"
-          min="0"
-          placeholder="0.00"
+          type="text"
+          inputMode="decimal"
+          placeholder="e.g. 4.2 or <0.5"
+          aria-invalid={numericValue.trim() !== '' && parseQualifiedValue(numericValue) === null}
           value={numericValue}
           onChange={(e) => handleValueChange(e.target.value)}
         />

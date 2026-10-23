@@ -54,7 +54,7 @@ export function SuggestLabDialog() {
           <DialogTitle>Suggest a lab</DialogTitle>
           <DialogDescription>
             We&apos;ll import its test catalogue automatically. The lab becomes visible
-            once the import succeeds.
+            to everyone once an admin has reviewed it.
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -65,7 +65,7 @@ export function SuggestLabDialog() {
               value={name}
               onChange={(e) => setName(e.target.value)}
               required
-              placeholder="e.g. BODIMED"
+              placeholder="e.g. City Lab"
             />
           </div>
           <div className="space-y-1">
@@ -86,7 +86,7 @@ export function SuggestLabDialog() {
                 id="suggest-lab-country"
                 value={country}
                 onChange={(e) => setCountry(e.target.value)}
-                placeholder="e.g. Bulgaria"
+                placeholder="e.g. Netherlands"
               />
             </div>
             <div className="space-y-1">

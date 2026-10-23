@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache'
 
 import { getSessionUser } from '@/lib/supabase/session'
+import { userErrorMessage } from '@/lib/supabase/errors'
 import { supabaseAdmin } from '@/lib/supabase/admin'
 import {
   createSupplementSchema,
@@ -48,7 +49,14 @@ export async function getSupplements(): Promise<
     .order('start_date', { ascending: false })
 
   if (error) {
-    return { data: null, error: error.message }
+    return {
+      data: null,
+      error: userErrorMessage(
+        'getSupplements',
+        error,
+        'Could not load your supplements. Please try again.'
+      ),
+    }
   }
 
   return { data: (data ?? []).map(mapSupplementRow), error: null }
@@ -75,7 +83,14 @@ export async function getActiveSupplements(): Promise<
     .order('start_date', { ascending: true })
 
   if (error) {
-    return { data: null, error: error.message }
+    return {
+      data: null,
+      error: userErrorMessage(
+        'getActiveSupplements',
+        error,
+        'Could not load your supplements. Please try again.'
+      ),
+    }
   }
 
   return { data: (data ?? []).map(mapSupplementRow), error: null }
@@ -107,7 +122,14 @@ export async function getScheduleSupplements(
   const { data, error } = await query.order('name', { ascending: true })
 
   if (error) {
-    return { data: null, error: error.message }
+    return {
+      data: null,
+      error: userErrorMessage(
+        'getScheduleSupplements',
+        error,
+        'Could not load your supplements. Please try again.'
+      ),
+    }
   }
 
   return { data: (data ?? []).map(mapSupplementRow), error: null }
@@ -152,7 +174,15 @@ export async function createSupplement(
     .single()
 
   if (error) {
-    return { success: false, supplement: null, error: error.message }
+    return {
+      success: false,
+      supplement: null,
+      error: userErrorMessage(
+        'createSupplement',
+        error,
+        'Could not save the supplement. Please try again.'
+      ),
+    }
   }
 
   const created = mapSupplementRow(data)
@@ -232,7 +262,15 @@ export async function updateSupplement(
     .single()
 
   if (error) {
-    return { success: false, supplement: null, error: error.message }
+    return {
+      success: false,
+      supplement: null,
+      error: userErrorMessage(
+        'updateSupplement',
+        error,
+        'Could not save the supplement. Please try again.'
+      ),
+    }
   }
 
   const updated = mapSupplementRow(data)
@@ -285,7 +323,14 @@ export async function deleteSupplement(
     .eq('id', id)
 
   if (error) {
-    return { success: false, error: error.message }
+    return {
+      success: false,
+      error: userErrorMessage(
+        'deleteSupplement',
+        error,
+        'Could not delete the supplement. Please try again.'
+      ),
+    }
   }
 
   revalidatePath('/supplements')

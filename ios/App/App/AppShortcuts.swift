@@ -3,25 +3,50 @@ import Capacitor
 import Foundation
 import UIKit
 
+/// The app's own URL scheme: the first `CFBundleURLSchemes` entry in
+/// Info.plist (the same value as `NATIVE_URL_SCHEME` in `src/lib/capacitor.ts`).
+/// Read at runtime so a self-hosted build only changes it in Info.plist.
+private let appURLScheme: String = {
+    let types = Bundle.main.object(forInfoDictionaryKey: "CFBundleURLTypes") as? [[String: Any]]
+    let schemes = types?.first?["CFBundleURLSchemes"] as? [String]
+    guard let scheme = schemes?.first ?? Bundle.main.bundleIdentifier else {
+        fatalError("Info.plist has no CFBundleURLSchemes entry for the app's deep links")
+    }
+    return scheme
+}()
+
 /// Deep link consumed by the web layer (`src/components/capacitor-bridge.tsx`):
 /// Capacitor fires `appUrlOpen`, and the bridge routes `://record` to the
 /// focused capture screen (`/capture`) with the recorder auto-started.
-private let recordDeepLink = URL(string: "nl.naturalheroes.bloodmarkers://record")!
+private let recordDeepLink = URL(string: "\(appURLScheme)://record")!
 
 /// Deep link consumed by the web layer (`src/components/capacitor-bridge.tsx`):
 /// Capacitor fires `appUrlOpen`, and the bridge routes `://photo` to the
 /// focused photo-capture screen (`/capture/photo`) with the camera auto-opened.
-private let photoDeepLink = URL(string: "nl.naturalheroes.bloodmarkers://photo")!
+private let photoDeepLink = URL(string: "\(appURLScheme)://photo")!
 
-/// Endpoint the background Log Food intent posts to. Capacitor mirrors the
-/// WKWebView's cookies into `HTTPCookieStorage.shared` (see
+/// Endpoint the background Log Food intent posts to: `server.url` from the
+/// `capacitor.config.json` that `npx cap sync ios` bundles (CAPACITOR_SERVER_URL),
+/// so the shortcut talks to the same server the web view loads. Capacitor
+/// mirrors the WKWebView's cookies into `HTTPCookieStorage.shared` (see
 /// MainViewController), which `URLSession.shared` reads by default — so the
-/// request carries the logged-in session with no token setup.
-private let logEndpoint = URL(string: "https://bloodmarkers.naturalheroes.nl/api/nutrition/log")!
+/// request carries the logged-in session with no token setup. Nil when the
+/// bundled config has no server URL.
+private let logEndpoint: URL? = {
+    guard
+        let file = Bundle.main.url(forResource: "capacitor.config", withExtension: "json"),
+        let data = try? Data(contentsOf: file),
+        let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+        let server = json["server"] as? [String: Any],
+        let raw = server["url"] as? String,
+        let base = URL(string: raw)
+    else { return nil }
+    return base.appendingPathComponent("api/nutrition/log")
+}()
 
 /// Routes the `://record` deep link into Capacitor's URL-open pipeline,
 /// exactly as AppDelegate does for real scheme opens (the system refuses an
-/// `OpenURLIntent` with a custom scheme — AUT-960). The App plugin retains
+/// `OpenURLIntent` with a custom scheme). The App plugin retains
 /// the resulting `appUrlOpen` event until the (possibly still-loading) web
 /// app registers its listener, which covers cold starts too.
 @MainActor
@@ -106,7 +131,7 @@ struct LogFoodIntent: AppIntent, ForegroundContinuableIntent {
                 // don't get. alwaysConfirm: false (iOS 26+) skips the "You'll
                 // need to continue in the app" prompt — older iOS keeps the
                 // confirmation — and the empty result dialog keeps Shortcuts
-                // from stacking a banner over the capture screen (AUT-988).
+                // from stacking a banner over the capture screen.
                 if #available(iOS 26.0, *) {
                     try await continueInForeground(alwaysConfirm: false)
                 } else {
@@ -158,6 +183,9 @@ struct LogFoodIntent: AppIntent, ForegroundContinuableIntent {
         if let clarification { payload["clarification"] = clarification }
         if allowQuestion { payload["allow_question"] = true }
 
+        guard let logEndpoint else {
+            return (nil, "Markerbook has no server set up in this build.")
+        }
         var request = URLRequest(url: logEndpoint, timeoutInterval: 25)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")

@@ -10,8 +10,8 @@ const MULTI_PART_TLDS = new Set([
 ])
 
 /**
- * Approximate registrable domain (e.g. "shop.bodimed.com" -> "bodimed.com",
- * "shop.bodimed.co.uk" -> "bodimed.co.uk"). Good enough for same-site checks;
+ * Approximate registrable domain (e.g. "shop.example.com" -> "example.com",
+ * "shop.example.co.uk" -> "example.co.uk"). Good enough for same-site checks;
  * handles common two-part ccTLDs so a whole ccTLD namespace can't pass as one
  * site.
  */

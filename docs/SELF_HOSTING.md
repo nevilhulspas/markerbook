@@ -44,7 +44,7 @@ and loads the shared biomarker catalogue from `supabase/seed.sql`.
 
 Then fill in your settings, based on [.env.example](../.env.example). You find the
 Supabase values under **Project Settings → API**. Set `ADMIN_EMAIL` to your own
-address.
+address (the default account for `npm run make-admin` and `npm run demo`).
 
 ## 4. Set up sign-in (Supabase dashboard)
 
@@ -94,11 +94,14 @@ Put a reverse proxy with HTTPS in front of it (Caddy, Traefik, nginx).
 
 ## 6. Make yourself admin
 
-Sign up with the address in `ADMIN_EMAIL`. After you confirm your e-mail address,
-that account is admin and the **Admin** section appears in the sidebar.
+Sign up in the app, then run `npm run make-admin -- you@example.com` with the
+production settings in `.env.local` (without an argument it uses the first address
+in `ADMIN_EMAIL`). Sign out and back in: the **Admin** section appears in the
+sidebar.
 
-Without `ADMIN_EMAIL`, run `npm run make-admin -- you@example.com` with the
-production settings in `.env.local`.
+Signing up never grants admin by itself. Unless e-mail confirmation is on, anyone
+could register with your address before you do, so the role is only ever set by
+this command. It is stored on the account, so it stays when you update the app.
 
 ## 7. Optional data
 

@@ -1,11 +1,23 @@
 import type { CapacitorConfig } from '@capacitor/cli'
 
-// Self-hosters building their own iOS shell set CAPACITOR_APP_ID and
-// CAPACITOR_SERVER_URL (and change the bundle ID in Xcode to match).
-const serverUrl = process.env.CAPACITOR_SERVER_URL ?? 'https://bloodmarkers.naturalheroes.nl'
+// Every iOS build names its own server and bundle ID: set CAPACITOR_SERVER_URL
+// (your site) and CAPACITOR_APP_ID (your bundle ID, also set in Xcode) before
+// `npx cap sync ios`. There is no default, so a build never points at someone
+// else's server by accident. See docs/SELF_HOSTING.md, "The iOS app".
+function requireEnv(name: 'CAPACITOR_SERVER_URL' | 'CAPACITOR_APP_ID'): string {
+  const value = process.env[name]?.trim()
+  if (!value) {
+    throw new Error(
+      `${name} is not set. Set CAPACITOR_SERVER_URL and CAPACITOR_APP_ID before running \`npx cap\` (see docs/SELF_HOSTING.md).`
+    )
+  }
+  return value
+}
+
+const serverUrl = requireEnv('CAPACITOR_SERVER_URL')
 
 const config: CapacitorConfig = {
-  appId: process.env.CAPACITOR_APP_ID ?? 'nl.naturalheroes.bloodmarkers',
+  appId: requireEnv('CAPACITOR_APP_ID'),
   appName: 'Markerbook',
   // For a remote-served wrap we don't bundle web assets in the IPA — the
   // shell loads `server.url` directly. `webDir` is still required by the
@@ -13,7 +25,8 @@ const config: CapacitorConfig = {
   webDir: 'capacitor-web-placeholder',
   server: {
     // Set via env so the same repo can produce dev / staging / prod IPAs
-    // without code changes. Falls back to the production Dokploy URL.
+    // without code changes. The native Log Food shortcut reads this value
+    // from the bundled capacitor.config.json too.
     url: serverUrl,
     // Wait for the URL to load instead of showing a blank screen on slow nets.
     androidScheme: 'https',

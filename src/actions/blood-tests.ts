@@ -3,7 +3,9 @@
 import { revalidatePath } from 'next/cache'
 
 import { getSessionUser } from '@/lib/supabase/session'
+import { isOwnedPath } from '@/lib/supabase/storage-path'
 import { supabaseAdmin } from '@/lib/supabase/admin'
+import { userErrorMessage } from '@/lib/supabase/errors'
 import { z } from 'zod'
 
 import {
@@ -17,6 +19,13 @@ import {
   toCanonicalUnit,
   type ResolvedMarker,
 } from '@/lib/blood-tests/resolve-entries'
+import {
+  cleanCatalogText,
+  creatorFields,
+  rememberCreatorUnit,
+  MAX_CATALOG_CATEGORY_LENGTH,
+} from '@/lib/catalog/shared-catalog'
+import type { TableInsert } from '@/lib/supabase/database'
 import type {
   Biomarker,
   BiomarkerUnit,
@@ -69,8 +78,14 @@ export async function getBiomarkers(): Promise<
   // would look valid but show no status colours or conversions. The pages
   // calling this already show the error.
   if (error) {
-    console.error('getBiomarkers failed:', error.message)
-    return { data: null, error: error.message }
+    return {
+      data: null,
+      error: userErrorMessage(
+        'getBiomarkers',
+        error,
+        'Could not load the markers. Please try again.'
+      ),
+    }
   }
 
   // Narrowing cast: the generated types read CHECK-constrained text columns
@@ -94,7 +109,14 @@ export async function getBloodTests(): Promise<
     .order('test_date', { ascending: false })
 
   if (error) {
-    return { data: null, error: error.message }
+    return {
+      data: null,
+      error: userErrorMessage(
+        'getBloodTests',
+        error,
+        'Could not load your tests. Please try again.'
+      ),
+    }
   }
 
   const testsWithCount: BloodTestWithCount[] = (data ?? []).map((test) => {
@@ -126,7 +148,10 @@ export async function getBloodTest(
     .single()
 
   if (error) {
-    return { data: null, error: error.message }
+    return {
+      data: null,
+      error: userErrorMessage('getBloodTest', error, 'Could not load this test. Please try again.'),
+    }
   }
 
   // Narrowing cast: the generated types read CHECK-constrained text columns
@@ -160,10 +185,17 @@ export async function createBloodTest(
     return { success: false, testId: null, error: authError ?? 'Not authenticated' }
   }
 
+  if (parsed.data.pdf_storage_path && !isOwnedPath(user.id, parsed.data.pdf_storage_path)) {
+    return { success: false, testId: null, error: 'This file is not authorized for your account.' }
+  }
+
   // Commit capturable markers (those with a LOINC code but no biomarker id yet).
   // A shared LOINC code is committed once; the per-test biomarker-id
   // uniqueness check below then surfaces the duplicate cleanly.
-  const resolved = await resolveMarkerEntries(parsed.data.markers, { dedupeLoincCodes: true })
+  const resolved = await resolveMarkerEntries(parsed.data.markers, {
+    dedupeLoincCodes: true,
+    createdBy: user.id,
+  })
   if (resolved.error !== null) {
     return { success: false, testId: null, error: resolved.error }
   }
@@ -190,7 +222,11 @@ export async function createBloodTest(
     return {
       success: false,
       testId: null,
-      error: testError?.message ?? 'Failed to create test',
+      error: userErrorMessage(
+        'createBloodTest',
+        testError,
+        'Could not save the test. Please try again.'
+      ),
     }
   }
 
@@ -206,9 +242,11 @@ export async function createBloodTest(
       return {
         success: false,
         testId: null,
-        error:
-          resultsError.message ||
-          'Failed to save marker results',
+        error: userErrorMessage(
+          'createBloodTest results',
+          resultsError,
+          'Could not save the test results. Please try again.'
+        ),
       }
     }
   }
@@ -267,7 +305,10 @@ export async function appendResultsToBloodTest(
   // Commit capturable markers first so every entry has a biomarker_id. A
   // shared LOINC code is committed once; the payload de-dupe below then keeps
   // the last value for that biomarker.
-  const resolved = await resolveMarkerEntries(parsed.data, { dedupeLoincCodes: true })
+  const resolved = await resolveMarkerEntries(parsed.data, {
+    dedupeLoincCodes: true,
+    createdBy: user.id,
+  })
   if (resolved.error !== null) {
     return { success: false, testId: null, added: 0, replaced: 0, error: resolved.error }
   }
@@ -299,7 +340,11 @@ export async function appendResultsToBloodTest(
       testId: null,
       added: 0,
       replaced: 0,
-      error: existingResultsError.message,
+      error: userErrorMessage(
+        'appendResultsToBloodTest read',
+        existingResultsError,
+        'Could not add the results to this test. Please try again.'
+      ),
     }
   }
 
@@ -318,6 +363,7 @@ export async function appendResultsToBloodTest(
     blood_test_id: string
     biomarker_id: string
     value: number
+    qualifier: string | null
     unit: string
   }> = []
 
@@ -328,7 +374,7 @@ export async function appendResultsToBloodTest(
     if (existingId) {
       const { error: updateError } = await supabaseAdmin
         .from('test_results')
-        .update({ value: marker.value, unit })
+        .update({ value: marker.value, qualifier: marker.qualifier, unit })
         .eq('id', existingId)
       if (updateError) {
         return {
@@ -336,7 +382,11 @@ export async function appendResultsToBloodTest(
           testId: null,
           added: 0,
           replaced: 0,
-          error: updateError.message,
+          error: userErrorMessage(
+            'appendResultsToBloodTest update',
+            updateError,
+            'Could not add the results to this test. Please try again.'
+          ),
         }
       }
       replaced++
@@ -345,6 +395,7 @@ export async function appendResultsToBloodTest(
         blood_test_id: testId,
         biomarker_id: marker.biomarker_id,
         value: marker.value,
+        qualifier: marker.qualifier,
         unit,
       })
     }
@@ -360,7 +411,11 @@ export async function appendResultsToBloodTest(
         testId: null,
         added: 0,
         replaced: 0,
-        error: insertError.message,
+        error: userErrorMessage(
+          'appendResultsToBloodTest insert',
+          insertError,
+          'Could not add the results to this test. Please try again.'
+        ),
       }
     }
     added = inserts.length
@@ -404,7 +459,10 @@ export async function updateBloodTest(
   // one save when two entries share a LOINC code, so we don't fire a redundant
   // second write — the per-test uniqueness check below then rejects the
   // duplicate before the old results are deleted.
-  const resolved = await resolveMarkerEntries(parsed.data.markers, { dedupeLoincCodes: true })
+  const resolved = await resolveMarkerEntries(parsed.data.markers, {
+    dedupeLoincCodes: true,
+    createdBy: user.id,
+  })
   if (resolved.error !== null) {
     return { success: false, error: resolved.error }
   }
@@ -414,54 +472,74 @@ export async function updateBloodTest(
     return { success: false, error: DUPLICATE_BIOMARKER_ERROR }
   }
 
-  // All captures succeeded — now it's safe to mutate. Update metadata first.
-  const { error: updateError } = await supabaseAdmin
-    .from('blood_tests')
-    .update({
-      name: parsed.data.name,
-      test_date: parsed.data.test_date,
-      sample_type: parsed.data.sample_type,
-      notes: parsed.data.notes ?? null,
-      updated_at: new Date().toISOString(),
-    })
-    .eq('id', id)
+  // All captures succeeded — now it's safe to mutate. Metadata and results
+  // change in ONE transaction (replace_blood_test_results): unchanged results
+  // keep their row and their interpretation, changed ones are updated in
+  // place, removed ones are deleted. A failure leaves the test as it was.
+  const results = await buildResultRows(id, resolvedUpdateMarkers)
+  const { error: replaceError } = await supabaseAdmin.rpc('replace_blood_test_results', {
+    p_test_id: id,
+    p_user_id: user.id,
+    p_name: parsed.data.name,
+    p_test_date: parsed.data.test_date,
+    p_sample_type: parsed.data.sample_type,
+    // The SQL parameter is nullable; the generated type cannot say so.
+    p_notes: (parsed.data.notes ?? null) as string,
+    p_results: results.map(({ biomarker_id, value, qualifier, unit }) => ({
+      biomarker_id,
+      value,
+      qualifier,
+      unit,
+    })),
+  })
 
-  if (updateError) {
-    return { success: false, error: updateError.message }
-  }
-
-  // Replace markers: delete existing, insert new
-  const { error: deleteError } = await supabaseAdmin
-    .from('test_results')
-    .delete()
-    .eq('blood_test_id', id)
-
-  if (deleteError) {
-    return { success: false, error: 'Failed to update marker results' }
-  }
-
-  if (resolvedUpdateMarkers.length > 0) {
-    const results = await buildResultRows(id, resolvedUpdateMarkers)
-
-    const { error: insertError } = await supabaseAdmin
-      .from('test_results')
-      .insert(results)
-
-    if (insertError) {
-      return { success: false, error: 'Failed to save marker results' }
+  if (replaceError) {
+    return {
+      success: false,
+      error: userErrorMessage(
+        'updateBloodTest replace_blood_test_results',
+        replaceError,
+        'Could not save the test results. Please try again.'
+      ),
     }
   }
 
+  revalidatePath(`/tests/${id}`)
   revalidatePath('/tests')
   revalidatePath('/grid')
   return { success: true, error: null }
+}
+
+/**
+ * The shared catalogue row for a user-created marker: a cleaned name and
+ * category only. Its unit stays empty (one user's unit is not a catalogue
+ * fact); null when the name or category is empty.
+ */
+function userCatalogueRow(
+  values: { name: string; category: string },
+  creator: { created_by?: string }
+): TableInsert<'biomarkers'> | null {
+  const name = cleanCatalogText(values.name)
+  const category = cleanCatalogText(values.category, MAX_CATALOG_CATEGORY_LENGTH)
+  if (!name || !category) return null
+  return { name, category, unit: '', is_custom: true, ...creator }
+}
+
+/**
+ * A newly created marker as its creator sees it: shown in the unit they
+ * entered, which is saved as their display preference.
+ */
+async function asSeenByCreator(row: Biomarker, userId: string, unit: string): Promise<Biomarker> {
+  const own = cleanCatalogText(unit, 30)
+  if (!own) return row
+  await rememberCreatorUnit(supabaseAdmin, userId, row.id, own, row.unit)
+  return { ...row, unit: own }
 }
 
 export async function createBiomarker(values: {
   name: string
   category: string
   unit: string
-  parent_id?: string | null
 }): Promise<
   | { success: true; biomarker: Biomarker; error: null }
   | { success: false; biomarker: null; error: string }
@@ -472,8 +550,8 @@ export async function createBiomarker(values: {
     return { success: false, biomarker: null, error: authError ?? 'Not authenticated' }
   }
 
-  const { name, category, unit } = values
-  if (!name.trim() || !category.trim()) {
+  const row = userCatalogueRow(values, await creatorFields(supabaseAdmin, user.id))
+  if (!row) {
     return {
       success: false,
       biomarker: null,
@@ -483,12 +561,7 @@ export async function createBiomarker(values: {
 
   const { data, error } = await supabaseAdmin
     .from('biomarkers')
-    .insert({
-      name: name.trim(),
-      category: category.trim(),
-      unit: unit.trim() || 'ratio',
-      parent_id: values.parent_id ?? null,
-    })
+    .insert(row)
     .select('*')
     .single()
 
@@ -500,10 +573,19 @@ export async function createBiomarker(values: {
         error: 'A biomarker with this name already exists',
       }
     }
-    return { success: false, biomarker: null, error: error.message }
+    return {
+      success: false,
+      biomarker: null,
+      error: userErrorMessage(
+        'createBiomarker',
+        error,
+        'Could not add the marker. Please try again.'
+      ),
+    }
   }
 
-  return { success: true, biomarker: data as Biomarker, error: null }
+  const biomarker = await asSeenByCreator(data as Biomarker, user.id, values.unit)
+  return { success: true, biomarker, error: null }
 }
 
 export async function createBiomarkers(
@@ -518,13 +600,11 @@ export async function createBiomarkers(
     return { success: false, biomarkers: null, error: authError ?? 'Not authenticated' }
   }
 
-  const rows = values
-    .filter((v) => v.name.trim() && v.category.trim())
-    .map((v) => ({
-      name: v.name.trim(),
-      category: v.category.trim(),
-      unit: v.unit.trim() || 'ratio',
-    }))
+  const creator = await creatorFields(supabaseAdmin, user.id)
+  const rows = values.flatMap((v) => {
+    const row = userCatalogueRow(v, creator)
+    return row ? [{ row, unit: v.unit }] : []
+  })
 
   if (rows.length === 0) {
     return { success: false, biomarkers: null, error: 'No valid biomarkers to create' }
@@ -533,7 +613,7 @@ export async function createBiomarkers(
   const created: Biomarker[] = []
   const errors: string[] = []
 
-  for (const row of rows) {
+  for (const { row, unit } of rows) {
     const { data, error } = await supabaseAdmin
       .from('biomarkers')
       .insert(row)
@@ -542,19 +622,21 @@ export async function createBiomarkers(
 
     if (error) {
       if (error.code === '23505') {
-        // Duplicate — fetch existing
+        // Duplicate — use the existing live row as it is (never changed here)
         const { data: existing } = await supabaseAdmin
           .from('biomarkers')
           .select('*')
           .eq('name', row.name)
+          .is('archived_at', null)
           .single()
         if (existing) created.push(existing as Biomarker)
         else errors.push(`${row.name}: duplicate but could not fetch`)
       } else {
-        errors.push(`${row.name}: ${error.message}`)
+        console.error('createBiomarkers failed:', row.name, error)
+        errors.push(`${row.name}: could not be added`)
       }
     } else {
-      created.push(data as Biomarker)
+      created.push(await asSeenByCreator(data as Biomarker, user.id, unit))
     }
   }
 
@@ -609,7 +691,14 @@ export async function attachPdfToTest(
     })
 
   if (uploadError) {
-    return { success: false, error: `Upload failed: ${uploadError.message}` }
+    return {
+      success: false,
+      error: userErrorMessage(
+        'attachPdfToTest upload',
+        uploadError,
+        'Could not upload the file. Please try again.'
+      ),
+    }
   }
 
   const { error: updateError } = await supabaseAdmin
@@ -618,7 +707,14 @@ export async function attachPdfToTest(
     .eq('id', testId)
 
   if (updateError) {
-    return { success: false, error: `Failed to link PDF: ${updateError.message}` }
+    return {
+      success: false,
+      error: userErrorMessage(
+        'attachPdfToTest link',
+        updateError,
+        'The file was uploaded but could not be attached to the test. Please try again.'
+      ),
+    }
   }
 
   revalidatePath(`/tests/${testId}/edit`)
@@ -658,7 +754,14 @@ export async function deleteBloodTest(
     .eq('id', id)
 
   if (error) {
-    return { success: false, error: error.message }
+    return {
+      success: false,
+      error: userErrorMessage(
+        'deleteBloodTest',
+        error,
+        'Could not delete the test. Please try again.'
+      ),
+    }
   }
 
   revalidatePath('/tests')

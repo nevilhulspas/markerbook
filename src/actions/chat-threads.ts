@@ -2,7 +2,9 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { getSessionUser } from '@/lib/supabase/session'
+import { userErrorMessage } from '@/lib/supabase/errors'
 import { supabaseAdmin } from '@/lib/supabase/admin'
+import { isOwnedPath } from '@/lib/supabase/storage-path'
 import type { ChatThread, ChatMessageRow } from '@/lib/database.types'
 import type { ThreadTail } from '@/lib/insights/thread-recovery'
 
@@ -19,7 +21,12 @@ export async function getThreads(): Promise<
     .order('updated_at', { ascending: false })
     .limit(50)
 
-  if (error) return { data: null, error: error.message }
+  if (error) {
+    return {
+      data: null,
+      error: userErrorMessage('getThreads', error, 'Could not load your chats. Please try again.'),
+    }
+  }
   return { data: (data ?? []) as ChatThread[], error: null }
 }
 
@@ -55,7 +62,16 @@ export async function getThreadTail(
     .order('created_at', { ascending: false })
     .limit(1)
 
-  if (error) return { data: null, error: error.message }
+  if (error) {
+    return {
+      data: null,
+      error: userErrorMessage(
+        'getThreadTail',
+        error,
+        'Could not load this chat. Please try again.'
+      ),
+    }
+  }
 
   const newest = (data ?? [])[0] as { role: string; created_at: string } | undefined
   return {
@@ -93,13 +109,25 @@ export async function getThreadMessages(
     .eq('thread_id', threadId)
     .order('created_at', { ascending: true })
 
-  if (error) return { data: null, error: error.message }
+  if (error) {
+    return {
+      data: null,
+      error: userErrorMessage(
+        'getThreadMessages',
+        error,
+        'Could not load this chat. Please try again.'
+      ),
+    }
+  }
 
   // Sign all attachment URLs concurrently — independent across messages/files.
+  // Signing uses the service role, so only paths inside the caller's own
+  // folder are signed: a stored attachment row is client-supplied data.
   const rows = (data ?? []) as ChatMessageRow[]
   await Promise.all(
     rows.flatMap((row) =>
       (row.attachments ?? []).map(async (att) => {
+        if (!isOwnedPath(user.id, att.storagePath)) return
         const { data: signed } = await supabaseAdmin.storage
           .from('lab-pdfs')
           .createSignedUrl(att.storagePath, 3600)
@@ -123,7 +151,16 @@ export async function createThread(): Promise<
     .select()
     .single()
 
-  if (error) return { data: null, error: error.message }
+  if (error) {
+    return {
+      data: null,
+      error: userErrorMessage(
+        'createThread',
+        error,
+        'Could not start a new chat. Please try again.'
+      ),
+    }
+  }
   return { data: data as ChatThread, error: null }
 }
 

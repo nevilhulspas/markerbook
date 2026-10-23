@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 const { mockFrom } = vi.hoisted(() => ({ mockFrom: vi.fn() }))
 vi.mock('@/lib/supabase/admin', () => ({ supabaseAdmin: { from: mockFrom, rpc: vi.fn() } }))
 vi.mock('../off', () => ({ searchOff: vi.fn(async () => []) }))
+vi.mock('@/lib/ai/quota', () => ({ countedAiCall: (_userId: string, fn: unknown) => fn }))
 
 import { buildPhotoMatchDeps } from '../photo-deps'
 

@@ -31,7 +31,8 @@ const MAX_SUGGESTED_TESTS_PER_CALL = 25
 /**
  * Validate a single product-page `url` on a lab's own domain, extract the
  * test(s) it lists (translated to English), de-dupe against the lab's existing
- * tests, and insert the new ones as `approved` (provenance: `submitted_by`).
+ * tests, and insert the new ones as `pending` (provenance: `submitted_by`):
+ * they show up for everyone only after an admin approves them in /admin/labs.
  * Newly inserted tests are linked to catalogue biomarkers (best-effort).
  *
  * No auth gate — the calling action enforces sign-in + rate limiting. Throws
@@ -96,14 +97,14 @@ export async function suggestLabTestFromUrl({
   }
 
   // Dedup against existing tests for this lab (case-insensitive) + within the
-  // batch. Only `approved` rows are considered "already listed" — these are the
-  // rows the table actually shows; rejected/pending rows must not block a
+  // batch. Approved rows are listed and pending rows already wait for review,
+  // so both count as "already listed"; a rejected row must not block a
   // re-suggestion of the same name.
   const { data: existing } = await supabaseAdmin
     .from('lab_tests')
     .select('name')
     .eq('lab_id', labId)
-    .eq('status', 'approved')
+    .in('status', ['approved', 'pending'])
   const existingNames = new Set(
     ((existing ?? []) as { name: string | null }[])
       .map((r) => normalizeTestKey(r.name ?? ''))
@@ -121,7 +122,7 @@ export async function suggestLabTestFromUrl({
     currency: string | null
     turnaround_days: number | null
     sample_type: string | null
-    status: 'approved'
+    status: 'pending'
     submitted_by: string
   }> = []
 
@@ -144,7 +145,7 @@ export async function suggestLabTestFromUrl({
       currency: test.currency,
       turnaround_days: test.turnaround_days,
       sample_type: test.sample_type,
-      status: 'approved',
+      status: 'pending',
       submitted_by: userId,
     })
   }

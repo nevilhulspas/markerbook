@@ -200,3 +200,47 @@ describe('hasUnansweredInteractiveTool', () => {
     expect(hasUnansweredInteractiveTool([])).toBe(false)
   })
 })
+
+describe('approval cards (tool-approval.ts)', () => {
+  const approvalPart = (state: string, approved?: boolean): Part =>
+    ({
+      type: 'tool-delete_blood_test',
+      toolCallId: 'call-delete',
+      state,
+      input: { testId: 't1' },
+      approval: { id: 'ap-1', ...(approved === undefined ? {} : { approved }) },
+    }) as unknown as Part
+
+  it('resumes once the user answered the card — confirm or cancel', () => {
+    for (const approved of [true, false]) {
+      const messages = [assistant([stepStart(), text('Deleting it.'), approvalPart('approval-responded', approved)])]
+      expect(lastAssistantMessageAwaitsInteractiveTool({ messages })).toBe(true)
+    }
+  })
+
+  it('does NOT resume while the card is still open', () => {
+    const messages = [assistant([stepStart(), approvalPart('approval-requested')])]
+    expect(lastAssistantMessageAwaitsInteractiveTool({ messages })).toBe(false)
+  })
+
+  it('does NOT resume while another card in the same step is still open', () => {
+    const messages = [
+      assistant([
+        stepStart(),
+        approvalPart('approval-responded', true),
+        { ...(approvalPart('approval-requested') as object), toolCallId: 'call-2' } as Part,
+      ]),
+    ]
+    expect(lastAssistantMessageAwaitsInteractiveTool({ messages })).toBe(false)
+  })
+
+  it('still never resumes on a finished SERVER tool of an approval-gated name', () => {
+    const messages = [assistant([stepStart(), toolPart('delete_blood_test', 'output-available')])]
+    expect(lastAssistantMessageAwaitsInteractiveTool({ messages })).toBe(false)
+  })
+
+  it('counts an open card as unanswered (keeps the stored copy from replacing it)', () => {
+    expect(hasUnansweredInteractiveTool([assistant([approvalPart('approval-requested')])])).toBe(true)
+    expect(hasUnansweredInteractiveTool([assistant([approvalPart('output-denied')])])).toBe(false)
+  })
+})

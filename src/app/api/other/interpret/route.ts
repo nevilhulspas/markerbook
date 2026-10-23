@@ -7,6 +7,7 @@ import { getAnthropic } from '@/lib/ai/client'
 import { REASONING_MODEL } from '@/lib/ai/models'
 import { toTextStreamResponse } from '@/lib/ai/text-stream-response'
 import { aiLimitResponse, takeAiRequest } from '@/lib/ai/quota'
+import { aiNotConfiguredResponse, isAiConfigured } from '@/lib/ai/config'
 
 /** Map a profiles row to the ProfileContext shape formatProfile() expects. */
 function toProfileContext(p: Profile | null): ProfileContext {
@@ -35,6 +36,7 @@ export async function POST(request: Request): Promise<Response> {
     data: { user },
   } = await supabase.auth.getUser()
   if (!user) return new Response('Unauthorized', { status: 401 })
+  if (!isAiConfigured()) return aiNotConfiguredResponse()
 
   let body: { testId?: string }
   try {
@@ -73,7 +75,7 @@ export async function POST(request: Request): Promise<Response> {
   // Adaptive thinking + high effort — mirrors /api/interpret (see comment there).
   const stream = getAnthropic().messages.stream({
     model: REASONING_MODEL,
-    max_tokens: 64000,
+    max_tokens: 32000,
     thinking: { type: 'adaptive' },
     output_config: { effort: 'high' },
     system: prompt.system,

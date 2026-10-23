@@ -8,12 +8,15 @@ interface FullTestButtonProps {
   onClick: () => void
   isLoading?: boolean
   isStreaming?: boolean
+  /** False when the server has no Anthropic API key: the button is off. */
+  aiEnabled?: boolean
 }
 
 export function FullTestButton({
   onClick,
   isLoading,
   isStreaming,
+  aiEnabled = true,
 }: FullTestButtonProps) {
   const busy = isLoading || isStreaming
 
@@ -22,7 +25,8 @@ export function FullTestButton({
       variant="outline"
       size="sm"
       onClick={onClick}
-      disabled={busy}
+      disabled={busy || !aiEnabled}
+      title={aiEnabled ? undefined : 'AI is not set up on this server'}
     >
       {busy ? (
         <>

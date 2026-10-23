@@ -30,6 +30,8 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { ReferenceRanges } from '@/components/biomarker/reference-ranges'
+import { findReferenceRange } from '@/lib/grid/reference-range'
+import { formatQualified } from '@/lib/blood-tests/qualifier'
 import { UserHistory } from '@/components/biomarker/user-history'
 
 interface UnitConversionWrapperProps {
@@ -141,14 +143,11 @@ export function UnitConversionWrapper({
   )
   const skipped = rows.length - displayPoints.length
 
-  const chartRange = useMemo(() => {
-    const match = displayRanges.find(
-      (r) =>
-        (r.range_type ?? 'normal') === 'normal' &&
-        (sex ? r.sex === sex || r.sex === 'general' : r.sex === 'general')
-    )
-    return { low: match?.range_low ?? null, high: match?.range_high ?? null }
-  }, [displayRanges, sex])
+  // The same pick as the range card: sex-specific before general.
+  const chartRange = useMemo(
+    () => findReferenceRange(displayRanges, selectedUnit, sex),
+    [displayRanges, selectedUnit, sex]
+  )
 
   const latestValue = displayPoints.length > 0
     ? displayPoints[displayPoints.length - 1].value
@@ -229,7 +228,7 @@ export function UnitConversionWrapper({
                           <TableCell className="text-sm font-medium">
                             {shown !== null ? (
                               <>
-                                {formatConverted(shown)} {selectedUnit}
+                                {formatQualified(formatConverted(shown), point.qualifier)} {selectedUnit}
                               </>
                             ) : (
                               <span
@@ -241,7 +240,7 @@ export function UnitConversionWrapper({
                             )}
                           </TableCell>
                           <TableCell className="text-sm text-muted-foreground">
-                            {formatConverted(point.value)} {from}
+                            {formatQualified(formatConverted(point.value), point.qualifier)} {from}
                           </TableCell>
                           <TableCell className="text-sm text-muted-foreground">
                             {point.testName}

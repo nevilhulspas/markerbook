@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache'
 
 import { createClient } from '@/lib/supabase/server'
 import { getSessionUser } from '@/lib/supabase/session'
+import { userErrorMessage } from '@/lib/supabase/errors'
 import type { ActivityLevel, RmrTest } from '@/lib/database.types'
 import type { RmrTestExtract } from '@/lib/validations/rmr-import'
 
@@ -65,7 +66,11 @@ export async function updateRmrTest(
     .from('rmr_tests')
     .update({ ...patch, updated_at: new Date().toISOString() })
     .eq('id', id)
-  if (error) return { error: error.message }
+  if (error) {
+    return {
+      error: userErrorMessage('updateRmrTest', error, 'Could not save the test. Please try again.'),
+    }
+  }
 
   revalidatePath('/body')
   revalidatePath(`/body/rmr/${id}`)
@@ -77,7 +82,15 @@ export async function deleteRmrTest(id: string): Promise<{ error: string | null 
   if (!user) return { error: authError ?? 'Not authenticated' }
 
   const { error } = await supabase.from('rmr_tests').delete().eq('id', id)
-  if (error) return { error: error.message }
+  if (error) {
+    return {
+      error: userErrorMessage(
+        'deleteRmrTest',
+        error,
+        'Could not delete the test. Please try again.'
+      ),
+    }
+  }
   revalidatePath('/body')
   return { error: null }
 }

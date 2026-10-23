@@ -78,7 +78,7 @@ describe('shouldContinueTurn', () => {
   })
 
   it('does not resume a turn that is waiting for the user to answer a card', () => {
-    // OTH-39: the run ended on `confirm_health_document_index` — a tool with no
+    // The run ended on `confirm_health_document_index` — a tool with no
     // server execute. Its `tool_use` block has no result yet, so resending the
     // conversation is exactly what Anthropic rejects with "Tool result is
     // missing for tool call toolu_…". Text-less + tool calls would otherwise

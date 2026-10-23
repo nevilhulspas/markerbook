@@ -12,7 +12,7 @@ export type ActivityLevel =
 
 export type SampleType = 'serum' | 'plasma' | 'unknown'
 
-// AUT-854: optional medical-history fields. All nullable so existing profiles
+// Optional medical-history fields. All nullable so existing profiles
 // stay valid without backfill.
 export type SmokingStatus = 'never' | 'former' | 'current'
 export type PregnancyStatus =
@@ -38,7 +38,7 @@ export interface Profile {
   height_cm?: number | null
   weight_kg?: number | null
   activity_level?: ActivityLevel | null
-  // AUT-854: medical history additions (all optional)
+  // Medical history additions (all optional)
   extra_notes?: string | null
   born_via_csection?: boolean | null
   breastfed_as_infant?: boolean | null
@@ -48,11 +48,11 @@ export interface Profile {
   known_allergies?: string | null
   family_history?: string | null
   diet_pattern?: DietPattern | null
-  // AUT-851: admin impersonation opt-in flag.
+  // Admin impersonation opt-in flag.
   impersonatable: boolean
   created_at: string
   updated_at: string
-  // Nutrition (caltrack merge) — all optional/nullable, no backfill needed.
+  // Nutrition — all optional/nullable, no backfill needed.
   nutrition_calorie_target?: number | null
   nutrition_protein_target_g?: number | null
   nutrition_carbs_target_g?: number | null
@@ -67,7 +67,7 @@ export interface Profile {
  */
 export type ClientProfile = Omit<Profile, 'nutrition_log_token'>
 
-// AUT-854: previous/ongoing medical conditions (repeating list per user).
+// Previous/ongoing medical conditions (repeating list per user).
 // NULL end_date means the condition is still active.
 export interface MedicalCondition {
   id: string
@@ -139,6 +139,8 @@ export interface Biomarker {
   is_custom: boolean
   method: string | null
   created_at: string
+  /** The user whose import or entry created this row; null for curated rows. */
+  created_by?: string | null
 }
 
 /**
@@ -206,6 +208,8 @@ export interface TestResult {
   blood_test_id: string
   biomarker_id: string
   value: number
+  /** '<' / '<=' / '>' / '>=' for a result such as "<0.5"; null for a plain value. */
+  qualifier: string | null
   unit: string
   created_at: string
 }
@@ -612,7 +616,7 @@ export interface DexaRegion {
   z_score: number | null
 }
 
-// AUT-897: RMR (resting metabolic rate) tests. Twin of dexa_scans, RLS by
+// RMR (resting metabolic rate) tests. Twin of dexa_scans, RLS by
 // user_id. Hand-written until Supabase type generation is set up (see
 // CLAUDE.md). TDEE/calorie targets are derived (src/lib/rmr/tdee.ts), not stored.
 export interface RmrTest {
@@ -700,7 +704,7 @@ export interface NextToTestList {
 
 export type NextToTestStatus = 'pending' | 'done'
 
-// AUT-854: discriminator for the test category. Blood markers and lab tests
+// Discriminator for the test category. Blood markers and lab tests
 // still carry biomarker_id / lab_test_id; the four typed non-blood categories
 // (dexa / microbiome / dutch / genetic) and 'other' use custom_name for the
 // display label. Enforced by the next_to_test_kind_chk CHECK constraint.
@@ -728,7 +732,7 @@ export interface NextToTest {
   updated_at: string
 }
 
-// --- Nutrition (caltrack merge) ---------------------------------------------
+// --- Nutrition --------------------------------------------------------------
 
 export const MEAL_TYPES = ['breakfast', 'lunch', 'dinner', 'snack'] as const
 export type MealType = (typeof MEAL_TYPES)[number]

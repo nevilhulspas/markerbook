@@ -7,7 +7,7 @@
 //
 // Options:
 //   --anthropic-key=KEY   Anthropic API key for the AI features
-//   --admin-email=EMAIL   this address becomes admin when it signs up
+//   --admin-email=EMAIL   your address (ADMIN_EMAIL), used by make-admin and demo
 //   --yes                 never ask; use options and defaults (for scripts and AI assistants)
 //   --no-start            do not start Supabase (it is already running)
 //
@@ -170,7 +170,7 @@ if (!values.ANTHROPIC_API_KEY) {
 const adminOption = option('admin-email')
 if (adminOption) values.ADMIN_EMAIL = adminOption
 if (!values.ADMIN_EMAIL) {
-  values.ADMIN_EMAIL = await ask('Your e-mail address (this account becomes admin when you sign up): ')
+  values.ADMIN_EMAIL = await ask('Your e-mail address (you make this account admin after signing up): ')
 }
 
 // Write in the order of .env.example, keeping its comments; extra keys at the end.
@@ -186,7 +186,7 @@ writeFileSync(envPath, out.join('\n'))
 ok('Wrote .env.local')
 
 if (!values.ANTHROPIC_API_KEY) warn('No Anthropic key yet: the app runs, but AI import and chat do not. Add ANTHROPIC_API_KEY to .env.local.')
-if (!values.ADMIN_EMAIL) warn('No ADMIN_EMAIL: make yourself admin later with `npm run make-admin -- you@example.com`.')
+if (!values.ADMIN_EMAIL) warn('No ADMIN_EMAIL: after signing up, make yourself admin with `npm run make-admin -- you@example.com`.')
 
 // 4. Next steps ----------------------------------------------------------------
 console.log(`
@@ -194,7 +194,8 @@ ${bold('Ready.')} Next:
 
   1. ${bold('npm run dev')}
   2. Open ${bold('http://localhost:3000/register')} and sign up${values.ADMIN_EMAIL ? ` with ${bold(values.ADMIN_EMAIL)}` : ''}.
-  3. Optional demo data for your account: ${bold(`npm run demo${values.ADMIN_EMAIL ? '' : ' -- --email you@example.com'}`)}
+  3. Make that account admin: ${bold(`npm run make-admin${values.ADMIN_EMAIL ? '' : ' -- you@example.com'}`)}, then sign out and back in.
+  4. Optional demo data for your account: ${bold(`npm run demo${values.ADMIN_EMAIL ? '' : ' -- --email you@example.com'}`)}
 
 Database admin (Supabase Studio): ${status.STUDIO_URL ?? 'http://127.0.0.1:54323'}
 Stop the database when you are done: supabase stop

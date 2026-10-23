@@ -31,7 +31,15 @@ export function GeneticsImportClient() {
       const formData = new FormData()
       formData.set('file', file)
 
-      const res = await importRawGenetics(formData)
+      let res: Awaited<ReturnType<typeof importRawGenetics>>
+      try {
+        res = await importRawGenetics(formData)
+      } catch (err) {
+        console.error('importRawGenetics call failed:', err)
+        setIsImporting(false)
+        toast.error('Could not import this file. Please try again.')
+        return
+      }
 
       setIsImporting(false)
 

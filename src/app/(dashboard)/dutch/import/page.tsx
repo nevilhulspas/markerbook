@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 
 import { createClient } from '@/lib/supabase/server'
 import { DutchImportClient } from '@/components/dutch/dutch-import-client'
+import { isAiConfigured } from '@/lib/ai/config'
 
 export const metadata: Metadata = {
   title: 'Import DUTCH Test | Markerbook',
@@ -16,6 +17,7 @@ export default async function DutchImportPage() {
     .order('name')
 
   if (error || !dutchBiomarkers) {
+    console.error('DutchImportPage dutch_markers failed:', error)
     return (
       <div className="space-y-6">
         <div>
@@ -27,7 +29,7 @@ export default async function DutchImportPage() {
           </p>
         </div>
         <div className="rounded-md bg-destructive/10 px-4 py-3 text-sm text-destructive">
-          Failed to load DUTCH biomarkers: {error?.message ?? 'Unknown error'}
+          Could not load the DUTCH marker list. Please reload the page.
         </div>
       </div>
     )
@@ -45,6 +47,7 @@ export default async function DutchImportPage() {
       </div>
 
       <DutchImportClient
+        aiEnabled={isAiConfigured()}
         // aliases is nullable in the table; the review screen spreads it.
         dutchBiomarkers={dutchBiomarkers.map((m) => ({ ...m, aliases: m.aliases ?? [] }))}
       />

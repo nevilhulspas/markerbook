@@ -339,9 +339,20 @@ describe('next-to-test actions', () => {
       labTestId: 'lt-1',
     })
     if (!('entry' in addR)) throw new Error('add failed')
+    const otherR = await createNextToTestList('B')
+    if (!('list' in otherR)) throw new Error('list creation failed')
     updateError = { code: '23505', message: 'duplicate key' }
-    const upd = await updateEntry({ id: addR.entry.id, listId: 'other-list' })
+    const upd = await updateEntry({ id: addR.entry.id, listId: otherR.list.id })
     expect(upd).toEqual({ error: 'duplicate' })
+  })
+
+  it("refuses to file an entry under a list the user does not own", async () => {
+    expect(await addLabTestToList({ listId: 'someone-elses-list', labTestId: 'lt-1' })).toEqual({
+      error: 'list_not_found',
+    })
+    expect(await addBiomarkerToList({ listId: 'someone-elses-list', biomarkerId: 'bm-1' })).toEqual({
+      error: 'list_not_found',
+    })
   })
 
   it('deleteEntry removes the row', async () => {
@@ -487,7 +498,7 @@ describe('next-to-test actions', () => {
   })
 
   // -------------------------------------------------------------------
-  // AUT-864: bulk operations
+  // Bulk operations
   // -------------------------------------------------------------------
 
   it('bulkUpdateEntryStatus flips status on every selected entry', async () => {
@@ -674,7 +685,7 @@ describe('next-to-test actions', () => {
 
     const r = await bulkMoveEntries([e.entry.id], dstR.list.id)
 
-    expect(r).toEqual({ error: 'connection reset' })
+    expect(r).toEqual({ error: 'Could not move the entries. Please try again.' })
     expect(entries.find((x) => x.id === e.entry.id)?.list_id).toBe(srcR.list.id)
   })
 

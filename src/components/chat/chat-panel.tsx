@@ -15,6 +15,8 @@ interface ChatPanelProps {
   error: string | null
   onSendMessage: (text: string) => void
   onAbort: () => void
+  /** False when the server has no Anthropic API key: the input is off. */
+  aiEnabled?: boolean
 }
 
 export function ChatPanel({
@@ -23,6 +25,7 @@ export function ChatPanel({
   error,
   onSendMessage,
   onAbort,
+  aiEnabled = true,
 }: ChatPanelProps) {
   const [input, setInput] = useState('')
   const scrollRef = useRef<HTMLDivElement>(null)
@@ -37,7 +40,7 @@ export function ChatPanel({
 
   const handleSend = () => {
     const trimmed = input.trim()
-    if (!trimmed || isStreaming) return
+    if (!trimmed || isStreaming || !aiEnabled) return
     onSendMessage(trimmed)
     setInput('')
   }
@@ -88,8 +91,8 @@ export function ChatPanel({
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder="Ask a follow-up question..."
-          disabled={isStreaming}
+          placeholder={aiEnabled ? 'Ask a follow-up question...' : 'Follow-up questions need AI'}
+          disabled={isStreaming || !aiEnabled}
           className="flex-1"
         />
         {isStreaming ? (
@@ -106,8 +109,8 @@ export function ChatPanel({
           <Button
             size="icon"
             onClick={handleSend}
-            disabled={!input.trim()}
-            className={cn('shrink-0', !input.trim() && 'opacity-50')}
+            disabled={!input.trim() || !aiEnabled}
+            className={cn('shrink-0', (!input.trim() || !aiEnabled) && 'opacity-50')}
           >
             <SendHorizontal className="size-4" />
             <span className="sr-only">Send</span>

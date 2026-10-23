@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache'
 
 import { getSessionUser } from '@/lib/supabase/session'
-import { isUniqueViolation } from '@/lib/supabase/errors'
+import { isUniqueViolation, userErrorMessage } from '@/lib/supabase/errors'
 import type { NextToTestList } from '@/lib/database.types'
 import { ensureDefaultListId } from '@/lib/next-to-test/lists'
 import { NOT_SIGNED_IN, type Err } from '@/lib/next-to-test/errors'
@@ -40,7 +40,13 @@ export async function createNextToTestList(
     if (isUniqueViolation(insert.error)) {
       return { error: 'A list with that name already exists.' }
     }
-    return { error: insert.error.message }
+    return {
+      error: userErrorMessage(
+        'createNextToTestList',
+        insert.error,
+        'Could not create the list. Please try again.'
+      ),
+    }
   }
   revalidatePath('/next-to-test')
   return { list: insert.data as NextToTestList }
@@ -67,7 +73,13 @@ export async function renameNextToTestList(
     if (isUniqueViolation(error)) {
       return { error: 'A list with that name already exists.' }
     }
-    return { error: error.message }
+    return {
+      error: userErrorMessage(
+        'renameNextToTestList',
+        error,
+        'Could not rename the list. Please try again.'
+      ),
+    }
   }
   revalidatePath('/next-to-test')
   return { error: null }
@@ -84,7 +96,15 @@ export async function deleteNextToTestList(
     .delete()
     .eq('id', id)
     .eq('user_id', user.id)
-  if (error) return { error: error.message }
+  if (error) {
+    return {
+      error: userErrorMessage(
+        'deleteNextToTestList',
+        error,
+        'Could not delete the list. Please try again.'
+      ),
+    }
+  }
   revalidatePath('/next-to-test')
   return { error: null }
 }

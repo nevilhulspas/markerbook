@@ -14,6 +14,7 @@ import {
   bucketMealTime,
   parseSaveCommand,
 } from '../parse'
+import { appWallTime } from '@/lib/dates/today'
 import { extractedItemSchema, extractionV2Schema } from '../types'
 
 // ── extractionV2Schema ────────────────────────────────────────────────────────
@@ -142,7 +143,7 @@ describe('buildExtractPrompt', () => {
     expect(prompt).not.toContain('Saved meals and foods')
   })
 
-  it('contains countable-item weight guidance (ported from caltrack)', () => {
+  it('contains countable-item weight guidance', () => {
     const prompt = buildExtractPrompt([], false)
     expect(prompt).toContain('When the user counts items')
     expect(prompt).toContain('Medium chicken egg: 50g shelled. "two eggs" => grams: 100')
@@ -262,10 +263,10 @@ describe('parseFoodTextV2', () => {
 // ── bucketMealTime ────────────────────────────────────────────────────────────
 
 describe('bucketMealTime', () => {
+  // Wall-clock time on the app's calendar (APP_TIME_ZONE), whatever the
+  // machine's own zone is.
   function h(hour: number, minute = 0): Date {
-    const d = new Date(2026, 5, 10)
-    d.setHours(hour, minute, 0, 0)
-    return d
+    return appWallTime('2026-06-10', hour, minute)
   }
 
   it('10:59 → breakfast', () => expect(bucketMealTime(h(10, 59))).toBe('breakfast'))

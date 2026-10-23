@@ -4,6 +4,7 @@ vi.mock('server-only', () => ({}))
 
 import { readTextStream, STREAM_ERROR_MARKER } from '@/lib/ai/text-stream'
 import { toTextStreamResponse } from '@/lib/ai/text-stream-response'
+import { AI_FAILED_MESSAGE } from '@/lib/ai/messages'
 import type { MessageStream } from '@anthropic-ai/sdk/lib/MessageStream'
 
 function responseOf(chunks: string[]): Response {
@@ -65,8 +66,21 @@ describe('toTextStreamResponse', () => {
   })
 
   it('reports a failure through the marker so the reader throws', async () => {
+    vi.stubEnv('ANTHROPIC_API_KEY', 'test-key')
     vi.spyOn(console, 'error').mockImplementation(() => {})
     const res = toTextStreamResponse(fakeStream([['text', 'partial'], ['error', new Error('rate limited')], ['end']]))
     await expect(readTextStream(res, () => {})).rejects.toThrow('rate limited')
+    vi.unstubAllEnvs()
+  })
+
+  it('sends a plain sentence, not the raw SDK error', async () => {
+    vi.stubEnv('ANTHROPIC_API_KEY', 'test-key')
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    class SdkError extends Error {}
+    const res = toTextStreamResponse(
+      fakeStream([['error', new SdkError('400 {"type":"invalid_request_error"}')], ['end']])
+    )
+    await expect(readTextStream(res, () => {})).rejects.toThrow(AI_FAILED_MESSAGE)
+    vi.unstubAllEnvs()
   })
 })

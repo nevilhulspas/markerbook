@@ -28,7 +28,7 @@ interface ContextInput {
 }
 
 /**
- * Rebuild the exact system prompt the Health AI chat sends to the model, so the
+ * Rebuild the exact system prompt the chat sends to the model, so the
  * UI can show the user their full context window. Mirrors /api/insights-chat:
  * builds the prompt from the same data and appends memory when the flag is on.
  */

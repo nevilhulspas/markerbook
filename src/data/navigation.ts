@@ -54,11 +54,12 @@ export const navigationItems: NavEntry[] = [
     icon: Layers,
     items: [
       { title: 'Blood Tests', href: '/tests', icon: FlaskConical },
-      { title: 'DUTCH Tests', href: '/dutch', icon: TestTube2, badge: 'New' },
-      { title: 'Microbiome', href: '/microbiome', icon: Bug, badge: 'New' },
-      { title: 'Body Comp', href: '/body', icon: Scale, badge: 'New' },
+      { title: 'DUTCH Tests', href: '/dutch', icon: TestTube2 },
+      { title: 'Microbiome', href: '/microbiome', icon: Bug },
+      { title: 'Body Comp', href: '/body', icon: Scale },
       { title: 'Genetics', href: '/genetics', icon: Dna },
-      { title: 'Other tests', href: '/other', icon: ClipboardList, badge: 'New' },
+      { title: 'Other tests', href: '/other', icon: ClipboardList },
+      { title: 'Import blood test', href: '/import', icon: FileUp },
     ],
   },
   {
@@ -75,14 +76,13 @@ export const navigationItems: NavEntry[] = [
     items: [
       { title: 'Next to test', href: '/next-to-test', icon: ClipboardList },
       { title: 'Labs', href: '/labs', icon: Beaker },
-      { title: 'Import', href: '/import', icon: FileUp },
     ],
   },
   {
-    title: 'Profile',
+    title: 'Account',
     icon: User,
     items: [
-      { title: 'Account', href: '/profile', icon: Settings },
+      { title: 'Profile', href: '/profile', icon: Settings },
       { title: 'Stack', href: '/supplements', icon: Pill },
     ],
   },

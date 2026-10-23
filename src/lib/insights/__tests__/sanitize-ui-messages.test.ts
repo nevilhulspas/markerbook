@@ -108,3 +108,33 @@ describe('sanitizeUiMessages', () => {
     expect(() => sanitizeUiMessages([m])).not.toThrow()
   })
 })
+
+describe('sanitizeUiMessages — approval cards', () => {
+  const part = (state: string) => ({
+    type: 'tool-delete_blood_test',
+    toolCallId: `c-${state}`,
+    state,
+    input: { testId: 't1' },
+    approval: { id: 'ap', approved: true },
+  })
+
+  it('keeps an answered card on the LAST message (the server runs the tool from it)', () => {
+    const out = sanitizeUiMessages([msg('user', [{ type: 'text', text: 'x' }]), msg('assistant', [part('approval-responded')])])
+    expect(out[1].parts).toHaveLength(1)
+  })
+
+  it('drops an answered card on an earlier message and an unanswered card anywhere', () => {
+    const out = sanitizeUiMessages([
+      msg('assistant', [part('approval-responded')]),
+      msg('user', [{ type: 'text', text: 'x' }]),
+      msg('assistant', [part('approval-requested')]),
+    ])
+    expect(out[0].parts).toHaveLength(0)
+    expect(out[2].parts).toHaveLength(0)
+  })
+
+  it('keeps a declined card (it becomes a tool_result for the model)', () => {
+    const out = sanitizeUiMessages([msg('assistant', [part('output-denied')]), msg('user', [{ type: 'text', text: 'x' }])])
+    expect(out[0].parts).toHaveLength(1)
+  })
+})

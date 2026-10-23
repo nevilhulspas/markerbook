@@ -83,7 +83,12 @@ export default async function LabDetailPage({
       )}
 
       {lab.status === 'pending' ? (
-        <LabImportStatus labId={id} />
+        // Only the submitter gets here (getLabDetail): the import status and
+        // the tests waiting for review.
+        <div className="space-y-4">
+          <LabImportStatus labId={id} hasTests={tests.length > 0} />
+          {tests.length > 0 && <LabTestsTable tests={tests} />}
+        </div>
       ) : (
         <div className="space-y-4">
           {lab.status === 'approved' && (

@@ -5,6 +5,8 @@ import { ArrowLeft } from 'lucide-react'
 
 import { getDutchTestDetail } from '@/actions/dutch-tests'
 import { createClient } from '@/lib/supabase/server'
+import { isAiConfigured } from '@/lib/ai/config'
+import { cn } from '@/lib/utils'
 import type { ReferenceRange } from '@/lib/database.types'
 import {
   findReferenceRange,
@@ -14,6 +16,7 @@ import {
 } from '@/lib/grid/reference-range'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { PageContainer } from '@/components/layout/page-container'
 import {
   Card,
   CardContent,
@@ -126,24 +129,26 @@ export default async function DutchMarkerDetailPage({
   )
 
   return (
-    <div className="space-y-6">
+    <PageContainer width="narrow" className="space-y-6">
       {/* Header with back button */}
-      <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" asChild>
-          <Link href={`/dutch/${id}`}>
-            <ArrowLeft className="size-4" />
-            <span className="sr-only">Back to DUTCH test</span>
-          </Link>
-        </Button>
-        <div className="flex-1">
-          <h1 className="text-3xl font-bold tracking-tight">
-            {biomarker.short_name ?? biomarker.name}
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            {CATEGORY_LABELS[biomarker.category] ?? biomarker.category}
-          </p>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex min-w-0 items-center gap-4">
+          <Button variant="ghost" size="icon" className="shrink-0" asChild>
+            <Link href={`/dutch/${id}`}>
+              <ArrowLeft className="size-4" />
+              <span className="sr-only">Back to DUTCH test</span>
+            </Link>
+          </Button>
+          <div className="min-w-0">
+            <h1 className="break-words text-3xl font-bold tracking-tight">
+              {biomarker.short_name ?? biomarker.name}
+            </h1>
+            <p className="text-sm text-muted-foreground">
+              {CATEGORY_LABELS[biomarker.category] ?? biomarker.category}
+            </p>
+          </div>
         </div>
-        <Badge className={getStatusColor(status)}>
+        <Badge className={cn('self-start sm:self-auto', getStatusColor(status))}>
           {getStatusLabel(status)}
         </Badge>
       </div>
@@ -231,7 +236,8 @@ export default async function DutchMarkerDetailPage({
         cachedContent={description?.content ?? null}
         isStale={false}
         cachedAt={description?.updated_at ?? null}
+        aiEnabled={isAiConfigured()}
       />
-    </div>
+    </PageContainer>
   )
 }

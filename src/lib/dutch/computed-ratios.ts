@@ -10,26 +10,24 @@ export interface RatioDefinition {
 }
 
 /**
- * Lookup helper: find a timepoint-specific value by biomarker name and timepoint.
+ * Lookup helper: the sum of a marker over the given timepoints.
  * Results map is keyed by `${biomarkerName}_${timepoint}` for timepoint markers,
- * and by `biomarkerName` for non-timepoint markers.
+ * and by `biomarkerName` for non-timepoint markers. Every timepoint must be
+ * present: a "24h" total from three of four samples is too low and looks like
+ * a real (low) result, so it is null instead.
  */
-function sumTimepoints(
+export function sumTimepoints(
   results: Map<string, number>,
   biomarkerName: string,
   timepoints: string[]
 ): number | null {
   let sum = 0
-  let found = false
   for (const tp of timepoints) {
-    const key = `${biomarkerName}_${tp}`
-    const val = results.get(key)
-    if (val !== undefined) {
-      sum += val
-      found = true
-    }
+    const val = results.get(`${biomarkerName}_${tp}`)
+    if (val === undefined) return null
+    sum += val
   }
-  return found ? sum : null
+  return sum
 }
 
 function safeRatio(numerator: number | null, denominator: number | null): number | null {
@@ -73,8 +71,9 @@ export const DUTCH_RATIOS: RatioDefinition[] = [
       const aTHF = results.get('a-Tetrahydrocortisol')
       const bTHF = results.get('b-Tetrahydrocortisol')
       const bTHE = results.get('b-Tetrahydrocortisone')
-      if (aTHF === undefined && bTHF === undefined && bTHE === undefined) return null
-      return (aTHF ?? 0) + (bTHF ?? 0) + (bTHE ?? 0)
+      // All three, or no total: a partial sum understates the result.
+      if (aTHF === undefined || bTHF === undefined || bTHE === undefined) return null
+      return aTHF + bTHF + bTHE
     },
   },
 

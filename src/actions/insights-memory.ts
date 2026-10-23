@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache'
 
 import { getSessionUser } from '@/lib/supabase/session'
+import { userErrorMessage } from '@/lib/supabase/errors'
 import { supabaseAdmin } from '@/lib/supabase/admin'
 
 export interface MemoryFile {
@@ -13,7 +14,7 @@ export interface MemoryFile {
 }
 
 /**
- * List every memory file the Health AI has saved for the current user, newest
+ * List every memory file the chat has saved for the current user, newest
  * first. Powers the per-item review/delete UI on /profile.
  *
  * Returns an empty array (not an error) for unauthenticated callers so the
@@ -55,13 +56,21 @@ export async function deleteInsightsMemoryFile(
     .select()
     .single()
 
-  if (error) return { error: error.message }
+  if (error) {
+    return {
+      error: userErrorMessage(
+        'deleteInsightsMemoryFile',
+        error,
+        'Could not delete the file. Please try again.'
+      ),
+    }
+  }
   revalidatePath('/profile')
   return { error: null }
 }
 
 /**
- * Delete everything the Health AI has remembered about the current user
+ * Delete everything the chat has remembered about the current user
  * (the Claude memory tool's /memories files). Right-to-erasure for the
  * cross-conversation memory.
  */

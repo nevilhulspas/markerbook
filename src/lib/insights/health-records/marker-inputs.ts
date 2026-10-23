@@ -82,7 +82,8 @@ export function resolveMarkerInputs(
 export async function resolveMarkerInputsViaLoinc(
   inputs: MarkerInput[],
   catalog: Biomarker[],
-  db: TypedSupabaseClient
+  db: TypedSupabaseClient,
+  createdBy?: string
 ): Promise<{ resolved: ResolvedMarker[]; unmatched: string[]; custom: string[] }> {
   const unmatched: string[] = []
   const customIds = new Set<string>()
@@ -104,7 +105,7 @@ export async function resolveMarkerInputsViaLoinc(
         biomarkerId = await commitCapture(
           outcome.loincCode,
           { name: input.name, unit: input.unit ?? '' },
-          { db }
+          { db, createdBy }
         )
         displayName = outcome.cleanName
       } else {
@@ -112,7 +113,7 @@ export async function resolveMarkerInputsViaLoinc(
         // marker is still saved (flagged is_custom for auditability).
         biomarkerId = await commitCustomCapture(
           { name: input.name, unit: input.unit ?? '' },
-          { db }
+          { db, createdBy }
         )
         displayName = input.name
         customIds.add(biomarkerId)
@@ -142,7 +143,8 @@ export async function resolveMarkerInputsViaLoinc(
 
 export const markerInputSchema = z.object({
   name: z.string().min(1).describe('Biomarker name (catalog name, short name or common alias — e.g. "Ferritin", "HbA1c", "Vitamin D").'),
-  value: z.number().nonnegative(),
+  // Negative results are real (base excess, z-scores); never reject them.
+  value: z.number(),
   unit: z.string().optional().describe('Unit as reported. Omit to use the catalog default unit.'),
   loinc_code: z
     .string()

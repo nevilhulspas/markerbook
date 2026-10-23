@@ -35,7 +35,7 @@ export function exportGridAsPdf(data: GridData, userSex?: Sex | null): void {
   // Title
   doc.setFontSize(16)
   doc.setTextColor(33, 33, 33)
-  doc.text('Blood Markers Report', 14, 20)
+  doc.text('Markerbook Report', 14, 20)
 
   // Metadata
   doc.setFontSize(10)
@@ -150,5 +150,5 @@ export function exportGridAsPdf(data: GridData, userSex?: Sex | null): void {
 
   // Save
   const date = localDateISO()
-  doc.save(`blood-markers-report-${date}.pdf`)
+  doc.save(`markerbook-report-${date}.pdf`)
 }

@@ -9,7 +9,7 @@ import { AttachmentChip } from './attachment-chip'
 /**
  * One user message. Memoized so it never re-renders while the user types in the
  * input or while a later message streams (its props are referentially stable
- * unless this message itself changes). (AUT-898)
+ * unless this message itself changes).
  */
 export const UserMessage = memo(function UserMessage({ message }: { message: UIMessage }) {
   const textContent = messageText(message.parts)

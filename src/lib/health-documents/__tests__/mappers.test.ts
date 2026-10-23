@@ -42,6 +42,29 @@ describe('bloodExtractionToValues', () => {
   })
 })
 
+describe('bloodExtractionToValues — chat "log it" regressions', () => {
+  it('keeps custom (non-LOINC) markers', () => {
+    const v = bloodExtractionToValues(
+      result,
+      [marker({ name: 'AA/EPA', matched: false, biomarker_id: null, capture_custom: true, unit: 'ratio' })],
+      null,
+      '2000-01-01'
+    )
+    expect(v.markers).toEqual([expect.objectContaining({ capture_custom: true, name: 'AA/EPA' })])
+  })
+
+  it('fills a missing unit from the catalogue unit', () => {
+    const v = bloodExtractionToValues(result, [marker({ unit: '' })], null, '2000-01-01')
+    expect(v.markers[0]).toMatchObject({ unit: 'ng/mL' })
+  })
+
+  it('keeps one row when the report lists a marker twice', () => {
+    const v = bloodExtractionToValues(result, [marker({ value: 120 }), marker({ value: 125 })], null, '2000-01-01')
+    expect(v.markers).toHaveLength(1)
+    expect(v.markers[0]).toMatchObject({ value: 120 })
+  })
+})
+
 describe('dutchExtractionToValues', () => {
   const dm = (over: Partial<DutchMatchedMarker> = {}): DutchMatchedMarker => ({
     name: 'Cortisol', value: 10, unit: 'ng/mg', timepoint: 'morning', confidence: 'high',

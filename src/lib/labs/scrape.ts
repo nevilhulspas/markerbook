@@ -2,6 +2,7 @@ import 'server-only'
 
 import { analyzeHomepage } from './analyze-homepage'
 import { registrableDomain } from './domain'
+import { guardedFetch, readBounded } from './guarded-fetch'
 import { LAB_BOT_USER_AGENT, robotsAllows } from './robots'
 import { ScrapeRejectedError } from './scrape-errors'
 import { assertSafeScrapeUrl } from './url-guard'
@@ -12,7 +13,6 @@ const MAX_TOTAL_CHARS = 350_000 // whole catalogue; extraction chunks this text
 const MAX_SUBPAGES = 60 // safety cap on catalogue/pagination pages we follow
 const SUBPAGE_CONCURRENCY = 6 // fetch sub-pages in parallel (bounded)
 const MAX_CANDIDATE_LINKS = 150 // bound the homepage-analysis prompt
-const MAX_REDIRECTS = 5
 
 // Same-domain pagination links (e.g. ?page=2, /page/3/) — followed for one
 // extra bounded round to capture catalogues that split tests across pages.
@@ -75,49 +75,38 @@ export async function fetchPageText(
   const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS)
 
   try {
-    // Follow redirects manually so EACH hop is re-validated by the SSRF guard
-    // (and, when set, the same-registrable-domain guard). A public URL that
-    // 302-redirects to http://169.254.169.254/ is a classic SSRF bypass when
-    // using fetch's automatic redirect following; a redirect to an
-    // attacker-controlled host is an open-redirector bypass of caller-level
+    // guardedFetch re-validates EACH redirect hop with the SSRF guard; the
+    // same-registrable-domain check below stops a redirect to an
+    // attacker-controlled host, an open-redirector bypass of caller-level
     // domain checks.
-    let current = safeUrl
-    let res: Response | null = null
-    for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
-      res = await fetch(current, {
-        signal: controller.signal,
-        redirect: 'manual',
-        headers: {
-          'User-Agent': LAB_BOT_USER_AGENT,
-          Accept: 'text/html,application/xhtml+xml',
-        },
-      })
-
-      if (res.status >= 300 && res.status < 400) {
-        const location = res.headers.get('location')
-        if (!location) break
-        const next = new URL(location, current)
+    const fetched = await guardedFetch(safeUrl, {
+      signal: controller.signal,
+      headers: {
+        'User-Agent': LAB_BOT_USER_AGENT,
+        Accept: 'text/html,application/xhtml+xml',
+      },
+      allowRedirect: (from, to) => {
         if (
-          requiredDomain !== null &&
-          registrableDomain(next.hostname.toLowerCase()) !== requiredDomain
+          requiredDomain === null ||
+          registrableDomain(to.hostname.toLowerCase()) === requiredDomain
         ) {
-          console.error(
-            'fetchPageText: blocked off-domain redirect',
-            current.toString(),
-            '->',
-            next.toString(),
-            'expected domain',
-            requiredDomain
-          )
-          return { text: '', links: [] }
+          return true
         }
-        current = await assertSafeScrapeUrl(next.toString()) // re-guard each hop
-        continue
-      }
-      break
-    }
+        console.error(
+          'fetchPageText: blocked off-domain redirect',
+          from.toString(),
+          '->',
+          to.toString(),
+          'expected domain',
+          requiredDomain
+        )
+        return false
+      },
+    })
+    if (!fetched) return { text: '', links: [] }
+    const { res, url: current } = fetched
 
-    if (!res || !res.ok || !res.body) {
+    if (!res.ok || !res.body) {
       return { text: '', links: [] }
     }
 
@@ -294,36 +283,6 @@ async function fetchAllBounded(
     )
   )
   return results
-}
-
-/** Read a stream into a string, stopping once `maxBytes` is reached. */
-async function readBounded(
-  body: ReadableStream<Uint8Array>,
-  maxBytes: number
-): Promise<string> {
-  const reader = body.getReader()
-  const decoder = new TextDecoder('utf-8', { fatal: false })
-  let received = 0
-  let out = ''
-  try {
-    for (;;) {
-      const { done, value } = await reader.read()
-      if (done) break
-      if (!value) continue
-      received += value.byteLength
-      if (received > maxBytes) {
-        const remaining = maxBytes - (received - value.byteLength)
-        out += decoder.decode(value.subarray(0, Math.max(0, remaining)), {
-          stream: false,
-        })
-        break
-      }
-      out += decoder.decode(value, { stream: true })
-    }
-  } finally {
-    await reader.cancel().catch(() => {})
-  }
-  return out
 }
 
 /** Strip script/style/tags and collapse whitespace to plain text. */

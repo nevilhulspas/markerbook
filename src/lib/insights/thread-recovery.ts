@@ -1,5 +1,5 @@
 /**
- * Recovering an answer whose stream died before it reached the screen (OTH-40).
+ * Recovering an answer whose stream died before it reached the screen.
  *
  * The chat answer arrives over one long-lived HTTP response. Mobile browsers
  * do not keep those alive: lock the phone, switch apps, or move between Wi-Fi

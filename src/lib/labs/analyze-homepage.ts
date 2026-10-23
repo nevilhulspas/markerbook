@@ -2,6 +2,7 @@ import 'server-only'
 
 import { z } from 'zod'
 import { getAnthropic } from '@/lib/ai/client'
+import { chargeAiCall } from '@/lib/ai/charge'
 import { FAST_MODEL, FAST_THINKING } from '@/lib/ai/models'
 import { extractJsonObject } from '@/lib/ai/json'
 
@@ -143,6 +144,7 @@ export async function analyzeHomepage(input: {
   const homeText = input.homeText.slice(0, HOME_TEXT_CHARS)
   const linksBlock = input.links.join('\n')
 
+  await chargeAiCall()
   const response = await getAnthropic().messages.create({
     // Haiku: assessing the page + picking links is a classification /
     // pattern task, not deep reasoning — fast and inexpensive, mirroring the

@@ -1,11 +1,18 @@
 /**
- * AUT-904 (v2) — Import the official LOINC release into public.loinc_terms.
+ * Import the official LOINC release into public.loinc_terms.
  * Reads the full Loinc.csv (default /tmp/loinc-import/Loinc.csv), selects the axis
  * + name + unit columns, and upserts in batches via the service-role client.
- *   set -a; source .env.local; set +a; npx tsx scripts/loinc/import-loinc-terms.ts [csvPath]
+ * Reads NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SECRET_KEY from .env.local.
+ *   npx tsx scripts/loinc/import-loinc-terms.ts [csvPath]
  */
 import { readFileSync } from 'node:fs'
 import { createClient } from '@supabase/supabase-js'
+
+try {
+  process.loadEnvFile('.env.local')
+} catch {
+  // no .env.local: rely on the environment
+}
 
 const db = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SECRET_KEY!)
 const CSV = process.argv[2] ?? '/tmp/loinc-import/Loinc.csv'

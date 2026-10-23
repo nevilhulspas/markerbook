@@ -16,6 +16,8 @@ import {
   useDisclaimerSeen,
 } from './medical-disclaimer'
 import { ChatPanel } from '@/components/chat/chat-panel'
+import { isAiNotConfiguredMessage } from '@/lib/ai/messages'
+import { AiUnavailableNote } from './ai-unavailable-note'
 import type { ChatMessage } from '@/hooks/use-chat'
 
 interface InterpretationPanelProps {
@@ -36,6 +38,8 @@ interface InterpretationPanelProps {
   chatError?: string | null
   onSendChatMessage?: (text: string) => void
   onAbortChat?: () => void
+  /** False when the server has no Anthropic API key: regenerate and follow-ups are off. */
+  aiEnabled?: boolean
 }
 
 function formatRelativeTime(dateStr: string): string {
@@ -70,6 +74,7 @@ export function InterpretationPanel({
   chatError,
   onSendChatMessage,
   onAbortChat,
+  aiEnabled = true,
 }: InterpretationPanelProps) {
   const disclaimerSeen = useDisclaimerSeen()
   const [disclaimerDismissed, setDisclaimerDismissed] = useState(false)
@@ -116,7 +121,7 @@ export function InterpretationPanel({
             )}
 
             {/* Stale cache banner */}
-            {isStale && !isStreaming && (
+            {isStale && !isStreaming && aiEnabled && (
               <div className="mb-4 flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 dark:border-amber-900/50 dark:bg-amber-950/30">
                 <p className="flex-1 text-sm text-amber-700 dark:text-amber-300">
                   Your profile or markers have changed since this
@@ -130,7 +135,7 @@ export function InterpretationPanel({
             )}
 
             {/* Cached badge */}
-            {cachedAt && !isStale && !isStreaming && (
+            {cachedAt && !isStale && !isStreaming && aiEnabled && (
               <div className="mb-4 flex items-center gap-2">
                 <Badge variant="secondary">
                   Cached {formatRelativeTime(cachedAt)}
@@ -154,8 +159,13 @@ export function InterpretationPanel({
                 emitted any answer text yet — fill the silence. */}
             {isStreaming && !content && <ThinkingIndicator />}
 
+            {/* Not set up: a note, not an error */}
+            {error && isAiNotConfiguredMessage(error) && (
+              <AiUnavailableNote message="Interpretations need AI, which is not set up on this server." />
+            )}
+
             {/* Error state */}
-            {error && (
+            {error && !isAiNotConfiguredMessage(error) && (
               <div className="space-y-3 rounded-lg border border-destructive/50 bg-destructive/10 p-4">
                 <p className="text-sm text-destructive">{error}</p>
                 <Button size="sm" variant="outline" onClick={onRegenerate}>
@@ -181,6 +191,7 @@ export function InterpretationPanel({
                   error={chatError ?? null}
                   onSendMessage={onSendChatMessage}
                   onAbort={onAbortChat}
+                  aiEnabled={aiEnabled}
                 />
               </div>
             )}

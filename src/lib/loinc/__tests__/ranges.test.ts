@@ -310,3 +310,52 @@ describe('estimateRange', () => {
     })
   })
 })
+
+// ---------------------------------------------------------------------------
+// Sanity check against the usual unit (regression: Methylmalonate 0–0.4 nmol/L,
+// Ceruloplasmin 20–40 mg/L on prod)
+// ---------------------------------------------------------------------------
+
+describe('estimateRange sanity check', () => {
+  function aiReturning(json: object) {
+    return {
+      messages: {
+        create: vi.fn().mockResolvedValue({ content: [{ type: 'text', text: JSON.stringify(json) }] }),
+      },
+    } as unknown as Anthropic
+  }
+
+  it('replaces a 1000x-off MMA range with the converted usual-unit range', async () => {
+    const ai = aiReturning({
+      low: 0, high: 0.4, low_male: null, high_male: null, low_female: null, high_female: null,
+      usual_unit: 'umol/L', usual_low: 0, usual_high: 0.4,
+    })
+    const r = await estimateRange('2629-4', 'Methylmalonate', 'nmol/L', ai)
+    expect(r).toMatchObject({ low: 0, high: 400, source: 'ai_estimated' })
+  })
+
+  it('fixes Ceruloplasmin asked in mg/L when the usual range is mg/dL', async () => {
+    const ai = aiReturning({
+      low: 20, high: 40, low_male: 20, high_male: 40, low_female: null, high_female: null,
+      usual_unit: 'mg/dL', usual_low: 20, usual_high: 40,
+    })
+    const r = await estimateRangeByName('Ceruloplasmin', 'mg/L', ai)
+    expect(r).toMatchObject({ low: 200, high: 400, lowMale: null, highMale: null })
+  })
+
+  it('keeps a range that agrees with the usual unit', async () => {
+    const ai = aiReturning({
+      low: 200, high: 400, low_male: null, high_male: null, low_female: null, high_female: null,
+      usual_unit: 'mg/dL', usual_low: 20, usual_high: 40,
+    })
+    expect(await estimateRangeByName('Ceruloplasmin', 'mg/L', ai)).toMatchObject({ low: 200, high: 400 })
+  })
+
+  it('keeps the range when the usual unit is not convertible', async () => {
+    const ai = aiReturning({
+      low: 0, high: 0.4, low_male: null, high_male: null, low_female: null, high_female: null,
+      usual_unit: 'mg/L', usual_low: 0, usual_high: 0.05,
+    })
+    expect(await estimateRange('2629-4', 'Methylmalonate', 'nmol/L', ai)).toMatchObject({ low: 0, high: 0.4 })
+  })
+})

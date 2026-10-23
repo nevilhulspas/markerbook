@@ -20,7 +20,7 @@ Install nothing without the user's OK.
 
 Ask in one message:
 
-1. **Their e-mail address.** That account becomes admin when they sign up.
+1. **Their e-mail address.** You make that account admin after they sign up (step 5).
 2. **Their Anthropic API key** (https://console.anthropic.com → API keys) for the AI
    features. They may also leave it out and paste it into `.env.local` themselves later.
 
@@ -62,7 +62,9 @@ Wait until it prints `Ready`, and note the port (3000, or the next free one).
 Tell the user, in this order:
 
 1. Open `http://localhost:<port>/register` and sign up with the e-mail address from step 2.
-   They become admin automatically.
+   When they have, run `npm run make-admin` (it uses `ADMIN_EMAIL` from `.env.local`) and
+   tell them to sign out and back in to see the **Admin** section. Signing up alone never
+   grants admin.
 2. Want example data first? After sign-up, run `npm run demo` for their account and tell
    them to open the Marker Grid.
 3. Next: import a lab report under **Plan → Import**.

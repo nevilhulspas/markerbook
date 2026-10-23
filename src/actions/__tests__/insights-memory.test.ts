@@ -1,4 +1,4 @@
-// AUT-854 follow-up: per-file list + delete actions for the Health AI's
+// Per-file list + delete actions for the chat's
 // memory. Mirrors the in-memory Supabase mock pattern used by the other
 // action tests; both user-context and admin clients hit the same shared
 // `rows` array so the test sees writes from either.

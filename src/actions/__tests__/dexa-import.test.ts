@@ -1,7 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
+// AI routes and actions refuse to run without a key (isAiConfigured).
+vi.stubEnv('ANTHROPIC_API_KEY', 'test-key')
 // The per-user AI limit has its own tests (src/lib/ai/__tests__/quota.test.ts).
 vi.mock('@/lib/ai/quota', () => ({
   takeAiRequest: async () => ({ ok: true }),
+  countedAiCall: (_userId: string, fn: unknown) => fn,
   aiLimitResponse: (error: string) => Response.json({ error }, { status: 429 }),
   AI_LIMIT_REACHED: 'limit',
 }))
@@ -93,7 +96,7 @@ describe('saveDexaScan', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     reset()
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } } })
+    mockGetUser.mockResolvedValue({ data: { user: { id: '11111111-1111-4111-8111-111111111111' } } })
   })
 
   it('requires authentication', async () => {
@@ -105,12 +108,12 @@ describe('saveDexaScan', () => {
   })
 
   it('inserts the scan then its regions on the happy path', async () => {
-    const r = await saveDexaScan({ extraction: validExtraction, storagePath: 'u/dexa/x.pdf' })
+    const r = await saveDexaScan({ extraction: validExtraction, storagePath: '11111111-1111-4111-8111-111111111111/dexa/33333333-3333-4333-8333-333333333331.pdf' })
     expect(r).toEqual({ success: true, scanId: 'scan-1', error: null })
     expect(scanInserts).toHaveLength(1)
-    expect(scanInserts[0].user_id).toBe('user-1')
+    expect(scanInserts[0].user_id).toBe('11111111-1111-4111-8111-111111111111')
     expect(scanInserts[0].source).toBe('summary')
-    expect(scanInserts[0].pdf_storage_path).toBe('u/dexa/x.pdf')
+    expect(scanInserts[0].pdf_storage_path).toBe('11111111-1111-4111-8111-111111111111/dexa/33333333-3333-4333-8333-333333333331.pdf')
     expect(regionInserts[0]).toHaveLength(1)
     expect(regionInserts[0][0]).toMatchObject({ scan_id: 'scan-1', region: 'trunk' })
     expect(mockRevalidatePath).toHaveBeenCalledWith('/body')

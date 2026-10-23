@@ -8,16 +8,23 @@ import type { ExtractedMarker, MatchedMarker } from './types'
  *
  * Parent-only biomarkers (those with children in the catalog) are
  * excluded as match targets. Ambiguous names that match a parent
- * biomarker resolve to the "total" variant (most common lab convention).
+ * biomarker resolve to its "total" variant (most common lab convention),
+ * and stay unmatched when it has none: "Bilirubin" must never land on
+ * "Bilirubin (Direct)".
  */
+/** IDs of group containers: catalogue rows that other rows point to as parent. */
+export function groupContainerIds(catalog: Pick<Biomarker, 'parent_id'>[]): Set<string> {
+  return new Set(
+    catalog.filter((b) => b.parent_id != null).map((b) => b.parent_id!)
+  )
+}
+
 export function matchBiomarkers(
   extracted: ExtractedMarker[],
   catalog: Biomarker[]
 ): MatchedMarker[] {
   // Find parent IDs that have children
-  const parentIds = new Set(
-    catalog.filter((b) => b.parent_id != null).map((b) => b.parent_id!)
-  )
+  const parentIds = groupContainerIds(catalog)
 
   // Build lookup maps excluding parent-only biomarkers
   const matchable = catalog.filter((b) => !parentIds.has(b.id))
@@ -54,14 +61,11 @@ export function matchBiomarkers(
         (b) => parentIds.has(b.id) && b.name.toLowerCase() === normalized
       )
       if (parentMatch) {
-        // Find the "total" variant of this parent
+        // Only the "total" variant of this parent. Any other child is a
+        // different measurement, so no total variant means no match.
         match = catalog.find(
           (b) => b.parent_id === parentMatch.id && b.variant_name === 'total'
         )
-        // If no "total" variant, use any child
-        if (!match) {
-          match = catalog.find((b) => b.parent_id === parentMatch.id)
-        }
       }
     }
 

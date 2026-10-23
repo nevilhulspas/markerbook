@@ -11,6 +11,8 @@ const MEMORY_ROOT = '/memories'
 const MAX_MEMORY_FILES = 50 // files loaded into the prompt
 const MAX_PROMPT_MEMORY_CHARS = 8000 // total memory chars injected per request
 const MAX_FILE_CHARS = 4000 // per-file write cap
+const MAX_STORED_FILES = 50 // files a user may keep (same as the prompt loads)
+const MAX_PATH_CHARS = 200
 
 // Reject anything that escapes the memory root. The tool should only ever
 // touch /memories/**, but Claude controls these paths so we validate every one.
@@ -22,6 +24,7 @@ function invalidPath(path: string): string | null {
     return `Path must be under ${MEMORY_ROOT}.`
   }
   if (path.includes('..')) return 'Path may not contain "..".'
+  if (path.length > MAX_PATH_CHARS) return `Path may not be longer than ${MAX_PATH_CHARS} characters.`
   return null
 }
 
@@ -105,6 +108,11 @@ export function createMemoryTool(userId: string) {
     if (content.length > MAX_FILE_CHARS) {
       return `Error: ${path} would exceed the ${MAX_FILE_CHARS}-character limit; keep memory notes concise.`
     }
+    // A new file counts against the per-user cap; rewriting one does not.
+    const paths = await allPaths()
+    if (!paths.includes(path) && paths.length >= MAX_STORED_FILES) {
+      return `Error: memory already holds ${MAX_STORED_FILES} files; update or delete an existing note instead.`
+    }
     await table().upsert(
       { user_id: userId, path, content, updated_at: new Date().toISOString() },
       { onConflict: 'user_id,path' }
@@ -119,7 +127,7 @@ export function createMemoryTool(userId: string) {
     return (data ?? []).map((r) => r.path as string)
   }
 
-  return anthropic.tools.memory_20250818({
+  const memory = anthropic.tools.memory_20250818({
     execute: async (action) => {
       const target = action.command === 'rename' ? action.old_path : action.path
       const pathError = invalidPath(target)
@@ -189,4 +197,7 @@ export function createMemoryTool(userId: string) {
       }
     },
   })
+  // Memory is loaded into every later prompt, so a write is a lasting change a
+  // prompt-injected document could make: every write waits for the user's OK.
+  return { ...memory, needsApproval: (action: { command: string }) => action.command !== 'view' }
 }

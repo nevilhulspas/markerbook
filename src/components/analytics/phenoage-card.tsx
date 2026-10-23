@@ -114,6 +114,7 @@ export function PhenoAgeCard({
           Chronological age: {chronologicalAge}
         </div>
         <div className={`text-sm font-medium ${colorClass}`}>{label}</div>
+        <p className="text-xs text-muted-foreground">An estimate, not a diagnosis.</p>
       </CardContent>
     </Card>
   )

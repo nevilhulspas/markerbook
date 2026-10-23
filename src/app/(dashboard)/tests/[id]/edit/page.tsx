@@ -9,10 +9,12 @@ import {
 } from '@/actions/blood-tests'
 import { getPdfSignedUrl } from '@/actions/pdf-import'
 import { Button } from '@/components/ui/button'
+import { PageContainer } from '@/components/layout/page-container'
 import { BloodTestForm } from '@/components/tests/blood-test-form'
 import { EditTestPdfViewer } from '@/components/tests/edit-test-pdf-viewer'
 import type { BloodTestFormValues } from '@/lib/validations/blood-test'
 import { notFoundOrAuthOutage } from '@/lib/supabase/session'
+import { normalizeQualifier } from '@/lib/blood-tests/qualifier'
 
 export const metadata: Metadata = {
   title: 'Edit Blood Test | Markerbook',
@@ -35,11 +37,11 @@ export default async function EditTestPage({
 
   if (biomarkersResult.error || !biomarkersResult.data) {
     return (
-      <div className="space-y-6">
+      <PageContainer width="wide" className="space-y-6">
         <div className="rounded-md bg-destructive/10 px-4 py-3 text-sm text-destructive">
-          Failed to load biomarkers: {biomarkersResult.error}
+          {biomarkersResult.error}
         </div>
-      </div>
+      </PageContainer>
     )
   }
 
@@ -63,6 +65,7 @@ export default async function EditTestPage({
     markers: test.test_results.map((r) => ({
       biomarker_id: r.biomarker_id,
       value: r.value,
+      qualifier: normalizeQualifier(r.qualifier),
       unit: r.unit,
     })),
   }
@@ -76,17 +79,18 @@ export default async function EditTestPage({
     }
   }
 
+  // `wide`, not `narrow`: the form sits next to the PDF viewer on large screens.
   return (
-    <div className="space-y-6">
+    <PageContainer width="wide" className="space-y-6">
       <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" asChild>
+        <Button variant="ghost" size="icon" className="shrink-0" asChild>
           <Link href={`/tests/${id}`}>
             <ArrowLeft className="size-4" />
             <span className="sr-only">Back to test</span>
           </Link>
         </Button>
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">
+        <div className="min-w-0">
+          <h1 className="break-words text-3xl font-bold tracking-tight">
             Edit Blood Test
           </h1>
           <p className="text-muted-foreground">
@@ -108,6 +112,6 @@ export default async function EditTestPage({
           />
         </div>
       </div>
-    </div>
+    </PageContainer>
   )
 }

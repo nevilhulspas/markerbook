@@ -4,6 +4,7 @@ import { ToolInvocationDisplay } from './tool-invocation-display'
 import { QuestionPrompt } from './question-prompt'
 import { LabTestLists } from './lab-test-list-card'
 import { DocumentIndexCard, type DocumentIndexSummary } from './document-index-card'
+import { ApprovalCard } from './approval-card'
 import type { BuildListsResult } from '@/lib/labs/lab-test-tools'
 import { askUserAnswerText, toolNameOf, type ToolPartLike } from '@/lib/insights/render-items'
 
@@ -12,6 +13,7 @@ export type ToolAnswer =
   | string[]
   | { choice: 'logged'; href: string }
   | { choice: 'chat-only' }
+  | { approvalId: string; approved: boolean }
 
 /** Render an interactive tool part: question prompt, answered note, or cards. */
 export function renderInteractivePart(
@@ -19,6 +21,23 @@ export function renderInteractivePart(
   onToolAnswer: (toolCallId: string, answer: ToolAnswer) => void
 ) {
   const toolName = toolNameOf(p)
+
+  // A delete/overwrite tool waiting for (or answered on) its confirm card.
+  if (
+    p.approval &&
+    (p.state === 'approval-requested' || p.state === 'approval-responded' || p.state === 'output-denied')
+  ) {
+    const approvalId = p.approval.id
+    return (
+      <ApprovalCard
+        toolName={toolName}
+        input={p.input}
+        state={p.state}
+        approved={p.approval.approved}
+        onAnswer={(approved) => onToolAnswer(p.toolCallId, { approvalId, approved })}
+      />
+    )
+  }
 
   if (toolName === 'ask_user') {
     const input = (p.input ?? {}) as {
@@ -79,7 +98,7 @@ export function renderInteractivePart(
     return null
   }
 
-  // AUT-854: pass `input` so ToolInvocationDisplay can render tool-specific
+  // Pass `input` so ToolInvocationDisplay can render tool-specific
   // running labels (e.g. "Adding HDL Cholesterol…") instead of the generic
   // spinner, and surface the arg in result renderers like the batch summary.
   return (

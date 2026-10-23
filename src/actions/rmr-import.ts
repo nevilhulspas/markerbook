@@ -3,8 +3,12 @@
 import { revalidatePath } from 'next/cache'
 
 import { getSessionUser } from '@/lib/supabase/session'
+import { isOwnedPath } from '@/lib/supabase/storage-path'
 import { takeAiRequest } from '@/lib/ai/quota'
+import { aiFailureMessage, isAiConfigured } from '@/lib/ai/config'
+import { AI_NOT_CONFIGURED_MESSAGE } from '@/lib/ai/messages'
 import { supabaseAdmin } from '@/lib/supabase/admin'
+import { userErrorMessage } from '@/lib/supabase/errors'
 import { parseRmrBytes } from '@/lib/rmr/parse'
 import {
   sniffMediaType,
@@ -43,6 +47,7 @@ export async function extractRmrReport(
 
   const { user, authError } = await getSessionUser()
   if (!user) return { success: false, error: authError ?? 'Not authenticated' }
+  if (!isAiConfigured()) return { success: false, error: AI_NOT_CONFIGURED_MESSAGE }
 
   const buffers = await Promise.all(files.map((f) => f.arrayBuffer()))
 
@@ -79,7 +84,7 @@ export async function extractRmrReport(
   } catch (err) {
     return {
       success: false,
-      error: err instanceof Error ? err.message : 'Extraction failed',
+      error: aiFailureMessage('extractRmrReport', err),
     }
   }
 
@@ -121,6 +126,9 @@ export async function saveRmrTest(args: {
 
   const { supabase, user, authError } = await getSessionUser()
   if (!user) return { success: false, error: authError ?? 'Not authenticated' }
+  if (args.storagePath && !isOwnedPath(user.id, args.storagePath)) {
+    return { success: false, error: 'This file is not authorized for your account.' }
+  }
 
   const t = parsed.data.test
   const { data, error } = await supabase
@@ -139,7 +147,12 @@ export async function saveRmrTest(args: {
     })
     .select('id')
     .single()
-  if (error || !data) return { success: false, error: error?.message ?? 'Failed to save' }
+  if (error || !data) {
+    return {
+      success: false,
+      error: userErrorMessage('saveRmrTest', error, 'Could not save the RMR test. Please try again.'),
+    }
+  }
 
   revalidatePath('/body')
   return { success: true, testId: data.id as string }

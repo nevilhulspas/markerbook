@@ -5,6 +5,7 @@ import { ArrowLeft } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { PageContainer } from '@/components/layout/page-container'
 import { DexaImportClient } from '@/components/body/dexa-import-client'
+import { isAiConfigured } from '@/lib/ai/config'
 
 export const metadata: Metadata = { title: 'Import DEXA scan | Markerbook' }
 
@@ -27,7 +28,7 @@ export default function DexaImportPage() {
         </div>
       </div>
 
-      <DexaImportClient />
+      <DexaImportClient aiEnabled={isAiConfigured()} />
     </PageContainer>
   )
 }

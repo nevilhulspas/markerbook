@@ -1,3 +1,4 @@
+import type { Metadata } from 'next'
 
 import { PageContainer } from '@/components/layout/page-container'
 import { getFoodLogById, getMealPhotoSignedUrl } from '@/actions/nutrition-food-logs'
@@ -5,6 +6,10 @@ import { FoodLogEditForm } from '@/components/nutrition/food-log-edit-form'
 import { notFoundOrAuthOutage } from '@/lib/supabase/session'
 
 export const dynamic = 'force-dynamic'
+
+export const metadata: Metadata = {
+  title: 'Edit meal | Markerbook',
+}
 
 export default async function EditFoodLogPage({
   params,

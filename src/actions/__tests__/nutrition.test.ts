@@ -1,7 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
+
+vi.stubEnv('ANTHROPIC_API_KEY', 'test-key')
 // The per-user AI limit has its own tests (src/lib/ai/__tests__/quota.test.ts).
 vi.mock('@/lib/ai/quota', () => ({
   takeAiRequest: async () => ({ ok: true }),
+  countedAiCall: (_userId: string, fn: unknown) => fn,
   aiLimitResponse: (error: string) => Response.json({ error }, { status: 429 }),
   AI_LIMIT_REACHED: 'limit',
 }))
@@ -42,6 +45,17 @@ describe('logFood', () => {
     const r = await logFood('200g chicken')
     expect(r).toEqual({ ok: false, error: 'You must be signed in.' })
     expect(mockLogSubmission).not.toHaveBeenCalled()
+  })
+
+  it('says AI is not set up when the server has no Anthropic key', async () => {
+    vi.stubEnv('ANTHROPIC_API_KEY', '')
+    try {
+      const r = await logFood('200g chicken')
+      expect(r).toEqual({ ok: false, error: expect.stringMatching(/not set up/) })
+      expect(mockLogSubmission).not.toHaveBeenCalled()
+    } finally {
+      vi.stubEnv('ANTHROPIC_API_KEY', 'test-key')
+    }
   })
 
   it('rejects empty input before any work', async () => {

@@ -43,8 +43,9 @@ AI features need an `ANTHROPIC_API_KEY`. Tests do not: they mock the AI.
 - Write migrations so they can run twice (`if not exists`, `create or replace`).
 - Every new table with user data needs row-level security and a policy that
   limits rows to `(select auth.uid())`.
-- Run `npm run gen:types` against a database with your migration, and commit
-  the updated `src/lib/supabase/database.generated.ts`.
+- Run `npm run gen:types:local` (local stack after `supabase db reset`) or
+  `npm run gen:types` (linked project) against a database with your migration,
+  and commit the updated `src/lib/supabase/database.generated.ts`.
 
 ## Code conventions
 

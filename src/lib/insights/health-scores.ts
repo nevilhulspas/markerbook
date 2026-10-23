@@ -46,19 +46,17 @@ export function computeHealthScores(
     if (!cell) continue
 
     // Compared in a range unit the value converts to (a nmol/L value against
-    // an ng/mL range); 'unknown' when no range unit is reachable.
-    const status: RangeStatus =
-      row.referenceRanges && row.referenceRanges.length > 0
-        ? resolveResultRange(
-            cell.value,
-            cell.unit,
-            row.biomarker,
-            row.referenceRanges,
-            markerUnitsForRow(row),
-            sex,
-            age
-          ).status
-        : 'unknown'
+    // an ng/mL range); without range rows, against the biomarker's inline
+    // range, the same as the grid. 'unknown' when no range is reachable.
+    const status: RangeStatus = resolveResultRange(
+      cell.value,
+      cell.unit,
+      row.biomarker,
+      row.referenceRanges ?? [],
+      markerUnitsForRow(row),
+      sex,
+      age
+    ).status
 
     const cat = row.category
     const existing = categoryMap.get(cat) ?? {

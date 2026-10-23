@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache'
 
 import { getSessionUser } from '@/lib/supabase/session'
+import { userErrorMessage } from '@/lib/supabase/errors'
 import { supabaseAdmin } from '@/lib/supabase/admin'
 import {
   createAnnotationSchema,
@@ -26,7 +27,14 @@ export async function getAnnotations(): Promise<
     .order('date', { ascending: false })
 
   if (error) {
-    return { data: null, error: error.message }
+    return {
+      data: null,
+      error: userErrorMessage(
+        'getAnnotations',
+        error,
+        'Could not load your notes. Please try again.'
+      ),
+    }
   }
 
   return { data: (data ?? []) as Annotation[], error: null }
@@ -70,7 +78,15 @@ export async function createAnnotation(
     .single()
 
   if (error) {
-    return { success: false, annotation: null, error: error.message }
+    return {
+      success: false,
+      annotation: null,
+      error: userErrorMessage(
+        'createAnnotation',
+        error,
+        'Could not save the note. Please try again.'
+      ),
+    }
   }
 
   revalidatePath('/grid')
@@ -130,7 +146,15 @@ export async function updateAnnotation(
     .single()
 
   if (error) {
-    return { success: false, annotation: null, error: error.message }
+    return {
+      success: false,
+      annotation: null,
+      error: userErrorMessage(
+        'updateAnnotation',
+        error,
+        'Could not save the note. Please try again.'
+      ),
+    }
   }
 
   revalidatePath('/grid')
@@ -163,7 +187,14 @@ export async function deleteAnnotation(
     .eq('id', id)
 
   if (error) {
-    return { success: false, error: error.message }
+    return {
+      success: false,
+      error: userErrorMessage(
+        'deleteAnnotation',
+        error,
+        'Could not delete the note. Please try again.'
+      ),
+    }
   }
 
   revalidatePath('/grid')

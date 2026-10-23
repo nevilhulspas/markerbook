@@ -1,6 +1,6 @@
 'use client'
 
-// AUT-854: optional medical-context fields — smoking, alcohol, pregnancy,
+// Optional medical-context fields — smoking, alcohol, pregnancy,
 // diet, birth circumstances, allergies, family history, extra notes.
 // All optional; an empty submit is fine (it'll just clear/keep nulls).
 // Submits via the same updateProfile server action as the personal-info

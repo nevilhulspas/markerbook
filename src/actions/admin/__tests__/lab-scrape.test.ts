@@ -1,5 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
+vi.stubEnv('ANTHROPIC_API_KEY', 'test-key')
+
 const {
   mockRequireAdmin,
   mockRevalidatePath,
@@ -118,6 +120,7 @@ vi.mock('@/lib/labs/link-biomarkers', () => ({
 }))
 
 import { adminScrapeLab } from '../lab-scrape'
+import { runScrapeJob } from '@/lib/labs/run-scrape'
 
 const adminUser = {
   id: 'admin-1',
@@ -144,6 +147,17 @@ describe('adminScrapeLab', () => {
 
     await expect(adminScrapeLab('lab-1')).rejects.toThrow()
     expect(mockCollectLabSiteText).not.toHaveBeenCalled()
+  })
+
+  it('says AI is not set up when the server has no Anthropic key', async () => {
+    vi.stubEnv('ANTHROPIC_API_KEY', '')
+    try {
+      const result = await adminScrapeLab('lab-1')
+      expect(result.error).toMatch(/not set up/)
+      expect(mockCollectLabSiteText).not.toHaveBeenCalled()
+    } finally {
+      vi.stubEnv('ANTHROPIC_API_KEY', 'test-key')
+    }
   })
 
   it('returns "Lab not found" when the lab does not exist', async () => {
@@ -229,6 +243,7 @@ describe('adminScrapeLab', () => {
     labRow = {
       id: 'lab-1',
       name: 'Acme',
+      status: 'approved',
       website: 'https://acme-labs.example',
       country: 'NL', // already set -> must NOT be overwritten
       city: null, // empty -> should be filled
@@ -280,6 +295,33 @@ describe('adminScrapeLab', () => {
 
     expect(mockRevalidatePath).toHaveBeenCalledWith('/admin/labs')
     expect(mockRevalidatePath).toHaveBeenCalledWith('/labs')
+  })
+
+  it('keeps tests of a lab waiting for review pending', async () => {
+    labRow = {
+      id: 'lab-1',
+      name: 'Acme',
+      status: 'pending',
+      website: 'https://acme-labs.example',
+      country: 'NL',
+      city: 'Amsterdam',
+      description: 'A lab.',
+    }
+    existingTests = []
+    mockCollectLabSiteText.mockResolvedValue('lots of scraped text')
+    mockExtractLabDataFromText.mockResolvedValue({
+      profile: { country: null, city: null, description: null },
+      tests: [
+        { name: 'Ferritin', method: null, cost: null, currency: null, sample_type: null, turnaround_days: null },
+      ],
+    })
+
+    await adminScrapeLab('lab-1')
+
+    const testInsert = insertCalls.find((c) => c.table === 'lab_tests')
+    const rows = testInsert!.data as Array<Record<string, unknown>>
+    expect(rows).toHaveLength(1)
+    expect(rows[0].status).toBe('pending')
   })
 
   it('does not update the profile when no fields are empty', async () => {
@@ -344,5 +386,46 @@ describe('adminScrapeLab', () => {
     ])
     expect(result.inserted).toBe(3)
     expect(result.skipped).toBe(2) // en-dash dup of existing + en-dash dup within batch
+  })
+})
+
+describe('runScrapeJob (user-suggested lab)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    resetMocks()
+    mockLinkLabTestBiomarkers.mockResolvedValue({
+      testsConsidered: 0,
+      testsLinked: 0,
+      linksInserted: 0,
+    })
+  })
+
+  it('imports the tests but never publishes the lab', async () => {
+    labRow = {
+      id: 'lab-1',
+      name: 'Acme',
+      status: 'pending',
+      website: 'https://acme-labs.example',
+      country: 'NL',
+      city: 'Amsterdam',
+      description: 'A lab.',
+    }
+    mockCollectLabSiteText.mockResolvedValue('lots of scraped text')
+    mockExtractLabDataFromText.mockResolvedValue({
+      profile: { country: null, city: null, description: null },
+      tests: [
+        { name: 'Ferritin', method: null, cost: null, currency: null, sample_type: null, turnaround_days: null },
+      ],
+    })
+
+    await runScrapeJob('job-1', 'lab-1')
+
+    const rows = insertCalls.find((c) => c.table === 'lab_tests')!.data as Array<Record<string, unknown>>
+    expect(rows[0].status).toBe('pending')
+    const labStatusUpdates = updateCalls.filter(
+      (c) => c.table === 'labs' && 'status' in (c.data as Record<string, unknown>)
+    )
+    expect(labStatusUpdates).toHaveLength(0)
+    expect(updateCalls.find((c) => c.table === 'scrape_jobs' && (c.data as { status?: string }).status === 'done')).toBeDefined()
   })
 })

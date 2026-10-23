@@ -5,6 +5,7 @@ import { redirect } from 'next/navigation'
 import { Plus } from 'lucide-react'
 
 import { createClient } from '@/lib/supabase/server'
+import { isAiConfigured } from '@/lib/ai/config'
 import type { Biomarker, Profile } from '@/lib/database.types'
 import { toClientProfile } from '@/lib/profile/client-profile'
 import type { BiomarkerWithRelations } from '@/actions/blood-tests'
@@ -18,6 +19,7 @@ import {
   type GridEnrichment,
   type TestWithResults,
 } from '@/lib/grid/build-grid-data'
+import { GridLegend } from '@/components/grid/grid-legend'
 import { MarkerGrid } from '@/components/grid/marker-grid'
 import { getLoincDisplayMap, resolveDisplay } from '@/lib/loinc/display'
 import { Button } from '@/components/ui/button'
@@ -55,7 +57,7 @@ export default async function GridPage() {
         `
       id, name, test_date, sample_type,
       test_results (
-        id, value, unit,
+        id, value, unit, qualifier,
         biomarkers ( * )
       )
     `
@@ -183,8 +185,9 @@ export default async function GridPage() {
     // grid guessed its height (100vh - 260px) and on mobile, where the header
     // stack is taller than 260px, both the page AND the grid scrolled.
     <div className="flex h-full min-h-0 flex-col space-y-4">
-      <div className="flex shrink-0 items-center justify-between">
+      <div className="flex shrink-0 flex-wrap items-center justify-between gap-x-4 gap-y-2">
         <h1 className="text-3xl font-bold tracking-tight">Marker Grid</h1>
+        <GridLegend />
       </div>
       <Suspense>
         <MarkerGrid
@@ -197,6 +200,7 @@ export default async function GridPage() {
           annotations={annotations}
           supplements={supplements}
           unitPreferences={unitPrefsArray}
+          aiEnabled={isAiConfigured()}
         />
       </Suspense>
     </div>

@@ -17,6 +17,7 @@ import { extractFromPdf } from '@/actions/pdf-import'
 import type { BloodTestWithCount } from '@/actions/blood-tests'
 import { FileReviewPanel } from '@/components/import/file-review-panel'
 import { PdfDropzone } from '@/components/import/pdf-dropzone'
+import { AiUnavailableNote } from '@/components/interpretation/ai-unavailable-note'
 import { Button } from '@/components/ui/button'
 import type { Biomarker } from '@/lib/database.types'
 import type { BatchStatus, ImportFileItem } from '@/lib/multi-import/types'
@@ -25,11 +26,14 @@ import { cn } from '@/lib/utils'
 interface MultiImportClientProps {
   biomarkers: Biomarker[]
   existingTests: BloodTestWithCount[]
+  /** False when the server has no Anthropic API key: reading files is off. */
+  aiEnabled: boolean
 }
 
 export function MultiImportClient({
   biomarkers,
   existingTests,
+  aiEnabled,
 }: MultiImportClientProps) {
   const [files, setFiles] = useState<ImportFileItem[]>([])
   const [batchStatus, setBatchStatus] = useState<BatchStatus>('idle')
@@ -97,11 +101,12 @@ export function MultiImportClient({
           statusText: 'Extraction failed',
           error: result.error,
         })
-      } catch {
+      } catch (err) {
+        console.error('extractFromPdf call failed:', err)
         updateFile(item.id, {
           status: 'error',
           statusText: 'Extraction failed',
-          error: 'Unexpected error during extraction',
+          error: 'Could not read this file. Please try again.',
         })
       }
     },
@@ -305,10 +310,20 @@ export function MultiImportClient({
 
   if (batchStatus === 'idle' && files.length === 0) {
     return (
-      <PdfDropzone
-        onFilesAccepted={handleFilesAccepted}
-        isProcessing={false}
-      />
+      <div className="space-y-3">
+        {!aiEnabled && (
+          <AiUnavailableNote
+            message="Reading lab reports needs AI, which is not set up on this server."
+            manualHref="/tests/new"
+            manualLabel="Add a blood test by hand"
+          />
+        )}
+        <PdfDropzone
+          onFilesAccepted={handleFilesAccepted}
+          isProcessing={false}
+          disabled={!aiEnabled}
+        />
+      </div>
     )
   }
 

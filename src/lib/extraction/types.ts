@@ -1,3 +1,5 @@
+import type { ResultQualifier } from '@/lib/blood-tests/qualifier'
+
 export interface ExtractedMarker {
   name: string // Biomarker name as shown on report
   value: number // Numeric value
@@ -7,6 +9,8 @@ export interface ExtractedMarker {
   loinc_code?: string | null   // AI's best LOINC code for this marker, validated downstream
   ref_range_low?: number | null  // reference range printed on the report, if any
   ref_range_high?: number | null
+  /** '<' / '>' etc. when the report printed "<0.5" or ">100"; null for a plain value. */
+  qualifier?: ResultQualifier | null
 }
 
 export interface ExtractionResult {

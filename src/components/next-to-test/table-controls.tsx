@@ -1,6 +1,6 @@
 'use client'
 
-// AUT-854 follow-up: dropdown filters for /next-to-test.
+// Dropdown filters for /next-to-test.
 //
 // State lives in the URL (?status=…&source=…) so views are bookmarkable
 // and `router.refresh()` after pin/unpin preserves the user's selection.
@@ -49,7 +49,7 @@ function useUrlUpdate() {
       mutate(next)
       // Drop default-valued non-sort params so URLs stay short. Sort + order
       // intentionally stay explicit so the persistence layer can distinguish
-      // a deliberate user click from a fresh visit (AUT-864).
+      // a deliberate user click from a fresh visit.
       if (next.get('status') === 'pending') next.delete('status')
       const qs = next.toString()
       router.push(qs ? `${pathname}?${qs}` : pathname)
@@ -278,7 +278,7 @@ export function SortableHeaderLink({
   // even when it matches the page default (name asc). The localStorage
   // persistence in EntryTable keys off "URL has sort/order" — stripping
   // here would make a click on the default-sort column indistinguishable
-  // from a fresh visit and cause a restore loop. (AUT-864)
+  // from a fresh visit and cause a restore loop.
   const next = new URLSearchParams(searchParamsString)
   next.set('sort', sortKey)
   next.set('order', nextOrder)

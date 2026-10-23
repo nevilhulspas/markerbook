@@ -1,6 +1,6 @@
 'use client'
 
-import { ChevronsUpDown, LogOut, Monitor, Moon, Sun, User } from 'lucide-react'
+import { ChevronsUpDown, Info, LogOut, Monitor, Moon, Sun, User } from 'lucide-react'
 import Link from 'next/link'
 import { useTheme } from 'next-themes'
 
@@ -105,6 +105,12 @@ export function NavUser({ user }: NavUserProps) {
             <Link href="/profile">
               <User />
               Profile
+            </Link>
+          </DropdownMenuItem>
+          <DropdownMenuItem asChild>
+            <Link href="/about">
+              <Info />
+              About
             </Link>
           </DropdownMenuItem>
         </DropdownMenuGroup>

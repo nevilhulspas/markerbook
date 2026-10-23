@@ -1,16 +1,16 @@
 // Single source of truth for "what public origin is this request on?" — used to
 // build the OAuth `redirectTo` and the post-callback redirect.
 //
-// Why not `new URL(request.url).origin`? Behind our prod reverse proxy
-// (Dokploy/Traefik) the Next container only sees its INTERNAL address, so
+// Why not `new URL(request.url).origin`? Behind a reverse proxy (Traefik,
+// Caddy, nginx) the Next container only sees its INTERNAL address, so
 // `request.url` resolves to `http://localhost:3000/...`. Redirecting to that
-// origin after the OAuth code exchange bounced users to localhost:3000 in
-// production (AUT-889). The forwarded headers carry the real public host.
+// origin after the OAuth code exchange bounces users to localhost:3000 in
+// production. The forwarded headers carry the real public host.
 
 type HeaderGetter = { get(name: string): string | null }
 
 /** True for the container-internal host the proxy didn't rewrite (NOT a
- *  portless dev host like `x.bloodmarkers-tracker.localhost:1355`). */
+ *  named dev host like `feature-x.markerbook.localhost:1355`). */
 function isBareLocalhost(host: string): boolean {
   return /^(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/i.test(host)
 }
@@ -19,13 +19,14 @@ function isBareLocalhost(host: string): boolean {
  * Only redirect to hosts we actually own — otherwise a spoofed `x-forwarded-host`
  * (a request that bypasses the proxy, or a proxy that forwards a client-supplied
  * value) could turn the OAuth callback into an open redirect off-site. Trusted =
- * the configured canonical host (NEXT_PUBLIC_SITE_URL) or a portless per-worktree
- * dev host (`*.bloodmarkers-tracker.localhost`).
+ * the configured canonical host (NEXT_PUBLIC_SITE_URL), and in development
+ * only, a named `*.localhost` dev host (e.g. one per git worktree via a local
+ * proxy such as portless). A production build never trusts `*.localhost`.
  */
 function isTrustedHost(host: string): boolean {
   if (!host) return false
   const h = host.toLowerCase()
-  if (/(^|\.)bloodmarkers-tracker\.localhost(:\d+)?$/.test(h)) return true
+  if (process.env.NODE_ENV === 'development' && /\.localhost(:\d+)?$/.test(h)) return true
   const site = process.env.NEXT_PUBLIC_SITE_URL
   if (site) {
     try {
@@ -39,7 +40,7 @@ function isTrustedHost(host: string): boolean {
 
 /**
  * Resolve the request's public origin (e.g. `https://health.example.com`
- * in prod, `https://aut-889.bloodmarkers-tracker.localhost:1355` in portless dev).
+ * in prod, `https://feature-x.markerbook.localhost:1355` in named-host dev).
  *
  * Trust `x-forwarded-host`/`host` only when it's a host we own (isTrustedHost);
  * otherwise — bare-localhost proxy-internal host, or a spoofed/unknown host —

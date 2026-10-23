@@ -1,7 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
+// AI routes and actions refuse to run without a key (isAiConfigured).
+vi.stubEnv('ANTHROPIC_API_KEY', 'test-key')
 // The per-user AI limit has its own tests (src/lib/ai/__tests__/quota.test.ts).
 vi.mock('@/lib/ai/quota', () => ({
   takeAiRequest: async () => ({ ok: true }),
+  countedAiCall: (_userId: string, fn: unknown) => fn,
   aiLimitResponse: (error: string) => Response.json({ error }, { status: 429 }),
   AI_LIMIT_REACHED: 'limit',
 }))
@@ -69,7 +72,7 @@ describe('saveRmrTest', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     reset()
-    mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } } })
+    mockGetUser.mockResolvedValue({ data: { user: { id: '11111111-1111-4111-8111-111111111111' } } })
   })
 
   it('requires authentication', async () => {
@@ -81,16 +84,16 @@ describe('saveRmrTest', () => {
   })
 
   it('inserts the test and returns its id on the happy path', async () => {
-    const r = await saveRmrTest({ extraction: validExtraction, storagePath: 'u/rmr/x.pdf' })
+    const r = await saveRmrTest({ extraction: validExtraction, storagePath: '11111111-1111-4111-8111-111111111111/rmr/33333333-3333-4333-8333-333333333331.pdf' })
     expect(r).toEqual({ success: true, testId: 'rmr-1' })
     expect(testInserts).toHaveLength(1)
     expect(testInserts[0]).toMatchObject({
-      user_id: 'user-1',
+      user_id: '11111111-1111-4111-8111-111111111111',
       test_date: '2026-05-27',
       rmr_kcal: 2229,
       predicted_rmr_kcal: 1887,
       source: 'import',
-      pdf_storage_path: 'u/rmr/x.pdf',
+      pdf_storage_path: '11111111-1111-4111-8111-111111111111/rmr/33333333-3333-4333-8333-333333333331.pdf',
     })
     expect(mockRevalidatePath).toHaveBeenCalledWith('/body')
   })
@@ -100,11 +103,11 @@ describe('saveRmrTest', () => {
     expect(testInserts[0].source).toBe('summary')
   })
 
-  it('returns the db error and does not revalidate when the insert fails', async () => {
+  it('returns a plain error and does not revalidate when the insert fails', async () => {
     insertError = { message: 'insert failed' }
     const r = await saveRmrTest({ extraction: validExtraction })
     expect(r.success).toBe(false)
-    if (!r.success) expect(r.error).toBe('insert failed')
+    if (!r.success) expect(r.error).toBe('Could not save the RMR test. Please try again.')
     expect(mockRevalidatePath).not.toHaveBeenCalled()
   })
 

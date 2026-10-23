@@ -1,7 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
+// AI routes and actions refuse to run without a key (isAiConfigured).
+vi.stubEnv('ANTHROPIC_API_KEY', 'test-key')
 // The per-user AI limit has its own tests (src/lib/ai/__tests__/quota.test.ts).
 vi.mock('@/lib/ai/quota', () => ({
   takeAiRequest: async () => ({ ok: true }),
+  countedAiCall: (_userId: string, fn: unknown) => fn,
   aiLimitResponse: (error: string) => Response.json({ error }, { status: 429 }),
   AI_LIMIT_REACHED: 'limit',
 }))

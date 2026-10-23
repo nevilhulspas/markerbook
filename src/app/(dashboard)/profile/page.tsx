@@ -15,6 +15,7 @@ import { MemoryManager } from '@/components/profile/memory-manager'
 import { ShortcutTokenCard } from '@/components/profile/shortcut-token-card'
 import { AdminAccessCard } from '@/components/profile/admin-access-card'
 import { Button } from '@/components/ui/button'
+import { PageContainer } from '@/components/layout/page-container'
 import {
   Card,
   CardContent,
@@ -46,9 +47,9 @@ export default async function ProfilePage() {
   const geneticProfile = geneticResult.data
 
   return (
-    <div className="space-y-6">
+    <PageContainer width="narrow" className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Health Profile</h1>
+        <h1 className="text-3xl font-bold tracking-tight">Profile</h1>
         <p className="text-muted-foreground">
           Your health information helps us provide personalized reference ranges
           and insights for your blood test results.
@@ -57,7 +58,7 @@ export default async function ProfilePage() {
 
       <ProfileForm initialData={profile} />
 
-      {/* AUT-854 — medical-history additions, all flow into the insights chat
+      {/* Medical-history additions, all flow into the insights chat
           system prompt via formatProfile(). */}
       <MedicalConditionsCard conditions={medicalConditions} />
       <HealthContextForm initialData={profile} />
@@ -118,10 +119,10 @@ export default async function ProfilePage() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Sparkles className="size-5" />
-            Health AI Memory
+            Chat memory
           </CardTitle>
           <CardDescription>
-            Things the Health AI has remembered from your conversations (goals,
+            Things Chat has remembered from your conversations (goals,
             preferences). Review each entry and remove anything that&apos;s
             wrong or out of date.
           </CardDescription>
@@ -130,6 +131,6 @@ export default async function ProfilePage() {
           <MemoryManager files={memoryFiles} />
         </CardContent>
       </Card>
-    </div>
+    </PageContainer>
   )
 }

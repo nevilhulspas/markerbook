@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache'
 
 import { createClient } from '@/lib/supabase/server'
 import { getSessionUser } from '@/lib/supabase/session'
+import { userErrorMessage } from '@/lib/supabase/errors'
 import type { DexaScan, DexaRegion, BodyGoal, BodyMetricKey, Sex } from '@/lib/database.types'
 import type { DexaScanExtract, DexaRegionExtract } from '@/lib/validations/dexa-import'
 
@@ -68,7 +69,11 @@ export async function updateScan(
     .from('dexa_scans')
     .update({ ...patch.scan, updated_at: new Date().toISOString() })
     .eq('id', id)
-  if (error) return { error: error.message }
+  if (error) {
+    return {
+      error: userErrorMessage('updateScan', error, 'Could not save the scan. Please try again.'),
+    }
+  }
 
   if (patch.regions) {
     // Snapshot existing regions so we can restore them if the replacement
@@ -118,7 +123,11 @@ export async function deleteScan(id: string): Promise<{ error: string | null }> 
   if (!user) return { error: authError ?? 'Not authenticated' }
 
   const { error } = await supabase.from('dexa_scans').delete().eq('id', id)
-  if (error) return { error: error.message }
+  if (error) {
+    return {
+      error: userErrorMessage('deleteScan', error, 'Could not delete the scan. Please try again.'),
+    }
+  }
   revalidatePath('/body')
   return { error: null }
 }
@@ -149,7 +158,11 @@ export async function saveGoal(
       { user_id: user.id, metric, target_value: targetValue, updated_at: new Date().toISOString() },
       { onConflict: 'user_id,metric' }
     )
-  if (error) return { error: error.message }
+  if (error) {
+    return {
+      error: userErrorMessage('saveGoal', error, 'Could not save the goal. Please try again.'),
+    }
+  }
   revalidatePath('/body')
   return { error: null }
 }

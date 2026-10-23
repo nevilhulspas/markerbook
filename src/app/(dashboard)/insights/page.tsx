@@ -43,9 +43,10 @@ import type {
 import { throwIfAuthOutage } from '@/lib/supabase/auth-outage'
 import { InsightsClient } from '@/components/insights/insights-client'
 import { getRequestUser } from '@/lib/supabase/request-user'
+import { isAiConfigured } from '@/lib/ai/config'
 
 export const metadata: Metadata = {
-  title: 'Insights | Markerbook',
+  title: 'Chat | Markerbook',
 }
 
 function computeAge(dateOfBirth: string): number {
@@ -172,10 +173,9 @@ export default async function InsightsPage({
       // goes to the AI in the catalogue unit when possible, so one marker's
       // history reads in one unit.
       const marker = markerUnitsForRow(row)
-      const status =
-        row.referenceRanges && row.referenceRanges.length > 0
-          ? resolveResultRange(cell.value, cell.unit, row.biomarker, row.referenceRanges, marker, sex, chronologicalAge).status
-          : 'unknown'
+      const status = resolveResultRange(
+        cell.value, cell.unit, row.biomarker, row.referenceRanges ?? [], marker, sex, chronologicalAge
+      ).status
       const inCatalogue = convertUnit(cell.value, cell.unit, marker.catalogueUnit, marker)
       history.push({
         testDate: test.date,
@@ -210,7 +210,7 @@ export default async function InsightsPage({
   // The remaining chat-context reads are independent of each other, so fetch
   // them together (they used to run one after another).
   const [
-    // AUT-854: medical-history conditions list — RLS scopes to the current user.
+    // Medical-history conditions list — RLS scopes to the current user.
     medicalConditions,
     dutchTestsResult,
     microbiomeListResult,
@@ -371,7 +371,7 @@ export default async function InsightsPage({
       hasDocument: detail.pdf_storage_path != null,
     }))
 
-  // AUT-897: RMR + derived TDEE/calorie targets for the chat context. Mirrors
+  // RMR + derived TDEE/calorie targets for the chat context. Mirrors
   // dutchContext (loaded server-side here, passed through props → transport →
   // route). TDEE/ranges are derived only when the profile has an activity level.
   let rmrContext: RmrContext | null = null
@@ -405,6 +405,7 @@ export default async function InsightsPage({
       otherTests={otherTests}
       rmrContext={rmrContext}
       isAdmin={isAdmin}
+      aiEnabled={isAiConfigured()}
       initialThreadId={initialThreadId ?? null}
     />
   )

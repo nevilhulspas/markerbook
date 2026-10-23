@@ -1,6 +1,7 @@
 import type { ReferenceRange } from '@/lib/database.types'
 import {
   findReferenceRange,
+  formatRangeBounds,
   getRangeStatusFromRanges,
   getStatusColor,
   getStatusLabel,
@@ -29,8 +30,9 @@ export function ReferenceRanges({
     'optimal'
   )
 
-  const hasNormal = normalRange.low != null && normalRange.high != null
-  const hasOptimal = optimalRange.low != null && optimalRange.high != null
+  // A one-sided range ('< 5') counts; only the bar needs both bounds.
+  const hasNormal = normalRange.low != null || normalRange.high != null
+  const hasOptimal = optimalRange.low != null || optimalRange.high != null
 
   if (!hasNormal && !hasOptimal) {
     return (
@@ -57,12 +59,14 @@ export function ReferenceRanges({
               {getStatusLabel(status)}
             </span>
           </div>
-          <ReferenceRangeBar
-            value={latestValue}
-            low={normalRange.low!}
-            high={normalRange.high!}
-            status={status}
-          />
+          {normalRange.low != null && normalRange.high != null && (
+            <ReferenceRangeBar
+              value={latestValue}
+              low={normalRange.low}
+              high={normalRange.high}
+              status={status}
+            />
+          )}
         </div>
       )}
 
@@ -71,7 +75,7 @@ export function ReferenceRanges({
           <div className="flex items-center justify-between text-sm">
             <span className="text-muted-foreground">Normal Range</span>
             <span className="font-mono">
-              {normalRange.low} &ndash; {normalRange.high} {unit}
+              {formatRangeBounds(normalRange.low, normalRange.high)} {unit}
             </span>
           </div>
         )}
@@ -79,7 +83,7 @@ export function ReferenceRanges({
           <div className="flex items-center justify-between text-sm">
             <span className="text-muted-foreground">Optimal Range</span>
             <span className="font-mono">
-              {optimalRange.low} &ndash; {optimalRange.high} {unit}
+              {formatRangeBounds(optimalRange.low, optimalRange.high)} {unit}
             </span>
           </div>
         )}

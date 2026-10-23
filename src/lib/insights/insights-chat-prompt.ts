@@ -167,7 +167,7 @@ function formatGeneticData(snps: SnpVariant[]): string {
       let zyg = ''
       if (riskAllele) {
         const riskCount = snp.genotype.split('').filter((a) => a === riskAllele).length
-        zyg = riskCount === 0 ? 'Normal' : riskCount === 1 ? 'Heterozygous' : 'Homozygous'
+        zyg = riskCount === 0 ? 'no copy of the variant' : riskCount === 1 ? 'one copy of the variant' : 'two copies of the variant'
       }
       const desc = healthInfo?.description ?? ''
       lines.push(`- ${snp.gene_name} ${snp.variant_name ?? ''} (${snp.rsid}): ${snp.genotype} — ${zyg}${desc ? `. ${desc}` : ''}`)
@@ -389,7 +389,7 @@ function formatDexaData(ctx: DexaContext | undefined): string {
   return `Most recent DEXA scans (newest first):\n${lines.join('\n')}${goalLine}${logLine}`
 }
 
-// AUT-897: RMR (resting metabolic rate) + derived TDEE/calorie targets for the
+// RMR (resting metabolic rate) + derived TDEE/calorie targets for the
 // user's activity level. `tdee`/`fatLoss`/`leanGain` are non-null only when the
 // profile has an activity level (derived via src/lib/rmr/tdee.ts); null = no
 // activity level set, so we show the measured numbers without calorie targets.
@@ -529,6 +529,8 @@ When you add or correct blood-marker results (\`create_blood_test\` / \`add_bloo
 ## Critical Rules
 - NEVER diagnose conditions. Use "this pattern is consistent with" or "this may suggest"
 - Do NOT cause unnecessary alarm. Mildly abnormal values are often meaningless in isolation
+- Do NOT give doses or dosing schedules for supplements or medication, and never advise starting, stopping or changing a medication. Name options the user can discuss with their doctor; you may refer to doses the user already logged
+- Genetic variants are associations, one factor among many: never present a variant as a diagnosis or as a reason on its own to take something
 - When analyzing trends, consider lab-to-lab variation and different units across tests
 - End each response with: "---\\n*This is not medical advice. Consult your healthcare provider for diagnosis and treatment.*"`
 }

@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache'
 
 import { createClient } from '@/lib/supabase/server'
 import { getSessionUser } from '@/lib/supabase/session'
+import { isOwnedPath } from '@/lib/supabase/storage-path'
 import { supabaseAdmin } from '@/lib/supabase/admin'
 import { scaleTo, type Macros100 } from '@/lib/nutrition/match'
 import { manualFoodLogSchema, type ManualFoodLogInput } from '@/lib/validations/nutrition'
@@ -148,7 +149,7 @@ export async function deleteFoodLog(id: string): Promise<{ error: string | null 
 export async function getMealPhotoSignedUrl(path: string): Promise<string | null> {
   const { user } = await getSessionUser()
   // Path is namespaced as `${userId}/...`; only the owner may sign it.
-  if (!user || !path.startsWith(`${user.id}/`)) return null
+  if (!user || !isOwnedPath(user.id, path)) return null
   const { data, error } = await supabaseAdmin.storage.from('meal-photos').createSignedUrl(path, 3600)
   if (error) return null
   return data?.signedUrl ?? null

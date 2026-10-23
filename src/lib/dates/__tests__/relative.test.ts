@@ -32,7 +32,7 @@ describe('formatRelativeDate', () => {
     expect(formatRelativeDate('2026-10-18T16:00:02Z', NOW)).toBe('Today')
   })
 
-  it('puts a late-evening UTC timestamp on the Dutch calendar day (OTH-85)', () => {
+  it('puts a late-evening UTC timestamp on the Dutch calendar day', () => {
     // 21:24 UTC on 22 Jul = 23:24 in Amsterdam (same day) but 00:24 on 23 Jul
     // in Sofia. The server (UTC) and a Sofia browser must render the same text.
     expect(formatRelativeDate('2026-07-22T21:24:49.998+00:00', NOW)).toBe('22 Jul')

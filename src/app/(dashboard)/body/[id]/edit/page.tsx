@@ -1,3 +1,4 @@
+import type { Metadata } from 'next'
 import Link from 'next/link'
 import { ArrowLeft } from 'lucide-react'
 
@@ -6,6 +7,10 @@ import { PageContainer } from '@/components/layout/page-container'
 import { Button } from '@/components/ui/button'
 import { DexaEditForm } from '@/components/body/dexa-edit-form'
 import { notFoundOrAuthOutage } from '@/lib/supabase/session'
+
+export const metadata: Metadata = {
+  title: 'Edit body scan | Markerbook',
+}
 
 export default async function DexaScanEditPage({
   params,

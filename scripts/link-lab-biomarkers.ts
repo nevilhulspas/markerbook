@@ -13,10 +13,13 @@
  *   --all   match every test (default: only tests with no links yet)
  */
 
-import { config } from 'dotenv'
 import { createClient } from '@supabase/supabase-js'
 
-config({ path: '.env.local' })
+try {
+  process.loadEnvFile('.env.local')
+} catch {
+  // no .env.local: rely on the environment
+}
 
 const labId = process.argv[2]
 const matchAll = process.argv.includes('--all')
@@ -45,7 +48,7 @@ interface CatalogBiomarker {
 }
 
 async function main() {
-  // Import the engine AFTER dotenv so its top-level Anthropic client gets a key.
+  // Import the engine AFTER .env.local is loaded so its Anthropic client gets a key.
   const { matchTestsToBiomarkers } = await import(
     '../src/lib/labs/match-test-biomarkers'
   )

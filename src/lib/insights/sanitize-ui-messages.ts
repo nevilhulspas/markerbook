@@ -1,4 +1,4 @@
-// AUT-864 follow-up: defensive sanitizer applied to incoming UIMessage[]
+// Defensive sanitizer applied to incoming UIMessage[]
 // before they're handed to convertToModelMessages.
 //
 // Anthropic rejects any conversation whose assistant turn contains a
@@ -34,16 +34,23 @@ function isToolPart(p: unknown): p is TPart {
 }
 
 function isComplete(p: TPart): boolean {
-  // Both output-available and output-error produce a tool_result block in
-  // the Anthropic conversion — only the two "input-…" states are unsafe.
-  return p.state === 'output-available' || p.state === 'output-error'
+  // output-available, output-error and output-denied (the user declined an
+  // approval card) all produce a tool_result block in the Anthropic
+  // conversion — the "input-…" and unanswered approval states are unsafe.
+  return p.state === 'output-available' || p.state === 'output-error' || p.state === 'output-denied'
 }
 
 export function sanitizeUiMessages(messages: UIMessage[]): UIMessage[] {
-  return messages.map((msg) => {
+  return messages.map((msg, index) => {
     if (msg.role !== 'assistant') return msg
+    // An answered approval card (tool-approval.ts) is the reason the LAST
+    // message was re-posted: the server runs the approved tool from it. Kept
+    // there only — anywhere else it would replay a tool_use with no result.
+    const isLast = index === messages.length - 1
     const parts = (msg.parts ?? []) as unknown[]
-    const cleaned = parts.filter((p) => !isToolPart(p) || isComplete(p))
+    const cleaned = parts.filter(
+      (p) => !isToolPart(p) || isComplete(p) || (isLast && p.state === 'approval-responded')
+    )
     if (cleaned.length === parts.length) return msg
     return { ...msg, parts: cleaned as UIMessage['parts'] }
   })

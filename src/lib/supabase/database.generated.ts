@@ -185,6 +185,7 @@ export type Database = {
           archived_at: string | null
           category: string
           created_at: string
+          created_by: string | null
           description: string | null
           id: string
           is_custom: boolean
@@ -213,6 +214,7 @@ export type Database = {
           archived_at?: string | null
           category: string
           created_at?: string
+          created_by?: string | null
           description?: string | null
           id?: string
           is_custom?: boolean
@@ -241,6 +243,7 @@ export type Database = {
           archived_at?: string | null
           category?: string
           created_at?: string
+          created_by?: string | null
           description?: string | null
           id?: string
           is_custom?: boolean
@@ -1770,6 +1773,7 @@ export type Database = {
           aliases: string[]
           category: string | null
           created_at: string
+          created_by: string | null
           description: string | null
           id: string
           name: string
@@ -1780,6 +1784,7 @@ export type Database = {
           aliases?: string[]
           category?: string | null
           created_at?: string
+          created_by?: string | null
           description?: string | null
           id?: string
           name: string
@@ -1790,6 +1795,7 @@ export type Database = {
           aliases?: string[]
           category?: string | null
           created_at?: string
+          created_by?: string | null
           description?: string | null
           id?: string
           name?: string
@@ -2715,6 +2721,7 @@ export type Database = {
           blood_test_id: string
           created_at: string
           id: string
+          qualifier: string | null
           unit: string
           value: number
         }
@@ -2723,6 +2730,7 @@ export type Database = {
           blood_test_id: string
           created_at?: string
           id?: string
+          qualifier?: string | null
           unit: string
           value: number
         }
@@ -2731,6 +2739,7 @@ export type Database = {
           blood_test_id?: string
           created_at?: string
           id?: string
+          qualifier?: string | null
           unit?: string
           value?: number
         }
@@ -2896,6 +2905,18 @@ export type Database = {
           isOneToOne: false
           isSetofReturn: true
         }
+      }
+      replace_blood_test_results: {
+        Args: {
+          p_name: string
+          p_notes: string
+          p_results: Json
+          p_sample_type: string
+          p_test_date: string
+          p_test_id: string
+          p_user_id: string
+        }
+        Returns: undefined
       }
       search_nevo: {
         Args: { max_results?: number; q: string }

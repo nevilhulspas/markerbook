@@ -4,6 +4,8 @@ import { revalidatePath } from 'next/cache'
 
 import { createClient } from '@/lib/supabase/server'
 import { getSessionUser } from '@/lib/supabase/session'
+import { isOwnedPath } from '@/lib/supabase/storage-path'
+import { userErrorMessage } from '@/lib/supabase/errors'
 import { supabaseAdmin } from '@/lib/supabase/admin'
 import {
   otherExtractionSchema,
@@ -76,7 +78,15 @@ export async function updateOtherTest(
       updated_at: new Date().toISOString(),
     })
     .eq('id', id)
-  if (updateError) return { error: updateError.message }
+  if (updateError) {
+    return {
+      error: userErrorMessage(
+        'updateOtherTest update',
+        updateError,
+        'Could not save the test. Please try again.'
+      ),
+    }
+  }
 
   // Snapshot existing readings so a failed re-insert can roll back. Abort before
   // the delete if the snapshot can't be read — otherwise a later insert failure
@@ -85,7 +95,15 @@ export async function updateOtherTest(
     .from('other_test_values')
     .select('label, value, unit, flag, sort_order')
     .eq('test_id', id)
-  if (snapshotError) return { error: snapshotError.message }
+  if (snapshotError) {
+    return {
+      error: userErrorMessage(
+        'updateOtherTest snapshot',
+        snapshotError,
+        'Could not save the test. Please try again.'
+      ),
+    }
+  }
   const previous = (previousRaw ?? []) as Pick<
     OtherTestValue,
     'label' | 'value' | 'unit' | 'flag' | 'sort_order'
@@ -95,7 +113,15 @@ export async function updateOtherTest(
     .from('other_test_values')
     .delete()
     .eq('test_id', id)
-  if (deleteError) return { error: deleteError.message }
+  if (deleteError) {
+    return {
+      error: userErrorMessage(
+        'updateOtherTest delete readings',
+        deleteError,
+        'Could not save the test. Please try again.'
+      ),
+    }
+  }
 
   const rows = parsed.data.values.map((v, i) => ({
     test_id: id,
@@ -124,7 +150,13 @@ export async function updateOtherTest(
           }
         }
       }
-      return { error: insertError.message }
+      return {
+        error: userErrorMessage(
+          'updateOtherTest insert readings',
+          insertError,
+          'Could not save the test. Please try again.'
+        ),
+      }
     }
   }
 
@@ -146,12 +178,20 @@ export async function deleteOtherTest(id: string): Promise<{ error: string | nul
     .maybeSingle()
 
   const { error } = await supabase.from('other_tests').delete().eq('id', id)
-  if (error) return { error: error.message }
+  if (error) {
+    return {
+      error: userErrorMessage(
+        'deleteOtherTest',
+        error,
+        'Could not delete the test. Please try again.'
+      ),
+    }
+  }
 
   // Best-effort: remove the orphaned source file so deleted tests don't leave
   // unreachable blobs in storage. Non-fatal — the row is already gone.
   const path = (row as { pdf_storage_path: string | null } | null)?.pdf_storage_path
-  if (path && path.startsWith(`${user.id}/`)) {
+  if (path && isOwnedPath(user.id, path)) {
     const { error: rmError } = await supabaseAdmin.storage.from('lab-pdfs').remove([path])
     if (rmError) console.error('Other-test source cleanup failed:', rmError.message)
   }
@@ -168,7 +208,7 @@ export async function getOtherTestSourceUrl(
   if (!user) return { url: null, error: authError ?? 'Not authenticated' }
 
   // Paths are namespaced by user id — never sign a path outside the caller's space.
-  if (!storagePath.startsWith(`${user.id}/`)) return { url: null, error: 'Unauthorized' }
+  if (!isOwnedPath(user.id, storagePath)) return { url: null, error: 'Unauthorized' }
 
   const { data, error } = await supabaseAdmin.storage
     .from('lab-pdfs')
@@ -192,7 +232,15 @@ export async function saveOtherInterpretation(
     .from('other_tests')
     .update({ interpretation: content, interpreted_at: now, updated_at: now })
     .eq('id', id)
-  if (error) return { error: error.message }
+  if (error) {
+    return {
+      error: userErrorMessage(
+        'saveOtherInterpretation',
+        error,
+        'Could not save the interpretation. Please try again.'
+      ),
+    }
+  }
   revalidatePath(`/other/${id}`)
   return { error: null }
 }

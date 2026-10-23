@@ -261,6 +261,7 @@ export function createGridColumns(
             return (
               <GridCell
                 value={data.value}
+                qualifier={data.qualifier}
                 unit={data.unit}
                 displayUnit={row.original.biomarker.unit}
                 biomarker={row.original.biomarker}

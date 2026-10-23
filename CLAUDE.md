@@ -90,13 +90,18 @@ loggable in chat.
 
 The repo wraps the same Next.js web app as an iOS app via Capacitor 8 + Swift Package Manager. The IPA is a thin shell that loads the web app remotely from `CAPACITOR_SERVER_URL` (see [capacitor.config.ts](capacitor.config.ts)). Web changes ship with a normal deploy; **anything in `ios/` or any change to a native plugin needs a new App Store / TestFlight build**.
 
-The bundle ID and URL scheme in `ios/` (`nl.naturalheroes.bloodmarkers`, also `NATIVE_URL_SCHEME` in `src/lib/capacitor.ts`) belong to the original author's build. To ship your own app, change them together with `CAPACITOR_APP_ID`, the team in Xcode, and the redirect URL in Supabase Auth (`<scheme>://auth/callback`). See [docs/SELF_HOSTING.md](docs/SELF_HOSTING.md).
+The bundle ID and URL scheme in `ios/` (`nl.naturalheroes.bloodmarkers`, also `NATIVE_URL_SCHEME` in `src/lib/capacitor.ts`) belong to the original author's build. To ship your own app, change them together with `CAPACITOR_APP_ID`, the team in Xcode, and the redirect URL in Supabase Auth (`<scheme>://auth/callback`). The full list is in [docs/SELF_HOSTING.md](docs/SELF_HOSTING.md) ("The iOS app").
+
+`capacitor.config.ts` has no defaults: `npx cap` fails unless `CAPACITOR_SERVER_URL` and `CAPACITOR_APP_ID` are set. The Xcode project has an empty `DEVELOPMENT_TEAM`; pass `DEVELOPMENT_TEAM=$APPLE_TEAM_ID` to `xcodebuild` (or pick the team in Xcode).
 
 ### Releasing a new TestFlight build
 
 Always run from the repo root.
 
 ```bash
+# 0. Your build's values (see docs/SELF_HOSTING.md, "The iOS app")
+export CAPACITOR_SERVER_URL=https://health.example.com CAPACITOR_APP_ID=com.example.markerbook APPLE_TEAM_ID=<team id>
+
 # 1. Make sure Capacitor's gitignored runtime files exist (capacitor.config.json, config.xml, public/)
 npx cap sync ios
 
@@ -114,9 +119,11 @@ xcodebuild \
   -allowProvisioningUpdates \
   -skipPackagePluginValidation \
   -skipMacroValidation \
+  DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
   clean archive
 
-# 4. Export to .ipa (signing config in ios/App/ExportOptions.plist). Needs an
+# 4. Export to .ipa (signing config in ios/App/ExportOptions.plist; the team comes
+#    from the archive). Needs an
 #    App Store Connect API key: ASC_KEY_ID, ASC_ISSUER_ID, ASC_KEY_PATH (.p8 file).
 xcodebuild -exportArchive \
   -archivePath build/ios/App.xcarchive \

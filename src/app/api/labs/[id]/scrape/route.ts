@@ -1,12 +1,13 @@
 import { requireAdmin } from '@/lib/auth/require-admin'
 import { supabaseAdmin } from '@/lib/supabase/admin'
 import { getActiveScrapeJobId, runScrapeJob } from '@/lib/labs/run-scrape'
+import { aiNotConfiguredResponse, isAiConfigured } from '@/lib/ai/config'
 
 /**
  * Admin-only: enqueue a durable background scrape.
  *
  * Creates a `scrape_jobs` row (status 'running'), then fires {@link runScrapeJob}
- * fire-and-forget. On a persistent Node server (Dokploy) the runner keeps going
+ * fire-and-forget. On a persistent Node server (e.g. the Docker image) the runner keeps going
  * after this handler responds, writing progress + the terminal state back to the
  * job row. The client polls the row (see `getScrapeJob`) to follow along.
  *
@@ -21,6 +22,9 @@ export async function POST(
   } catch {
     return new Response('Forbidden', { status: 403 })
   }
+
+  // The scrape reads lab pages with Claude.
+  if (!isAiConfigured()) return aiNotConfiguredResponse()
 
   const { id } = await params
 

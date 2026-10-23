@@ -4,7 +4,7 @@ import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { DownloadCloud, ExternalLink, Loader2, ScrollText, Trash2 } from 'lucide-react'
 
-import { adminSetLabStatus, adminDeleteLab } from '@/actions/admin/labs'
+import { adminSetLabStatus, adminDeleteLab, type AdminLab } from '@/actions/admin/labs'
 import type { Lab, LabStatus } from '@/lib/database.types'
 import { Button } from '@/components/ui/button'
 import { TableCell, TableRow } from '@/components/ui/table'
@@ -16,7 +16,7 @@ function labLocation(lab: Lab): string {
 }
 
 interface LabTableRowProps {
-  lab: Lab
+  lab: AdminLab
   job: ScrapeJobView | undefined
   onEdit: () => void
   onManageTests: () => void
@@ -46,10 +46,9 @@ export function LabTableRow({
     setError(null)
     startTransition(async () => {
       const result = await adminSetLabStatus(lab.id, next)
-      if (result.error) {
-        setError(result.error)
-        return
-      }
+      // Refresh either way: an approval can succeed for the lab while some of
+      // its pending tests stay pending (reported in `error`).
+      if (result.error) setError(result.error)
       router.refresh()
     })
   }
@@ -91,6 +90,11 @@ export function LabTableRow({
             </option>
           ))}
         </select>
+        {lab.pendingTestCount > 0 && (
+          <p className="text-muted-foreground mt-1 text-xs">
+            {lab.pendingTestCount} test{lab.pendingTestCount === 1 ? '' : 's'} to review
+          </p>
+        )}
         {error && <p className="text-destructive mt-1 text-xs">{error}</p>}
       </TableCell>
       <TableCell>

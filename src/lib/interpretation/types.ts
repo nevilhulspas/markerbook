@@ -17,7 +17,7 @@ export interface ProfileContext {
   heightCm?: number | null
   weightKg?: number | null
   activityLevel?: string | null
-  // AUT-854: optional medical-history fields. All flow into the chat system
+  // Optional medical-history fields. All flow into the chat system
   // prompt's `## User Profile` block via formatProfile().
   extraNotes?: string | null
   bornViaCsection?: boolean | null

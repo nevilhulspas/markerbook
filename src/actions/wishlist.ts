@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache'
 
 import { getSessionUser } from '@/lib/supabase/session'
+import { userErrorMessage } from '@/lib/supabase/errors'
 import { supabaseAdmin } from '@/lib/supabase/admin'
 import {
   wishlistItemSchema,
@@ -32,7 +33,16 @@ export async function getWishlist(): Promise<
     .from('wishlist_items')
     .select('*, sources:wishlist_sources(*)')
     .eq('user_id', userId)
-  if (error) return { data: null, error: error.message }
+  if (error) {
+    return {
+      data: null,
+      error: userErrorMessage(
+        'getWishlist',
+        error,
+        'Could not load your wishlist. Please try again.'
+      ),
+    }
+  }
 
   return { data: sortWishlist((data ?? []) as WishlistItemWithSources[]), error: null }
 }
@@ -108,7 +118,16 @@ export async function updateWishlistItem(
     .update(patch)
     .eq('id', id)
     .eq('user_id', userId)
-  if (error) return { success: false, error: error.message }
+  if (error) {
+    return {
+      success: false,
+      error: userErrorMessage(
+        'updateWishlistItem',
+        error,
+        'Could not save the item. Please try again.'
+      ),
+    }
+  }
   revalidatePath('/supplements')
   return { success: true, error: null }
 }
@@ -123,7 +142,16 @@ export async function deleteWishlistItem(
     .delete()
     .eq('id', id)
     .eq('user_id', userId)
-  if (error) return { success: false, error: error.message }
+  if (error) {
+    return {
+      success: false,
+      error: userErrorMessage(
+        'deleteWishlistItem',
+        error,
+        'Could not delete the item. Please try again.'
+      ),
+    }
+  }
   revalidatePath('/supplements')
   return { success: true, error: null }
 }
@@ -197,7 +225,16 @@ export async function updateWishlistSource(
     .update(patch)
     .eq('id', sourceId)
     .eq('user_id', userId)
-  if (error) return { success: false, error: error.message }
+  if (error) {
+    return {
+      success: false,
+      error: userErrorMessage(
+        'updateWishlistSource',
+        error,
+        'Could not save the source. Please try again.'
+      ),
+    }
+  }
   revalidatePath('/supplements')
   return { success: true, error: null }
 }
@@ -212,7 +249,16 @@ export async function deleteWishlistSource(
     .delete()
     .eq('id', sourceId)
     .eq('user_id', userId)
-  if (error) return { success: false, error: error.message }
+  if (error) {
+    return {
+      success: false,
+      error: userErrorMessage(
+        'deleteWishlistSource',
+        error,
+        'Could not delete the source. Please try again.'
+      ),
+    }
+  }
   revalidatePath('/supplements')
   return { success: true, error: null }
 }

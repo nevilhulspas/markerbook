@@ -16,8 +16,8 @@ export interface HealthSnpDefinition {
 
 export const HEALTH_SNP_CATALOG: HealthSnpDefinition[] = [
   // === Methylation ===
-  { rsid: 'rs1801133', gene: 'MTHFR', variant: 'C677T', category: 'Methylation', riskAllele: 'T', description: 'Reduced folate metabolism; may need methylfolate' },
-  { rsid: 'rs1801131', gene: 'MTHFR', variant: 'A1298C', category: 'Methylation', riskAllele: 'C', description: 'Moderately reduced folate metabolism' },
+  { rsid: 'rs1801133', gene: 'MTHFR', variant: 'C677T', category: 'Methylation', riskAllele: 'T', description: 'Associated with lower activity of a folate-processing enzyme; may relate to homocysteine levels' },
+  { rsid: 'rs1801131', gene: 'MTHFR', variant: 'A1298C', category: 'Methylation', riskAllele: 'C', description: 'Associated with a modest change in folate-processing enzyme activity' },
   { rsid: 'rs1805087', gene: 'MTR', variant: 'A2756G', category: 'Methylation', riskAllele: 'G', description: 'Methionine synthase; B12 metabolism' },
   { rsid: 'rs1802059', gene: 'MTRR', variant: 'A66G', category: 'Methylation', riskAllele: 'G', description: 'Methionine synthase reductase; B12 recycling' },
   { rsid: 'rs234706', gene: 'CBS', variant: 'C699T', category: 'Methylation', riskAllele: 'T', description: 'Cystathionine beta-synthase; homocysteine pathway' },
@@ -37,15 +37,15 @@ export const HEALTH_SNP_CATALOG: HealthSnpDefinition[] = [
   { rsid: 'rs1800566', gene: 'NQO1', variant: 'P187S', category: 'Detoxification', riskAllele: 'T', description: 'NAD(P)H quinone oxidoreductase; CoQ10 activation' },
 
   // === Cardiovascular ===
-  { rsid: 'rs429358', gene: 'APOE', variant: 'ε4 (C112R)', category: 'Cardiovascular', riskAllele: 'C', description: 'Alzheimer & cardiovascular risk' },
+  { rsid: 'rs429358', gene: 'APOE', variant: 'ε4 (C112R)', category: 'Cardiovascular', riskAllele: 'C', description: 'Associated in studies with cardiovascular and Alzheimer risk' },
   { rsid: 'rs7412', gene: 'APOE', variant: 'ε2 (R158C)', category: 'Cardiovascular', riskAllele: 'T', description: 'APOE isoform determination' },
   { rsid: 'rs1799983', gene: 'NOS3', variant: 'G894T', category: 'Cardiovascular', riskAllele: 'T', description: 'Nitric oxide production; blood pressure' },
   { rsid: 'rs1800779', gene: 'NOS3', variant: 'A-922G', category: 'Cardiovascular', riskAllele: 'G', description: 'Endothelial nitric oxide synthase' },
-  { rsid: 'rs5082', gene: 'APOA2', variant: '-265T>C', category: 'Cardiovascular', riskAllele: 'C', description: 'Saturated fat sensitivity; obesity risk' },
+  { rsid: 'rs5082', gene: 'APOA2', variant: '-265T>C', category: 'Cardiovascular', riskAllele: 'C', description: 'Associated with how body weight responds to saturated fat' },
   { rsid: 'rs1800588', gene: 'LIPC', variant: 'C-514T', category: 'Cardiovascular', riskAllele: 'T', description: 'Hepatic lipase; HDL cholesterol' },
-  { rsid: 'rs1801282', gene: 'PPARG', variant: 'Pro12Ala', category: 'Cardiovascular', riskAllele: 'G', description: 'Insulin sensitivity; diabetes risk' },
-  { rsid: 'rs1799945', gene: 'HFE', variant: 'H63D', category: 'Cardiovascular', riskAllele: 'G', description: 'Iron overload (hemochromatosis)' },
-  { rsid: 'rs1800562', gene: 'HFE', variant: 'C282Y', category: 'Cardiovascular', riskAllele: 'A', description: 'Hereditary hemochromatosis (major)' },
+  { rsid: 'rs1801282', gene: 'PPARG', variant: 'Pro12Ala', category: 'Cardiovascular', riskAllele: 'G', description: 'Associated with insulin sensitivity' },
+  { rsid: 'rs1799945', gene: 'HFE', variant: 'H63D', category: 'Cardiovascular', riskAllele: 'G', description: 'Associated with iron storage; usually a small effect on its own' },
+  { rsid: 'rs1800562', gene: 'HFE', variant: 'C282Y', category: 'Cardiovascular', riskAllele: 'A', description: 'Associated with iron storage (hereditary hemochromatosis)' },
 
   // === Vitamin & Nutrient Metabolism ===
   { rsid: 'rs12785878', gene: 'DHCR7/NADSYN1', variant: 'G>T', category: 'Nutrient Metabolism', riskAllele: 'T', description: 'Vitamin D synthesis' },
@@ -54,13 +54,13 @@ export const HEALTH_SNP_CATALOG: HealthSnpDefinition[] = [
   { rsid: 'rs7041', gene: 'GC', variant: 'G>T', category: 'Nutrient Metabolism', riskAllele: 'T', description: 'Vitamin D transport' },
   { rsid: 'rs602662', gene: 'FUT2', variant: 'G>A', category: 'Nutrient Metabolism', riskAllele: 'A', description: 'B12 absorption; secretor status' },
   { rsid: 'rs492602', gene: 'FUT2', variant: 'C>T', category: 'Nutrient Metabolism', riskAllele: 'T', description: 'B12 and folate absorption' },
-  { rsid: 'rs855791', gene: 'TMPRSS6', variant: 'A736V', category: 'Nutrient Metabolism', riskAllele: 'T', description: 'Iron absorption; anemia risk' },
+  { rsid: 'rs855791', gene: 'TMPRSS6', variant: 'A736V', category: 'Nutrient Metabolism', riskAllele: 'T', description: 'Associated with iron absorption' },
   { rsid: 'rs1799998', gene: 'CYP11B2', variant: 'T-344C', category: 'Nutrient Metabolism', riskAllele: 'C', description: 'Aldosterone; sodium/potassium balance' },
 
   // === Inflammation & Immune ===
   { rsid: 'rs1800795', gene: 'IL-6', variant: 'G-174C', category: 'Inflammation', riskAllele: 'C', description: 'Interleukin-6; inflammatory response' },
   { rsid: 'rs1800629', gene: 'TNF-α', variant: 'G-308A', category: 'Inflammation', riskAllele: 'A', description: 'Tumor necrosis factor; inflammation' },
-  { rsid: 'rs1143634', gene: 'IL-1β', variant: 'C3954T', category: 'Inflammation', riskAllele: 'T', description: 'Interleukin-1 beta; chronic inflammation' },
+  { rsid: 'rs1143634', gene: 'IL-1β', variant: 'C3954T', category: 'Inflammation', riskAllele: 'T', description: 'Interleukin-1 beta; inflammatory response' },
   { rsid: 'rs20417', gene: 'PTGS2', variant: 'G-765C', category: 'Inflammation', riskAllele: 'C', description: 'COX-2; prostaglandin synthesis' },
   { rsid: 'rs1800896', gene: 'IL-10', variant: 'G-1082A', category: 'Inflammation', riskAllele: 'A', description: 'Anti-inflammatory cytokine' },
 
@@ -71,12 +71,12 @@ export const HEALTH_SNP_CATALOG: HealthSnpDefinition[] = [
   // === Neurotransmitters & Mental Health ===
   { rsid: 'rs6265', gene: 'BDNF', variant: 'Val66Met', category: 'Neurotransmitters', riskAllele: 'T', description: 'Brain-derived neurotrophic factor; mood & cognition' },
   { rsid: 'rs4570625', gene: 'TPH2', variant: 'G-703T', category: 'Neurotransmitters', riskAllele: 'T', description: 'Serotonin synthesis' },
-  { rsid: 'rs1386494', gene: 'GAD1', variant: 'C>T', category: 'Neurotransmitters', riskAllele: 'T', description: 'GABA synthesis; anxiety' },
+  { rsid: 'rs1386494', gene: 'GAD1', variant: 'C>T', category: 'Neurotransmitters', riskAllele: 'T', description: 'GABA synthesis' },
   { rsid: 'rs165599', gene: 'COMT', variant: '3′UTR', category: 'Neurotransmitters', riskAllele: 'G', description: 'COMT expression regulation' },
 
   // === Histamine & Food Sensitivity ===
   { rsid: 'rs1049793', gene: 'ABP1/AOC1', variant: 'His645Asp', category: 'Histamine', riskAllele: 'G', description: 'Diamine oxidase; histamine clearance' },
-  { rsid: 'rs10156191', gene: 'ABP1/AOC1', variant: 'Thr16Met', category: 'Histamine', riskAllele: 'T', description: 'DAO enzyme activity; histamine intolerance' },
+  { rsid: 'rs10156191', gene: 'ABP1/AOC1', variant: 'Thr16Met', category: 'Histamine', riskAllele: 'T', description: 'DAO enzyme activity; histamine breakdown' },
   { rsid: 'rs1050891', gene: 'HNMT', variant: 'Thr105Ile', category: 'Histamine', riskAllele: 'T', description: 'Histamine N-methyltransferase; intracellular histamine' },
 
   // === Oxidative Stress ===
@@ -100,11 +100,11 @@ export const HEALTH_SNP_CATALOG: HealthSnpDefinition[] = [
   { rsid: 'rs17782313', gene: 'MC4R', variant: 'T>C', category: 'Metabolism', riskAllele: 'C', description: 'Melanocortin-4 receptor; appetite and satiety signaling' },
   { rsid: 'rs174547', gene: 'FADS1', variant: 'T>C', category: 'Metabolism', riskAllele: 'T', description: 'Fatty acid desaturase; omega-3/6 conversion' },
   { rsid: 'rs1800592', gene: 'UCP1', variant: 'A>G', category: 'Metabolism', riskAllele: 'G', description: 'Uncoupling protein 1; thermogenesis and brown fat activity' },
-  { rsid: 'rs7903146', gene: 'TCF7L2', variant: 'C>T', category: 'Metabolism', riskAllele: 'T', description: 'Transcription factor 7-like 2; strongest diabetes risk gene' },
+  { rsid: 'rs7903146', gene: 'TCF7L2', variant: 'C>T', category: 'Metabolism', riskAllele: 'T', description: 'Transcription factor 7-like 2; associated with type 2 diabetes risk in studies' },
   { rsid: 'rs12255372', gene: 'TCF7L2', variant: 'G>T', category: 'Metabolism', riskAllele: 'T', description: 'TCF7L2 second variant; insulin secretion' },
-  { rsid: 'rs2943634', gene: 'IRS1', variant: 'A>C', category: 'Metabolism', riskAllele: 'C', description: 'Insulin receptor substrate 1; insulin resistance risk' },
+  { rsid: 'rs2943634', gene: 'IRS1', variant: 'A>C', category: 'Metabolism', riskAllele: 'C', description: 'Insulin receptor substrate 1; associated with insulin sensitivity' },
   { rsid: 'rs11558471', gene: 'SLC30A8', variant: 'G>A', category: 'Metabolism', riskAllele: 'A', description: 'Zinc transporter; pancreatic beta-cell function' },
-  { rsid: 'rs10830963', gene: 'MTNR1B', variant: 'C>G', category: 'Metabolism', riskAllele: 'G', description: 'Melatonin receptor 1B; fasting glucose and diabetes risk' },
+  { rsid: 'rs10830963', gene: 'MTNR1B', variant: 'C>G', category: 'Metabolism', riskAllele: 'G', description: 'Melatonin receptor 1B; associated with fasting glucose' },
   { rsid: 'rs4244372', gene: 'AMY1', variant: 'T>A', category: 'Metabolism', riskAllele: 'A', description: 'Salivary amylase; starch digestion capacity' },
   { rsid: 'rs4988235', gene: 'MCM6', variant: 'T>C', category: 'Metabolism', riskAllele: 'C', description: 'Lactase persistence; lactose tolerance/intolerance' },
 
@@ -117,17 +117,17 @@ export const HEALTH_SNP_CATALOG: HealthSnpDefinition[] = [
   { rsid: 'rs2023239', gene: 'CNR1', variant: 'C>T', category: 'Neurotransmitters', riskAllele: 'T', description: 'Cannabinoid receptor 1 second variant' },
 
   // === Cardiovascular (additional) ===
-  { rsid: 'rs10757278', gene: '9P21', variant: 'A>G', category: 'Cardiovascular', riskAllele: 'G', description: 'Chromosome 9p21; coronary artery disease risk' },
-  { rsid: 'rs10757274', gene: '9P21', variant: 'A>G', category: 'Cardiovascular', riskAllele: 'G', description: '9p21 region; myocardial infarction risk' },
-  { rsid: 'rs4977574', gene: '9P21', variant: 'A>G', category: 'Cardiovascular', riskAllele: 'G', description: '9p21 region; atherosclerosis risk' },
+  { rsid: 'rs10757278', gene: '9P21', variant: 'A>G', category: 'Cardiovascular', riskAllele: 'G', description: 'Chromosome 9p21; associated with coronary artery disease risk in studies' },
+  { rsid: 'rs10757274', gene: '9P21', variant: 'A>G', category: 'Cardiovascular', riskAllele: 'G', description: '9p21 region; associated with heart attack risk in studies' },
+  { rsid: 'rs4977574', gene: '9P21', variant: 'A>G', category: 'Cardiovascular', riskAllele: 'G', description: '9p21 region; associated with atherosclerosis in studies' },
   { rsid: 'rs599839', gene: '1P21', variant: 'G>A', category: 'Cardiovascular', riskAllele: 'A', description: 'Chromosome 1p13; LDL cholesterol levels' },
   { rsid: 'rs688', gene: 'LDLR', variant: 'C>T', category: 'Cardiovascular', riskAllele: 'T', description: 'LDL receptor; cholesterol uptake by liver' },
   { rsid: 'rs11591147', gene: 'PCSK9', variant: 'R46L', category: 'Cardiovascular', riskAllele: 'T', description: 'PCSK9 loss-of-function; lower LDL cholesterol' },
   { rsid: 'rs3812316', gene: 'MLXIPL', variant: 'Q241H', category: 'Cardiovascular', riskAllele: 'C', description: 'ChREBP; triglyceride levels' },
   { rsid: 'rs4420638', gene: 'APOE', variant: 'A>G', category: 'Cardiovascular', riskAllele: 'G', description: 'APOE cluster; Alzheimer and lipid metabolism' },
   { rsid: 'rs4343', gene: 'ACE', variant: 'A>G', category: 'Cardiovascular', riskAllele: 'G', description: 'Angiotensin-converting enzyme; blood pressure regulation' },
-  { rsid: 'rs2070788', gene: 'TMPRSS2', variant: 'A>G', category: 'Cardiovascular', riskAllele: 'G', description: 'Transmembrane serine protease; viral entry and cardiovascular' },
-  { rsid: 'rs4149056', gene: 'SLCO1B1', variant: 'V174A', category: 'Detoxification', riskAllele: 'C', description: 'Statin transporter; statin-induced myopathy risk' },
+  { rsid: 'rs2070788', gene: 'TMPRSS2', variant: 'A>G', category: 'Cardiovascular', riskAllele: 'G', description: 'Transmembrane serine protease; studied in viral entry' },
+  { rsid: 'rs4149056', gene: 'SLCO1B1', variant: 'V174A', category: 'Detoxification', riskAllele: 'C', description: 'Statin transporter; associated with muscle side effects of statins' },
 
   // === Methylation (additional) ===
   { rsid: 'rs1979277', gene: 'SHMT1', variant: 'C1420T', category: 'Methylation', riskAllele: 'A', description: 'Serine hydroxymethyltransferase; folate metabolism' },
@@ -141,9 +141,9 @@ export const HEALTH_SNP_CATALOG: HealthSnpDefinition[] = [
   { rsid: 'rs1544410', gene: 'VDR', variant: 'BsmI', category: 'Nutrient Metabolism', riskAllele: 'A', description: 'Vitamin D receptor; bone density and immune function' },
 
   // === Immune / Autoimmune ===
-  { rsid: 'rs2187668', gene: 'HLA-DQ2', variant: 'G>A', category: 'Immune', riskAllele: 'A', description: 'HLA-DQ2.5; celiac disease and autoimmune risk' },
-  { rsid: 'rs7454108', gene: 'HLA-DQ8', variant: 'T>C', category: 'Immune', riskAllele: 'C', description: 'HLA-DQ8; celiac disease and type 1 diabetes' },
-  { rsid: 'rs2395182', gene: 'HLA-DR', variant: 'G>T', category: 'Immune', riskAllele: 'T', description: 'HLA class II; autoimmune susceptibility' },
+  { rsid: 'rs2187668', gene: 'HLA-DQ2', variant: 'G>A', category: 'Immune', riskAllele: 'A', description: 'HLA-DQ2.5; associated with celiac disease (most carriers never develop it)' },
+  { rsid: 'rs7454108', gene: 'HLA-DQ8', variant: 'T>C', category: 'Immune', riskAllele: 'C', description: 'HLA-DQ8; associated with celiac disease and type 1 diabetes (most carriers never develop either)' },
+  { rsid: 'rs2395182', gene: 'HLA-DR', variant: 'G>T', category: 'Immune', riskAllele: 'T', description: 'HLA class II; associated with immune response variation' },
   { rsid: 'rs7775228', gene: 'HLA', variant: 'T>C', category: 'Immune', riskAllele: 'C', description: 'HLA region; immune response variation' },
   { rsid: 'rs33972313', gene: 'SLC23A1', variant: 'G>A', category: 'Nutrient Metabolism', riskAllele: 'A', description: 'Vitamin C transporter; ascorbic acid levels' },
 

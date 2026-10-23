@@ -1,6 +1,6 @@
 import { z } from 'zod'
 
-// AUT-854: medical-history additions are all optional. We keep these as plain
+// Medical-history additions are all optional. We keep these as plain
 // `z.string().optional()` (no `z.preprocess`) so the inferred form-values type
 // stays compatible with react-hook-form's Resolver. The form's onSubmit
 // trims/strips empty strings before calling the server action; the server
@@ -33,7 +33,7 @@ export const profileSchema = z
       'active',
       'very_active',
     ]),
-    // AUT-854 — medical history (all optional)
+    // Medical history (all optional)
     extra_notes: z.string().max(5000).optional(),
     // .nullable() rather than just .optional() — UI uses an explicit
     // yes/no/unknown tri-state and writes `null` for "unknown".
@@ -77,7 +77,7 @@ export type ProfileFormValues = z.infer<typeof profileSchema>
 // sedentary | light | moderate | active | very_active. Used by RMR -> TDEE math.
 export type ActivityLevel = NonNullable<ProfileFormValues['activity_level']>
 
-// AUT-854: medical_conditions CRUD. start_date/end_date are optional strings;
+// Medical_conditions CRUD. start_date/end_date are optional strings;
 // the server action coerces empty strings to null before insert/update.
 // Cross-field check: when both dates are present, end must be ≥ start
 // (DB enforces the same constraint).

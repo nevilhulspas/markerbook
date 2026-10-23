@@ -1,6 +1,6 @@
 'use client'
 
-// AUT-854: per-user list of previous/ongoing medical conditions. Each entry
+// Per-user list of previous/ongoing medical conditions. Each entry
 // has an optional start/end date pair (null end_date = ongoing) and optional
 // free-text notes. Add via inline dialog, edit/delete per row.
 

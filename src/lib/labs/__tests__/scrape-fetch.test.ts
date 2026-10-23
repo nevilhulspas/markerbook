@@ -1,5 +1,11 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 
+// The real transport pins DNS through undici; these tests drive the redirect
+// and size logic through a mocked global fetch instead.
+vi.mock('../pinned-fetch', () => ({
+  pinnedFetch: (url: URL, init: RequestInit) => globalThis.fetch(url, init),
+}))
+
 // Stub server-only so the module loads in vitest (no Next runtime).
 vi.mock('server-only', () => ({}))
 // Stub analyze-homepage so importing scrape.ts doesn't construct the Anthropic

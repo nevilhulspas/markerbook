@@ -4,7 +4,7 @@ import WebKit
 
 /// Capacitor bridge view controller that restores the saved login cookies into
 /// the WebView's cookie store **before** the first page load, so the Supabase
-/// session is present on the very first request after an app restart (AUT-919).
+/// session is present on the very first request after an app restart.
 ///
 /// Capacitor mirrors every cookie change into the persistent
 /// `HTTPCookieStorage.shared` (see `CapacitorWKCookieObserver`, registered

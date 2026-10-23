@@ -1,5 +1,6 @@
 import type { FoodLog, MealType } from '@/lib/database.types'
 import { bucketMealTime } from './parse'
+import { appTodayISO } from '@/lib/dates/today'
 
 export interface MacroTotals {
   calories: number
@@ -88,12 +89,13 @@ export function groupDayIntoMealSections(dayLogs: FoodLog[]): MealSection[] {
   return sections
 }
 
-/** yyyy-mm-dd in the runtime's local timezone. */
+/**
+ * yyyy-mm-dd on the app's calendar (APP_TIME_ZONE). Not the runtime's zone:
+ * the page groups on the server, which runs in UTC, so a meal at 00:30 in
+ * Amsterdam landed on the day before.
+ */
 export function localDayKey(d: Date): string {
-  const y = d.getFullYear()
-  const m = String(d.getMonth() + 1).padStart(2, '0')
-  const day = String(d.getDate()).padStart(2, '0')
-  return `${y}-${m}-${day}`
+  return appTodayISO(d)
 }
 
 export function sumMacros(logs: FoodLog[]): MacroTotals {
@@ -108,7 +110,7 @@ export function sumMacros(logs: FoodLog[]): MacroTotals {
   )
 }
 
-/** Groups logs by local calendar day, newest day first. Assumes each log's
+/** Groups logs by app calendar day (see localDayKey), newest day first. Assumes each log's
  *  `entry_date` is a full ISO timestamp (the insert paths call toISOString()),
  *  not a bare yyyy-mm-dd — date-only strings would parse as UTC midnight and
  *  could misgroup in western timezones. */

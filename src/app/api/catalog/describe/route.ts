@@ -10,6 +10,7 @@ import { getAnthropic } from '@/lib/ai/client'
 import { REASONING_MODEL } from '@/lib/ai/models'
 import { toTextStreamResponse } from '@/lib/ai/text-stream-response'
 import { aiLimitResponse, takeAiRequest } from '@/lib/ai/quota'
+import { aiNotConfiguredResponse, isAiConfigured } from '@/lib/ai/config'
 
 const bodySchema = z.object({
   markerId: z.string().uuid(),
@@ -22,7 +23,7 @@ const bodySchema = z.object({
  * The description is shown to every user, so the browser only says which
  * marker to describe: the prompt is built from catalogue data read here, and
  * the server stores the model's own text once it is complete. Nothing a client
- * sends can end up in the shared text (OTH-79).
+ * sends can end up in the shared text.
  */
 export async function POST(request: Request): Promise<Response> {
   // Auth check
@@ -34,6 +35,7 @@ export async function POST(request: Request): Promise<Response> {
   if (!user) {
     return new Response('Unauthorized', { status: 401 })
   }
+  if (!isAiConfigured()) return aiNotConfiguredResponse()
 
   let parsed: z.infer<typeof bodySchema>
   try {

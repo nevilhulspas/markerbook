@@ -1,5 +1,11 @@
+import type { Metadata } from 'next'
+
 import { getSuggestions } from '@/actions/admin/suggestions'
 import { SuggestionQueue } from '@/components/admin/suggestion-queue'
+
+export const metadata: Metadata = {
+  title: 'Admin · Suggestions | Markerbook',
+}
 
 export default async function SuggestionsPage() {
   const { data: suggestions, error } = await getSuggestions({})

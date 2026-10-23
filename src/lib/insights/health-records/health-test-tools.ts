@@ -160,6 +160,7 @@ export function createHealthTestTools(supabase: TypedSupabaseClient, userId: str
           .describe('DUTCH only.'),
         values: z.record(z.string(), z.number().nullable()).optional().describe('Numeric fields to set (whitelisted per type).'),
       }),
+      needsApproval: true,
       execute: async ({ type, id, date, values, ...rest }) => {
         const { table, dateColumn } = HEALTH_TEST_TABLES[type]
         const allowedMeta: Record<HealthTestType, string[]> = {
@@ -208,6 +209,7 @@ export function createHealthTestTools(supabase: TypedSupabaseClient, userId: str
         type: z.enum(['dexa', 'microbiome', 'dutch', 'rmr']),
         id: z.string(),
       }),
+      needsApproval: true,
       execute: async ({ type, id }) => {
         const { table, dateColumn } = HEALTH_TEST_TABLES[type]
         const { data: existing, error: lookupError } = await supabase

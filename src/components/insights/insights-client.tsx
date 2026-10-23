@@ -64,6 +64,7 @@ import { Button } from '@/components/ui/button'
 import { ThreadList } from './thread-list'
 import { ThreadSidebar } from './thread-sidebar'
 import { InsightsChat } from './insights-chat'
+import type { ToolAnswer } from './interactive-tool-part'
 
 interface InsightsClientProps {
   threads: ChatThread[]
@@ -77,6 +78,8 @@ interface InsightsClientProps {
   otherTests: OtherTestContext[]
   rmrContext: RmrContext | null
   isAdmin: boolean
+  /** False when the server has no Anthropic API key: the chat input is off. */
+  aiEnabled: boolean
   /** When set (e.g. from /insights?thread=…), open this thread on mount. */
   initialThreadId?: string | null
 }
@@ -93,6 +96,7 @@ export function InsightsClient({
   otherTests,
   rmrContext,
   isAdmin,
+  aiEnabled,
   initialThreadId,
 }: InsightsClientProps) {
   const [threads, setThreads] = useState(initialThreads)
@@ -117,7 +121,7 @@ export function InsightsClient({
   // late createThread must not hijack a switch the user made in the meantime.
   const threadOpRef = useRef(0)
 
-  // Per-thread Chat instances (OTH-21). The page shows ONE thread at a time, but
+  // Per-thread Chat instances. The page shows ONE thread at a time, but
   // a thread's response must keep streaming after the user switches away. Each
   // thread gets its own AI-SDK Chat — which owns the stream lifecycle (fetch +
   // job executor) independent of the React hook — so background threads keep
@@ -136,7 +140,7 @@ export function InsightsClient({
   const generatingRef = useRef(new Set<string>())
 
   // Threads whose answer is being waited for in the database because their
-  // stream died (OTH-40). Shown exactly like generating — the reply really is
+  // stream died. Shown exactly like generating — the reply really is
   // still on its way — and cancelled by the composer's stop button.
   const [recoveringThreadIds, setRecoveringThreadIds] = useState<Set<string>>(new Set())
   /** Cancel flags for the polls in flight, keyed by thread id. */
@@ -331,7 +335,7 @@ export function InsightsClient({
           console.error('[insights-chat] stream error:', error)
           // The connection dropped, not the server complaining — the answer is
           // still being written and will be saved. Wait for it instead of
-          // leaving the user with a raw "Load failed" (OTH-40).
+          // leaving the user with a raw "Load failed".
           if (isConnectionFailure(error)) void recoverThread(threadId, { showBusy: true })
         },
       })
@@ -445,7 +449,7 @@ export function InsightsClient({
   )
 
   const handleNewThread = useCallback(async () => {
-    // No chat.stop() — other threads keep streaming in the background (OTH-21).
+    // No chat.stop() — other threads keep streaming in the background.
     const gen = ++threadOpRef.current
     const result = await createThread()
     // A newer switch/new-thread happened while creating — don't hijack it.
@@ -686,13 +690,15 @@ export function InsightsClient({
     [markerHistory, profile, supplements, geneticSnps, dutchContext, microbiomeTests, otherTests, rmrContext]
   )
 
-  // Resolve an interactive `ask_user` tool call with the user's selection; the
-  // chat then auto-continues (see sendAutomaticallyWhen).
+  // Resolve an interactive `ask_user` tool call with the user's selection, or
+  // an approval card with the user's Confirm/Cancel; the chat then
+  // auto-continues (see sendAutomaticallyWhen).
   const handleToolAnswer = useCallback(
-    (
-      toolCallId: string,
-      answer: string | string[] | { choice: 'logged'; href: string } | { choice: 'chat-only' }
-    ) => {
+    (toolCallId: string, answer: ToolAnswer) => {
+      if (typeof answer === 'object' && !Array.isArray(answer) && 'approvalId' in answer) {
+        void chat.addToolApprovalResponse({ id: answer.approvalId, approved: answer.approved })
+        return
+      }
       const tool =
         typeof answer === 'object' && !Array.isArray(answer)
           ? 'confirm_health_document_index'
@@ -715,7 +721,7 @@ export function InsightsClient({
     chat.stop() // ends this browser's stream
     if (activeThreadId) {
       stopRecovery(activeThreadId) // …and any wait for a dropped answer
-      // …and tells the server to stop generating (OTH-41). Aborting the
+      // …and tells the server to stop generating. Aborting the
       // request alone cannot do that: the server treats a vanished client as a
       // dropped connection and keeps the answer coming, on purpose. Fire and
       // forget — a stop that fails leaves the run to finish as it used to.
@@ -760,6 +766,7 @@ export function InsightsClient({
           onToolAnswer={handleToolAnswer}
           onNewThread={handleNewThread}
           isAdmin={isAdmin}
+          aiEnabled={aiEnabled}
         />
       </div>
     </div>

@@ -152,6 +152,7 @@ export function createStackTools(supabase: TypedSupabaseClient, userId: string) 
         start_date: z.string().date().optional(),
         end_date: z.string().date().nullable().optional(),
       }),
+      needsApproval: true,
       execute: async ({ id, intakes, ...patch }) => {
         const clean = omitUndefined(patch)
         if (Object.keys(clean).length === 0 && intakes === undefined) {
@@ -172,6 +173,7 @@ export function createStackTools(supabase: TypedSupabaseClient, userId: string) 
     remove_supplement: tool({
       description: "Remove a supplement from the stack by its id (anything returned by list_stack — active, upcoming/scheduled OR stopped). Use only when the user asks to delete/cancel it.",
       inputSchema: z.object({ id: z.string() }),
+      needsApproval: true,
       execute: async ({ id }) => {
         const { error } = await supabase.from('supplements').delete().eq('id', id).eq('user_id', userId)
         return error ? { error: error.message } : { removed: id }
@@ -248,6 +250,7 @@ export function createStackTools(supabase: TypedSupabaseClient, userId: string) 
         priority: z.enum(['high', 'medium', 'low']).nullable().optional(),
         notes: z.string().optional(),
       }),
+      needsApproval: true,
       execute: async ({ id, ...patch }) => {
         const clean = omitUndefined(patch)
         if (Object.keys(clean).length === 0) return { error: 'No fields to update.' }
@@ -259,6 +262,7 @@ export function createStackTools(supabase: TypedSupabaseClient, userId: string) 
     remove_from_wishlist: tool({
       description: "Remove a wishlist item (and its sources) by its id. Use only when the user asks to delete it.",
       inputSchema: z.object({ id: z.string() }),
+      needsApproval: true,
       execute: async ({ id }) => {
         const { error } = await supabase.from('wishlist_items').delete().eq('id', id).eq('user_id', userId)
         return error ? { error: error.message } : { removed: id }

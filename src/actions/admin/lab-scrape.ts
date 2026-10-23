@@ -3,6 +3,8 @@
 import 'server-only'
 import { revalidatePath } from 'next/cache'
 import { requireAdmin } from '@/lib/auth/require-admin'
+import { isAiConfigured } from '@/lib/ai/config'
+import { AI_NOT_CONFIGURED_MESSAGE } from '@/lib/ai/messages'
 import { getActiveScrapeJobId, runLabScrape } from '@/lib/labs/run-scrape'
 
 export interface AdminScrapeLabResult {
@@ -15,7 +17,8 @@ export interface AdminScrapeLabResult {
 /**
  * Admin-only: scrape a lab's website, extract its profile + offered tests via
  * an LLM, and auto-save the results (fill empty profile fields + insert new
- * tests as status 'approved'). Expected failures are returned as `{ error }`;
+ * tests, 'approved' for an approved lab and 'pending' for a lab still waiting
+ * for review). Expected failures are returned as `{ error }`;
  * only requireAdmin may throw (for non-admins). The actual pipeline lives in
  * {@link runLabScrape}, which throws on expected failures — this action
  * translates those throws into the `{ error }` contract.
@@ -24,6 +27,10 @@ export async function adminScrapeLab(
   labId: string
 ): Promise<AdminScrapeLabResult> {
   await requireAdmin()
+
+  if (!isAiConfigured()) {
+    return { inserted: 0, skipped: 0, profileUpdated: false, error: AI_NOT_CONFIGURED_MESSAGE }
+  }
 
   // Don't run alongside an in-flight durable scrape for the same lab — both
   // would race runLabScrape's non-atomic test dedupe and insert duplicate rows.

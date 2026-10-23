@@ -1,6 +1,7 @@
 import { tool } from 'ai'
 import { z } from 'zod'
 import type { TypedSupabaseClient } from '@/lib/supabase/database'
+import { isOwnedAttachment } from '@/lib/supabase/storage-path'
 
 import { normalizeUnit } from '@/lib/grid/unit-conversion'
 import type { Biomarker, ChatAttachment } from '@/lib/database.types'
@@ -29,7 +30,10 @@ export function createBloodTestTools(
       .is('archived_at', null)
     // Fail loud: a silent [] would send every marker through LOINC resolution and
     // could capture a duplicate of an existing (null-loinc_code) catalog row.
-    if (error) throw new Error(`Failed to load biomarker catalog: ${error.message}`)
+    if (error) {
+      console.error('[blood-test-tools] load biomarker catalog failed:', error)
+      throw new Error('Could not load the marker list. Please try again.')
+    }
     return (data ?? []) as Biomarker[]
   }
 
@@ -129,7 +133,7 @@ export function createBloodTestTools(
           }
         }
 
-        const { resolved, unmatched, custom } = await resolveMarkerInputsViaLoinc(markers, await loadCatalog(), supabase)
+        const { resolved, unmatched, custom } = await resolveMarkerInputsViaLoinc(markers, await loadCatalog(), supabase, userId)
         if (resolved.length === 0) {
           return { error: 'None of the markers could be saved (empty names or a database error).', unmatched }
         }
@@ -178,11 +182,26 @@ export function createBloodTestTools(
         testId: z.string(),
         markers: z.array(markerInputSchema).min(1),
       }),
+      // Adding new markers runs straight away; REPLACING a stored value waits
+      // for the user's OK. Any doubt also asks: a failed lookup, or a name the
+      // catalogue match misses while the test already has results (execute
+      // resolves it further via LOINC, which may land on a stored marker).
+      needsApproval: async ({ testId, markers }) => {
+        try {
+          const { resolved, unmatched } = resolveMarkerInputs(markers, await loadCatalog())
+          let query = supabase.from('test_results').select('id').eq('blood_test_id', testId)
+          if (unmatched.length === 0) query = query.in('biomarker_id', resolved.map((m) => m.biomarker_id))
+          const { data, error } = await query.limit(1)
+          return error !== null || (data ?? []).length > 0
+        } catch {
+          return true
+        }
+      },
       execute: async ({ testId, markers }) => {
         const test = await ownBloodTest(testId)
         if (!test) return { error: 'Blood test not found.' }
 
-        const { resolved, unmatched, custom } = await resolveMarkerInputsViaLoinc(markers, await loadCatalog(), supabase)
+        const { resolved, unmatched, custom } = await resolveMarkerInputsViaLoinc(markers, await loadCatalog(), supabase, userId)
         if (resolved.length === 0) {
           return { error: 'None of the markers could be saved (empty names or a database error).', unmatched }
         }
@@ -229,6 +248,7 @@ export function createBloodTestTools(
         testId: z.string(),
         markerNames: z.array(z.string().min(1)).min(1),
       }),
+      needsApproval: true,
       execute: async ({ testId, markerNames }) => {
         const test = await ownBloodTest(testId)
         if (!test) return { error: 'Blood test not found.' }
@@ -270,6 +290,7 @@ export function createBloodTestTools(
         sample_type: z.enum(['serum', 'plasma', 'unknown']).optional(),
         notes: z.string().max(1000).nullable().optional(),
       }),
+      needsApproval: true,
       execute: async ({ testId, ...patch }) => {
         const clean = Object.fromEntries(Object.entries(patch).filter(([, v]) => v !== undefined))
         if (Object.keys(clean).length === 0) return { error: 'No fields to update.' }
@@ -289,6 +310,7 @@ export function createBloodTestTools(
       description:
         'Delete a whole blood test and ALL its marker results. IRREVERSIBLE — only after the user explicitly confirmed deleting THIS test (restate its name + date first).',
       inputSchema: z.object({ testId: z.string() }),
+      needsApproval: true,
       execute: async ({ testId }) => {
         const test = await ownBloodTest(testId)
         if (!test) return { error: 'Blood test not found.' }
@@ -318,10 +340,11 @@ export function createBloodTestTools(
           .optional()
           .describe('Which attachment on the message (0-based). Defaults to the last one.'),
       }),
+      needsApproval: true,
       execute: async ({ recordType, recordId, attachmentIndex }) => {
         const att = attachments[attachmentIndex ?? attachments.length - 1]
         if (!att) return { error: 'No file attached to this message.' }
-        if (!att.storagePath.startsWith(`${userId}/`)) {
+        if (!isOwnedAttachment(userId, att)) {
           return { error: 'This file is not authorized for your account.' }
         }
         const table = recordType === 'blood' ? 'blood_tests' : HEALTH_TEST_TABLES[recordType].table

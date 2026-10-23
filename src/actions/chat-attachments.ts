@@ -9,6 +9,7 @@ import {
 } from '@/lib/health-documents/media-type'
 import { getHealthDocumentType } from '@/lib/health-documents/registry'
 import type { ChatDocumentExtractionRow } from '@/lib/database.types'
+import { isOwnedPath } from '@/lib/supabase/storage-path'
 
 const ACCEPTED = new Set([
   'application/pdf', 'image/jpeg', 'image/png', 'image/webp', 'image/gif',
@@ -56,7 +57,7 @@ export async function uploadChatAttachment(formData: FormData): Promise<UploadCh
 export async function getChatAttachmentUrl(storagePath: string): Promise<string | null> {
   const { user } = await getSessionUser()
   if (!user) return null
-  if (!storagePath.startsWith(`${user.id}/chat/`)) return null
+  if (!isOwnedChatPath(user.id, storagePath)) return null
 
   const { data } = await supabaseAdmin.storage
     .from('lab-pdfs')
@@ -70,10 +71,15 @@ export async function deleteChatAttachment(storagePaths: string[]): Promise<void
   const { user } = await getSessionUser()
   if (!user) return
 
-  const safe = storagePaths.filter((p) => p.startsWith(`${user.id}/chat/`))
+  const safe = storagePaths.filter((p) => isOwnedChatPath(user.id, p))
   if (safe.length > 0) {
     await supabaseAdmin.storage.from('lab-pdfs').remove(safe)
   }
+}
+
+/** A path inside the caller's own chat folder (see isOwnedPath). */
+function isOwnedChatPath(userId: string, path: string): boolean {
+  return isOwnedPath(userId, path) && path.startsWith(`${userId}/chat/`)
 }
 
 export type PersistChatDocumentResult =
@@ -92,6 +98,9 @@ export async function persistChatDocument(extractionId: string): Promise<Persist
     .single<ChatDocumentExtractionRow>()
 
   if (!row || row.user_id !== user.id) return { success: false, error: 'Extraction not found' }
+  if (!isOwnedPath(user.id, row.storage_path)) {
+    return { success: false, error: 'This file is not authorized for your account.' }
+  }
 
   const type = getHealthDocumentType(row.document_type)
   if (!type) return { success: false, error: `Unknown document type: ${row.document_type}` }

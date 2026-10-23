@@ -2,6 +2,8 @@ import 'server-only'
 
 import { siteUrl } from '@/lib/site-url'
 
+import { guardedFetch, readBounded } from './guarded-fetch'
+
 /** Product token the lab scraper sends and looks for in robots.txt groups. */
 export const LAB_BOT_TOKEN = 'MarkerbookLabBot'
 export const LAB_BOT_USER_AGENT = `${LAB_BOT_TOKEN}/1.0 (+${siteUrl()})`
@@ -95,18 +97,20 @@ async function loadRules(origin: string): Promise<Rule[] | null> {
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), ROBOTS_TIMEOUT_MS)
   try {
-    const res = await fetch(`${origin}/robots.txt`, {
+    // Same SSRF guard on every redirect hop as the page fetches.
+    const fetched = await guardedFetch(`${origin}/robots.txt`, {
       signal: controller.signal,
-      redirect: 'follow',
       headers: { 'User-Agent': LAB_BOT_USER_AGENT, Accept: 'text/plain' },
     })
+    if (!fetched) return null
+    const { res } = fetched
     // RFC 9309 §2.3.1: 4xx means no rules; 5xx means assume a full disallow.
     if (res.status >= 400 && res.status < 500) return []
     if (!res.ok) return null
-    const text = (await res.text()).slice(0, MAX_ROBOTS_BYTES)
+    const text = res.body ? await readBounded(res.body, MAX_ROBOTS_BYTES) : ''
     return parseRobots(text)
   } catch {
-    // Unreachable robots.txt is treated like a 5xx.
+    // Unreachable (or SSRF-blocked) robots.txt is treated like a 5xx.
     return null
   } finally {
     clearTimeout(timer)

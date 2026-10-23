@@ -2,11 +2,14 @@ import { supabaseAdmin } from '@/lib/supabase/admin'
 import { commitCapture, commitCustomCapture } from '@/lib/loinc/resolve'
 import { normalizeUnit } from '@/lib/grid/unit-conversion'
 import type { MarkerEntryValues } from '@/lib/validations/blood-test'
+import type { ResultQualifier } from '@/lib/blood-tests/qualifier'
 
 /** A submitted marker entry once it has a catalog biomarker id. */
 export interface ResolvedMarker {
   biomarker_id: string
   value: number
+  /** '<' / '>' etc., or null for a plain value. */
+  qualifier: ResultQualifier | null
   unit: string
 }
 
@@ -17,6 +20,8 @@ export interface ResolveEntriesOptions {
    * false, commitCapture runs once per entry, repeated codes included.
    */
   dedupeLoincCodes: boolean
+  /** The signed-in user saving the test; recorded on new catalogue rows. */
+  createdBy?: string | null
 }
 
 /**
@@ -27,7 +32,8 @@ export interface ResolveEntriesOptions {
  * Captures run one at a time and stop at the first failure, so a caller that
  * resolves before mutating anything leaves the test untouched on error.
  * Entries sharing a custom name (trimmed, case-insensitive) always reuse one
- * biomarker id.
+ * biomarker id. New catalogue rows are shared, so the entry's unit and printed
+ * range stay on the user's result and are not copied into them.
  */
 export async function resolveMarkerEntries(
   entries: MarkerEntryValues[],
@@ -41,7 +47,7 @@ export async function resolveMarkerEntries(
   const capturedByName = new Map<string, string>()
   for (const marker of entries) {
     if (marker.biomarker_id) {
-      resolved.push({ biomarker_id: marker.biomarker_id, value: marker.value, unit: marker.unit })
+      resolved.push({ biomarker_id: marker.biomarker_id, value: marker.value, qualifier: marker.qualifier ?? null, unit: marker.unit })
     } else if (marker.capture_loinc_code) {
       let biomarkerId = options.dedupeLoincCodes
         ? capturedByCode.get(marker.capture_loinc_code)
@@ -50,8 +56,8 @@ export async function resolveMarkerEntries(
         try {
           biomarkerId = await commitCapture(
             marker.capture_loinc_code,
-            { name: marker.name, unit: marker.unit, ref_range_low: marker.ref_range_low, ref_range_high: marker.ref_range_high },
-            { db: supabaseAdmin },
+            { name: marker.name, unit: marker.unit },
+            { db: supabaseAdmin, createdBy: options.createdBy },
           )
         } catch (err) {
           return {
@@ -61,7 +67,7 @@ export async function resolveMarkerEntries(
         }
         if (options.dedupeLoincCodes) capturedByCode.set(marker.capture_loinc_code, biomarkerId)
       }
-      resolved.push({ biomarker_id: biomarkerId, value: marker.value, unit: marker.unit })
+      resolved.push({ biomarker_id: biomarkerId, value: marker.value, qualifier: marker.qualifier ?? null, unit: marker.unit })
     } else if (marker.capture_custom) {
       // name is required for custom entries (schema-enforced).
       const key = marker.name!.trim().toLowerCase()
@@ -69,8 +75,8 @@ export async function resolveMarkerEntries(
       if (!biomarkerId) {
         try {
           biomarkerId = await commitCustomCapture(
-            { name: marker.name!, unit: marker.unit, ref_range_low: marker.ref_range_low, ref_range_high: marker.ref_range_high },
-            { db: supabaseAdmin },
+            { name: marker.name!, unit: marker.unit },
+            { db: supabaseAdmin, createdBy: options.createdBy },
           )
         } catch (err) {
           return {
@@ -80,7 +86,7 @@ export async function resolveMarkerEntries(
         }
         capturedByName.set(key, biomarkerId)
       }
-      resolved.push({ biomarker_id: biomarkerId, value: marker.value, unit: marker.unit })
+      resolved.push({ biomarker_id: biomarkerId, value: marker.value, qualifier: marker.qualifier ?? null, unit: marker.unit })
     }
     // entries with none of biomarker_id / capture_loinc_code / capture_custom are rejected by the schema refine
   }
@@ -135,12 +141,15 @@ export function toCanonicalUnit(
 export async function buildResultRows(
   bloodTestId: string,
   markers: ResolvedMarker[]
-): Promise<Array<{ blood_test_id: string; biomarker_id: string; value: number; unit: string }>> {
+): Promise<
+  Array<{ blood_test_id: string; biomarker_id: string; value: number; qualifier: ResultQualifier | null; unit: string }>
+> {
   const canonicalUnits = await fetchCanonicalUnits(markers.map((m) => m.biomarker_id))
   return markers.map((marker) => ({
     blood_test_id: bloodTestId,
     biomarker_id: marker.biomarker_id,
     value: marker.value,
+    qualifier: marker.qualifier,
     unit: toCanonicalUnit(canonicalUnits, marker.biomarker_id, marker.unit),
   }))
 }

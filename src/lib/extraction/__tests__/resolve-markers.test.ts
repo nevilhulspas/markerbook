@@ -1,4 +1,7 @@
 import { describe, it, expect, vi } from 'vitest'
+
+vi.mock('server-only', () => ({}))
+vi.mock('@/lib/ai/quota', () => ({ takeAiRequest: async () => ({ ok: true }) }))
 import type { Biomarker } from '@/lib/database.types'
 import type { ExtractedMarker } from '../types'
 import type { ResolveDeps } from '../resolve-markers'

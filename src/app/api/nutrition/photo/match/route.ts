@@ -26,8 +26,9 @@ export async function POST(req: Request): Promise<Response> {
     return Response.json({ error: 'Invalid JSON' }, { status: 400 })
   }
 
-  const query = (body.query ?? '').trim()
+  const query = typeof body.query === 'string' ? body.query.trim() : ''
   if (!query) return Response.json({ error: 'Missing "query"' }, { status: 400 })
+  if (query.length > 200) return Response.json({ error: '"query" is too long' }, { status: 400 })
 
   const deps = await buildPhotoMatchDeps(userId)
   try {

@@ -105,7 +105,7 @@ export function resolveBestMatch<T>(
   return { ambiguous: scored.slice(0, 5).map((s) => s.row) }
 }
 
-// ---- sample-type disambiguation (AUT-854 follow-up) ----
+// ---- sample-type disambiguation ----
 //
 // The biomarker catalogue distinguishes sample-specific variants by name
 // (e.g. "Cortisol" vs "Cortisol (Saliva)", "DHEA-S" vs "DHEA-S (Urine)").

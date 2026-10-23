@@ -1,6 +1,7 @@
 import { tool } from 'ai'
 import { z } from 'zod'
 import type { TypedSupabaseClient } from '@/lib/supabase/database'
+import { isOwnedPath } from '@/lib/supabase/storage-path'
 
 // `read_test_document` — lets the chat model pull the ORIGINAL uploaded document
 // for a stored test (blood, DEXA, microbiome, DUTCH, RMR, or "other") and see it
@@ -72,7 +73,7 @@ export function createDocumentReadTools(supabase: TypedSupabaseClient, userId: s
         const path = (row as { pdf_storage_path: string | null }).pdf_storage_path
         if (!path) return { error: `This ${label} has no uploaded document to read (it was entered manually).` }
         // Never read a path outside the caller's own namespace.
-        if (!path.startsWith(`${userId}/`)) return { error: 'Unauthorized document path.' }
+        if (!isOwnedPath(userId, path)) return { error: 'Unauthorized document path.' }
         return { ok: true, path, mediaType: mediaTypeForPath(path), filename: path.split('/').pop() ?? 'document' }
       },
       toModelOutput: async ({ output }) => {

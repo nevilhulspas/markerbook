@@ -1,7 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
+// AI routes and actions refuse to run without a key (isAiConfigured).
+vi.stubEnv('ANTHROPIC_API_KEY', 'test-key')
 // The per-user AI limit has its own tests (src/lib/ai/__tests__/quota.test.ts).
 vi.mock('@/lib/ai/quota', () => ({
   takeAiRequest: async () => ({ ok: true }),
+  countedAiCall: (_userId: string, fn: unknown) => fn,
   aiLimitResponse: (error: string) => Response.json({ error }, { status: 429 }),
   AI_LIMIT_REACHED: 'limit',
 }))
@@ -273,9 +276,7 @@ describe('POST /api/nutrition/log library load', () => {
     spy.mockRestore()
   })
 
-  it('accepts the token as a ?token= query parameter', async () => {
-    const from = await mockedFrom()
-    from.mockImplementation(() => fakeQuery({ data: [], error: null }, []))
+  it('ignores a token in the URL (it would end up in logs)', async () => {
     mockLogSubmission.mockResolvedValue(logged)
 
     const req = new Request('http://localhost/api/nutrition/log?token=tok-1', {
@@ -284,10 +285,7 @@ describe('POST /api/nutrition/log library load', () => {
       body: JSON.stringify({ food: 'oat bar' }),
     })
     const res = await POST(req)
-    expect(res.status).toBe(200)
-    expect(mockLogSubmission).toHaveBeenCalledWith(
-      expect.anything(),
-      expect.objectContaining({ userId: 'user-1', source: 'shortcut' })
-    )
+    expect(res.status).toBe(401)
+    expect(mockLogSubmission).not.toHaveBeenCalled()
   })
 })

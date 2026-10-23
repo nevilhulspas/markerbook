@@ -63,7 +63,7 @@ function MessageActions({
  * Memoized: only the streaming message re-renders per token; completed messages
  * skip re-render (and the expensive markdown re-parse) entirely. `onToolAnswer`
  * and `onRetry` must stay referentially stable in the parent for memo to hold.
- * (AUT-898)
+ *
  */
 export const AssistantMessage = memo(function AssistantMessage({
   message,

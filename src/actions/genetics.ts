@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache'
 
 import { getSessionUser } from '@/lib/supabase/session'
+import { userErrorMessage } from '@/lib/supabase/errors'
 import { supabaseAdmin } from '@/lib/supabase/admin'
 import type { GeneticProfile, SnpVariant } from '@/lib/database.types'
 import { parseRawGeneticsFile, parseXlsxGeneticsFile } from '@/lib/genetics/parse-raw'
@@ -23,7 +24,16 @@ export async function getGeneticProfile(): Promise<
     .limit(1)
     .maybeSingle()
 
-  if (error) return { data: null, error: error.message }
+  if (error) {
+    return {
+      data: null,
+      error: userErrorMessage(
+        'getGeneticProfile',
+        error,
+        'Could not load your genetic profile. Please try again.'
+      ),
+    }
+  }
   return { data: data as GeneticProfile | null, error: null }
 }
 
@@ -52,7 +62,16 @@ export async function getHealthRelevantSnps(): Promise<
     .not('gene_name', 'is', null)
     .order('category')
 
-  if (error) return { data: null, error: error.message }
+  if (error) {
+    return {
+      data: null,
+      error: userErrorMessage(
+        'getHealthRelevantSnps',
+        error,
+        'Could not load your genetic variants. Please try again.'
+      ),
+    }
+  }
   return { data: (data ?? []) as SnpVariant[], error: null }
 }
 
@@ -90,7 +109,9 @@ export async function importRawGenetics(
   }
 
   // Upload original file to storage
-  const ext = file.name.split('.').pop() ?? 'txt'
+  // The extension comes from the user's file name: keep it to the characters
+  // a storage path may hold (see isOwnedPath).
+  const ext = (file.name.split('.').pop() ?? '').toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 10) || 'txt'
   const storagePath = `${user.id}/genetics/${crypto.randomUUID()}.${ext}`
   await supabaseAdmin.storage
     .from('lab-pdfs')
@@ -150,7 +171,14 @@ export async function importRawGenetics(
     if (insertError) {
       // Clean up on failure
       await supabaseAdmin.from('genetic_profiles').delete().eq('id', profile.id)
-      return { success: false, error: `Failed to save SNP data: ${insertError.message}` }
+      return {
+        success: false,
+        error: userErrorMessage(
+          '[importGenetics] insert snp_variants',
+          insertError,
+          'Could not save your genetic data. Please try again.'
+        ),
+      }
     }
 
     healthSnpCount += batch.filter((s) => s.gene_name !== null).length

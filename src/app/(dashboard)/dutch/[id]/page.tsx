@@ -79,22 +79,24 @@ export default async function DutchTestDetailPage({
   return (
     <PageContainer width="narrow" className="space-y-6">
       {/* Header with back button and test info */}
-      <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" asChild>
-          <Link href="/dutch">
-            <ArrowLeft className="size-4" />
-            <span className="sr-only">Back to DUTCH tests</span>
-          </Link>
-        </Button>
-        <div className="flex-1">
-          <h1 className="text-3xl font-bold tracking-tight">{test.name}</h1>
-          <p className="text-muted-foreground">
-            {formatDate(test.test_date)}
-          </p>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex min-w-0 items-center gap-4">
+          <Button variant="ghost" size="icon" className="shrink-0" asChild>
+            <Link href="/dutch">
+              <ArrowLeft className="size-4" />
+              <span className="sr-only">Back to DUTCH tests</span>
+            </Link>
+          </Button>
+          <div className="min-w-0">
+            <h1 className="break-words text-3xl font-bold tracking-tight">{test.name}</h1>
+            <p className="text-muted-foreground">
+              {formatDate(test.test_date)}
+            </p>
+          </div>
         </div>
         {test.menstrual_phase &&
           test.menstrual_phase !== 'unknown' && (
-            <Badge variant="outline">
+            <Badge variant="outline" className="self-start sm:self-auto">
               {phaseLabel(test.menstrual_phase)}
             </Badge>
           )}

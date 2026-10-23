@@ -51,11 +51,17 @@ describe('prepareMarkersForSave', () => {
         capture_loinc_code: '30248-9',
         name: 'S-Transferrine receptor',
         value: 1.5,
+        qualifier: null,
         unit: 'mg/L',
         ref_range_low: null,
         ref_range_high: null,
       },
     ])
+  })
+
+  it('carries the printed qualifier (regression: "<0.5" became a plain 0.5)', () => {
+    const { markers } = prepareMarkersForSave([marker({ value: 0.5, qualifier: '<' })])
+    expect(markers[0]).toMatchObject({ value: 0.5, qualifier: '<' })
   })
 
   it('emits a capture_custom entry carrying the marker name', () => {
@@ -76,6 +82,7 @@ describe('prepareMarkersForSave', () => {
         capture_custom: true,
         name: 'AA/EPA',
         value: 16.38,
+        qualifier: null,
         unit: 'ratio',
         ref_range_low: null,
         ref_range_high: null,

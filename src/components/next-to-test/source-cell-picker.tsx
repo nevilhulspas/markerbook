@@ -1,6 +1,6 @@
 'use client'
 
-// AUT-854 follow-up: inline lab picker on the Source cell.
+// Inline lab picker on the Source cell.
 //
 // Two behaviors keyed on the row's kind:
 // - biomarker row ("Any lab"): click → popover lists labs that offer this
@@ -69,7 +69,7 @@ export function SourceCellPicker({
   const canUnpin = kind === 'lab_test' && !!biomarkerId
 
   // Filter the option list by the search input. Match against BOTH the lab
-  // name and the lab_test name so the user can type "lina" to narrow by lab
+  // name and the lab_test name so the user can type "city" to narrow by lab
   // OR "vitamin b1" to narrow by test. Case-insensitive substring; whitespace
   // around the query is ignored.
   const filteredOptions = useMemo(() => {
@@ -104,7 +104,7 @@ export function SourceCellPicker({
       } else if (res.error === 'unauthorized') {
         toast.error('Sign in to change this.')
       } else {
-        toast.error(`Couldn't switch — ${res.error}`)
+        toast.error(res.error)
       }
     })
   }
@@ -226,8 +226,8 @@ function labelFor(
 
 function formatCost(cost: number | null): string {
   if (cost == null) return '—'
-  // BGN is the project's display currency for Lina + BODIMED; the catalogue
-  // doesn't carry per-row currency yet so we render the bare number.
+  // The catalogue doesn't carry per-row currency yet, so every price shows
+  // in euro.
   return cost % 1 === 0 ? `€${cost.toFixed(0)}` : `€${cost.toFixed(2)}`
 }
 

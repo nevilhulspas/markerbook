@@ -31,6 +31,7 @@ let state: {
   resultsInsertError: DbError
   resultsUpdateError: DbError
   resultsDeleteError: DbError
+  rpcError: DbError
 }
 
 // Every call in order, plus the payloads written.
@@ -43,6 +44,7 @@ let existingResultQueries: Array<{ testId: string; ids: string[] }> = []
 let resultInserts: Array<Record<string, unknown>[]> = []
 let resultUpdates: Array<{ patch: Record<string, unknown>; id: string }> = []
 let resultDeletes: string[] = []
+let rpcCalls: Array<{ fn: string; args: Record<string, unknown> }> = []
 
 function reset() {
   state = {
@@ -56,6 +58,7 @@ function reset() {
     resultsInsertError: null,
     resultsUpdateError: null,
     resultsDeleteError: null,
+    rpcError: null,
   }
   events = []
   bloodTestInserts = []
@@ -66,6 +69,7 @@ function reset() {
   resultInserts = []
   resultUpdates = []
   resultDeletes = []
+  rpcCalls = []
 }
 
 vi.mock('next/cache', () => ({ revalidatePath: mockRevalidatePath }))
@@ -114,6 +118,11 @@ vi.mock('@/lib/loinc/resolve', () => ({
 
 vi.mock('@/lib/supabase/admin', () => ({
   supabaseAdmin: {
+    rpc: vi.fn((fn: string, args: Record<string, unknown>) => {
+      events.push(`admin:rpc ${fn}`)
+      rpcCalls.push({ fn, args })
+      return Promise.resolve({ data: null, error: state.rpcError })
+    }),
     from: vi.fn((table: string) => {
       if (table === 'blood_tests') {
         return {
@@ -237,23 +246,21 @@ const mixedCommitEvents = ['commitCapture 1234-5', 'commitCustomCapture My Marke
 function expectMixedCommitCalls() {
   expect(mockCommitCapture).toHaveBeenCalledTimes(1)
   expect(mockCommitCapture.mock.calls[0][0]).toBe('1234-5')
+  // The printed ranges are not forwarded: new catalogue rows are shared, so
+  // one user's report range never goes into them.
   expect(mockCommitCapture.mock.calls[0][1]).toEqual({
     name: 'Loinc Marker',
     unit: 'mg/L',
-    ref_range_low: 0.5,
-    ref_range_high: 3,
   })
-  expect(mockCommitCapture.mock.calls[0][2]).toEqual({ db: supabaseAdmin })
+  expect(mockCommitCapture.mock.calls[0][2]).toEqual({ db: supabaseAdmin, createdBy: 'u1' })
   expect(mockCommitCapture.mock.calls[0][2].db).toBe(supabaseAdmin)
 
   expect(mockCommitCustomCapture).toHaveBeenCalledTimes(1)
   expect(mockCommitCustomCapture.mock.calls[0][0]).toEqual({
     name: 'My Marker',
     unit: 'U/L',
-    ref_range_low: null,
-    ref_range_high: 10,
   })
-  expect(mockCommitCustomCapture.mock.calls[0][1].db).toBe(supabaseAdmin)
+  expect(mockCommitCustomCapture.mock.calls[0][1]).toEqual({ db: supabaseAdmin, createdBy: 'u1' })
 }
 
 beforeEach(() => {
@@ -306,14 +313,14 @@ describe('createBloodTest — capture loop', () => {
     ])
     expect(resultInserts).toEqual([
       [
-        { blood_test_id: 'test-1', biomarker_id: BM_A, value: 1, unit: 'ng/mL' },
-        { blood_test_id: 'test-1', biomarker_id: 'bm-loinc-1234-5', value: 2, unit: 'mg/L' },
-        { blood_test_id: 'test-1', biomarker_id: 'bm-custom-my marker', value: 3, unit: 'U/L' },
+        { blood_test_id: 'test-1', biomarker_id: BM_A, value: 1, qualifier: null, unit: 'ng/mL' },
+        { blood_test_id: 'test-1', biomarker_id: 'bm-loinc-1234-5', value: 2, qualifier: null, unit: 'mg/L' },
+        { blood_test_id: 'test-1', biomarker_id: 'bm-custom-my marker', value: 3, qualifier: null, unit: 'U/L' },
       ],
     ])
   })
 
-  // Intentional best-effort (OTH-71 item 20): the biomarker_units lookup only
+  // Intentional best-effort: the biomarker_units lookup only
   // fixes a unit's spelling. The results ARE written, with the units as
   // submitted, so success is the truth. Failing instead would, in
   // updateBloodTest, run after the old results were deleted and empty the test.
@@ -328,7 +335,7 @@ describe('createBloodTest — capture loop', () => {
 
     expect(res.success).toBe(true)
     expect(resultInserts).toEqual([
-      [{ blood_test_id: 'test-1', biomarker_id: BM_A, value: 1, unit: 'umol/l' }],
+      [{ blood_test_id: 'test-1', biomarker_id: BM_A, value: 1, qualifier: null, unit: 'umol/l' }],
     ])
     expect(logged).toHaveBeenCalledWith(
       expect.stringContaining('biomarker_units'),
@@ -354,8 +361,8 @@ describe('createBloodTest — capture loop', () => {
 
     expect(resultInserts).toEqual([
       [
-        { blood_test_id: 'test-1', biomarker_id: BM_A, value: 1, unit: 'µmol/L' },
-        { blood_test_id: 'test-1', biomarker_id: BM_B, value: 2, unit: 'mg/dL' },
+        { blood_test_id: 'test-1', biomarker_id: BM_A, value: 1, qualifier: null, unit: 'µmol/L' },
+        { blood_test_id: 'test-1', biomarker_id: BM_B, value: 2, qualifier: null, unit: 'mg/dL' },
       ],
     ])
   })
@@ -466,20 +473,20 @@ describe('createBloodTest — capture loop', () => {
       markers: [{ biomarker_id: BM_A, value: 1, unit: 'mg/L' }],
     })
 
-    expect(res).toEqual({ success: false, testId: null, error: 'insert failed' })
+    expect(res).toEqual({ success: false, testId: null, error: 'Could not save the test results. Please try again.' })
     expect(bloodTestDeletes).toEqual(['test-1'])
     expect(mockRevalidatePath).not.toHaveBeenCalled()
   })
 
-  it('falls back to a generic message when the results insert error has none', async () => {
-    state.resultsInsertError = { message: '' }
+  it('shows a plain message, not the database text, when the results insert fails', async () => {
+    state.resultsInsertError = { message: 'violates check constraint "test_results_value_check"' }
 
     const res = await createBloodTest({
       ...meta,
       markers: [{ biomarker_id: BM_A, value: 1, unit: 'mg/L' }],
     })
 
-    expect(res).toEqual({ success: false, testId: null, error: 'Failed to save marker results' })
+    expect(res).toEqual({ success: false, testId: null, error: 'Could not save the test results. Please try again.' })
   })
 })
 
@@ -488,7 +495,7 @@ describe('createBloodTest — capture loop', () => {
 // ---------------------------------------------------------------------------
 
 describe('updateBloodTest — capture loop', () => {
-  it('commits every capture before mutating, then replaces the rows in input order', async () => {
+  it('commits every capture before mutating, then replaces the rows in one transaction', async () => {
     const res = await updateBloodTest('test-1', { ...meta, markers: mixedMarkers })
 
     expect(res).toEqual({ success: true, error: null })
@@ -496,48 +503,65 @@ describe('updateBloodTest — capture loop', () => {
     expect(events).toEqual([
       'rls:blood_tests.select',
       ...mixedCommitEvents,
-      'admin:blood_tests.update',
-      'admin:test_results.delete',
       'admin:biomarker_units.select',
-      'admin:test_results.insert',
+      'admin:rpc replace_blood_test_results',
+      'revalidate /tests/test-1',
       'revalidate /tests',
       'revalidate /grid',
     ])
-    expect(bloodTestUpdates).toEqual([
-      {
-        id: 'test-1',
-        patch: {
-          name: 'Lab report',
-          test_date: '2026-05-01',
-          sample_type: 'serum',
-          notes: null,
-          updated_at: expect.any(String),
-        },
-      },
-    ])
-    expect(resultDeletes).toEqual(['test-1'])
+    // No separate delete / insert: the old non-atomic replace is gone.
+    expect(bloodTestUpdates).toEqual([])
+    expect(resultDeletes).toEqual([])
+    expect(resultInserts).toEqual([])
     expect(bmUnitQueries).toEqual([
       { columns: 'biomarker_id, unit', ids: [BM_A, 'bm-loinc-1234-5', 'bm-custom-my marker'] },
     ])
-    expect(resultInserts).toEqual([
-      [
-        { blood_test_id: 'test-1', biomarker_id: BM_A, value: 1, unit: 'ng/mL' },
-        { blood_test_id: 'test-1', biomarker_id: 'bm-loinc-1234-5', value: 2, unit: 'mg/L' },
-        { blood_test_id: 'test-1', biomarker_id: 'bm-custom-my marker', value: 3, unit: 'U/L' },
-      ],
+    expect(rpcCalls).toEqual([
+      {
+        fn: 'replace_blood_test_results',
+        args: {
+          p_test_id: 'test-1',
+          p_user_id: 'u1',
+          p_name: 'Lab report',
+          p_test_date: '2026-05-01',
+          p_sample_type: 'serum',
+          p_notes: null,
+          p_results: [
+            { biomarker_id: BM_A, value: 1, qualifier: null, unit: 'ng/mL' },
+            { biomarker_id: 'bm-loinc-1234-5', value: 2, qualifier: null, unit: 'mg/L' },
+            { biomarker_id: 'bm-custom-my marker', value: 3, qualifier: null, unit: 'U/L' },
+          ],
+        },
+      },
     ])
   })
 
-  it('rewrites units to the canonical biomarker_units spelling', async () => {
+  it('rewrites units to the canonical biomarker_units spelling and keeps the qualifier', async () => {
     state.bmUnits = [{ biomarker_id: BM_A, unit: 'µmol/L' }]
 
     await updateBloodTest('test-1', {
       ...meta,
-      markers: [{ biomarker_id: BM_A, value: 1, unit: 'UMOL/L' }],
+      markers: [{ biomarker_id: BM_A, value: 0.5, qualifier: '<', unit: 'UMOL/L' }],
     })
 
-    expect(resultInserts).toEqual([
-      [{ blood_test_id: 'test-1', biomarker_id: BM_A, value: 1, unit: 'µmol/L' }],
+    expect(rpcCalls[0].args.p_results).toEqual([
+      { biomarker_id: BM_A, value: 0.5, qualifier: '<', unit: 'µmol/L' },
+    ])
+  })
+
+  it('accepts a zero and a negative value (regression: both were rejected)', async () => {
+    const res = await updateBloodTest('test-1', {
+      ...meta,
+      markers: [
+        { biomarker_id: BM_A, value: 0, unit: 'mmol/L' },
+        { biomarker_id: BM_B, value: -2.5, unit: 'mmol/L' },
+      ],
+    })
+
+    expect(res).toEqual({ success: true, error: null })
+    expect(rpcCalls[0].args.p_results).toEqual([
+      { biomarker_id: BM_A, value: 0, qualifier: null, unit: 'mmol/L' },
+      { biomarker_id: BM_B, value: -2.5, qualifier: null, unit: 'mmol/L' },
     ])
   })
 
@@ -620,12 +644,14 @@ describe('updateBloodTest — capture loop', () => {
     expect(mockCommitCustomCapture).not.toHaveBeenCalled()
   })
 
-  it('returns a generic message when the results insert fails', async () => {
-    state.resultsInsertError = { message: 'insert failed' }
+  it('returns a generic message when the replace transaction fails', async () => {
+    state.rpcError = { message: 'replace failed' }
+    const logged = vi.spyOn(console, 'error').mockImplementation(() => {})
 
     const res = await updateBloodTest('test-1', { ...meta, markers: mixedMarkers })
+    logged.mockRestore()
 
-    expect(res).toEqual({ success: false, error: 'Failed to save marker results' })
+    expect(res).toEqual({ success: false, error: 'Could not save the test results. Please try again.' })
     expect(mockRevalidatePath).not.toHaveBeenCalled()
   })
 })
@@ -661,11 +687,11 @@ describe('appendResultsToBloodTest — capture loop', () => {
     const ids = [BM_A, 'bm-loinc-1234-5', 'bm-custom-my marker']
     expect(existingResultQueries).toEqual([{ testId: 'test-1', ids }])
     expect(bmUnitQueries).toEqual([{ columns: 'biomarker_id, unit', ids }])
-    expect(resultUpdates).toEqual([{ id: 'r-A', patch: { value: 1, unit: 'µmol/L' } }])
+    expect(resultUpdates).toEqual([{ id: 'r-A', patch: { value: 1, qualifier: null, unit: 'µmol/L' } }])
     expect(resultInserts).toEqual([
       [
-        { blood_test_id: 'test-1', biomarker_id: 'bm-loinc-1234-5', value: 2, unit: 'mg/L' },
-        { blood_test_id: 'test-1', biomarker_id: 'bm-custom-my marker', value: 3, unit: 'U/L' },
+        { blood_test_id: 'test-1', biomarker_id: 'bm-loinc-1234-5', value: 2, qualifier: null, unit: 'mg/L' },
+        { blood_test_id: 'test-1', biomarker_id: 'bm-custom-my marker', value: 3, qualifier: null, unit: 'U/L' },
       ],
     ])
   })
@@ -681,7 +707,7 @@ describe('appendResultsToBloodTest — capture loop', () => {
     // Both resolve to the same biomarker; the payload de-dupe keeps the last one.
     expect(res).toEqual({ success: true, testId: 'test-1', added: 1, replaced: 0, error: null })
     expect(resultInserts).toEqual([
-      [{ blood_test_id: 'test-1', biomarker_id: 'bm-loinc-1234-5', value: 2, unit: 'mg/L' }],
+      [{ blood_test_id: 'test-1', biomarker_id: 'bm-loinc-1234-5', value: 2, qualifier: null, unit: 'mg/L' }],
     ])
   })
 
@@ -692,7 +718,7 @@ describe('appendResultsToBloodTest — capture loop', () => {
       { biomarker_id: BM_A, value: 1, unit: 'mg/L' },
     ])
 
-    expect(res).toEqual({ success: false, testId: null, added: 0, replaced: 0, error: 'read failed' })
+    expect(res).toEqual({ success: false, testId: null, added: 0, replaced: 0, error: 'Could not add the results to this test. Please try again.' })
     expect(resultInserts).toEqual([])
     expect(resultUpdates).toEqual([])
   })
@@ -705,7 +731,7 @@ describe('appendResultsToBloodTest — capture loop', () => {
 
     expect(mockCommitCustomCapture).toHaveBeenCalledTimes(1)
     expect(resultInserts).toEqual([
-      [{ blood_test_id: 'test-1', biomarker_id: 'bm-custom-odd marker', value: 2, unit: 'U/L' }],
+      [{ blood_test_id: 'test-1', biomarker_id: 'bm-custom-odd marker', value: 2, qualifier: null, unit: 'U/L' }],
     ])
   })
 
@@ -719,8 +745,8 @@ describe('appendResultsToBloodTest — capture loop', () => {
     expect(res).toEqual({ success: true, testId: 'test-1', added: 2, replaced: 0, error: null })
     expect(resultInserts).toEqual([
       [
-        { blood_test_id: 'test-1', biomarker_id: BM_A, value: 3, unit: 'mg/L' },
-        { blood_test_id: 'test-1', biomarker_id: BM_B, value: 2, unit: 'mg/L' },
+        { blood_test_id: 'test-1', biomarker_id: BM_A, value: 3, qualifier: null, unit: 'mg/L' },
+        { blood_test_id: 'test-1', biomarker_id: BM_B, value: 2, qualifier: null, unit: 'mg/L' },
       ],
     ])
   })
@@ -784,7 +810,7 @@ describe('appendResultsToBloodTest — capture loop', () => {
 
     const res = await appendResultsToBloodTest('test-1', mixedMarkers)
 
-    expect(res).toEqual({ success: false, testId: null, added: 0, replaced: 0, error: 'update failed' })
+    expect(res).toEqual({ success: false, testId: null, added: 0, replaced: 0, error: 'Could not add the results to this test. Please try again.' })
     expect(resultInserts).toEqual([])
   })
 
@@ -793,7 +819,7 @@ describe('appendResultsToBloodTest — capture loop', () => {
 
     const res = await appendResultsToBloodTest('test-1', mixedMarkers)
 
-    expect(res).toEqual({ success: false, testId: null, added: 0, replaced: 0, error: 'insert failed' })
+    expect(res).toEqual({ success: false, testId: null, added: 0, replaced: 0, error: 'Could not add the results to this test. Please try again.' })
     expect(mockRevalidatePath).not.toHaveBeenCalled()
   })
 })

@@ -1,3 +1,4 @@
+import type { Metadata } from 'next'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { ClipboardList } from 'lucide-react'
@@ -184,8 +185,8 @@ async function resolveEntries(
   // Now collect ALL canonical biomarker ids (direct + lab_test-derived) and
   // batch-fetch lab options in one query. Pass the user's currently-pinned
   // lab_test_ids as `preferred` so the dedup keeps the row's actual selection
-  // (otherwise a row on "BODIMED — Important Vitamins" would show the
-  // default "BODIMED — Vitamin B1" winner, hiding what the user picked).
+  // (otherwise a row on "City Lab — Vitamin panel" would show the
+  // default "City Lab — Vitamin B1" winner, hiding what the user picked).
   const canonicalIds = Array.from(
     new Set([
       ...biomarkerIds,
@@ -270,7 +271,7 @@ function parseSort(sp: { sort?: string; order?: string }): {
   sort: SortKey
   order: SortOrder
 } {
-  // AUT-864: default A→Z by name (more useful than "Added desc" for a list
+  // Default A→Z by name (more useful than "Added desc" for a list
   // that grows organically). Server treats a missing ?sort= as name; the
   // client EntryTable layer restores any previously-saved preference from
   // localStorage on mount so user choices survive across sessions.
@@ -311,6 +312,10 @@ function compareEntries(
     default:
       return a.created_at.localeCompare(b.created_at)
   }
+}
+
+export const metadata: Metadata = {
+  title: 'Next to test | Markerbook',
 }
 
 export default async function NextToTestPage({ searchParams }: PageProps) {
@@ -415,7 +420,7 @@ export default async function NextToTestPage({ searchParams }: PageProps) {
   // Always include sort + order in the link-base params so the URL stays
   // explicit about the user's choice — the persistence layer relies on
   // "URL has sort/order" to distinguish a deliberate click from a fresh
-  // visit. (AUT-864)
+  // visit.
   headerParams.set('sort', sort)
   headerParams.set('order', order)
   const headerParamsString = headerParams.toString()
@@ -468,7 +473,7 @@ export default async function NextToTestPage({ searchParams }: PageProps) {
         <p className="bg-muted/30 rounded-lg border p-6 text-center text-sm text-muted-foreground">
           {resolved.length === 0
             ? status === 'pending'
-              ? 'Nothing pending. Add a test from a biomarker page, lab page, or just ask the AI in the insights chat.'
+              ? 'Nothing pending. Add a test from a biomarker page, lab page, or just ask in Chat.'
               : status === 'done'
                 ? 'No done entries yet.'
                 : 'This list is empty.'

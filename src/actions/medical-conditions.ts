@@ -1,6 +1,6 @@
 'use server'
 
-// AUT-854: CRUD for the per-user medical_conditions list.
+// CRUD for the per-user medical_conditions list.
 //
 // All writes go through the user-context Supabase client; RLS (auth.uid() =
 // user_id) does the enforcement. Mirrors the next_to_test action pattern
@@ -9,6 +9,7 @@
 import { revalidatePath } from 'next/cache'
 
 import { getSessionUser } from '@/lib/supabase/session'
+import { userErrorMessage } from '@/lib/supabase/errors'
 import { medicalConditionSchema } from '@/lib/validations/profile'
 import type { MedicalCondition } from '@/lib/database.types'
 
@@ -71,7 +72,17 @@ export async function addMedicalCondition(values: unknown): Promise<WriteResult>
     .select()
     .single()
 
-  if (error) return { ok: false, kind: 'db', error: error.message }
+  if (error) {
+    return {
+      ok: false,
+      kind: 'db',
+      error: userErrorMessage(
+        'addMedicalCondition',
+        error,
+        'Could not save the condition. Please try again.'
+      ),
+    }
+  }
   revalidatePath('/profile')
   return { ok: true, data: data as MedicalCondition }
 }
@@ -107,7 +118,17 @@ export async function updateMedicalCondition(
     .select()
     .single()
 
-  if (error) return { ok: false, kind: 'db', error: error.message }
+  if (error) {
+    return {
+      ok: false,
+      kind: 'db',
+      error: userErrorMessage(
+        'updateMedicalCondition',
+        error,
+        'Could not save the condition. Please try again.'
+      ),
+    }
+  }
   revalidatePath('/profile')
   return { ok: true, data: data as MedicalCondition }
 }
@@ -126,7 +147,17 @@ export async function deleteMedicalCondition(
     .select()
     .single()
 
-  if (error) return { ok: false, kind: 'db', error: error.message }
+  if (error) {
+    return {
+      ok: false,
+      kind: 'db',
+      error: userErrorMessage(
+        'deleteMedicalCondition',
+        error,
+        'Could not delete the condition. Please try again.'
+      ),
+    }
+  }
   revalidatePath('/profile')
   return { ok: true }
 }

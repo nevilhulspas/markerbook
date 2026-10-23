@@ -20,7 +20,12 @@ export type ToolPartLike = {
   type: string
   input?: unknown
   output?: unknown
+  /** Set while a tool waits for, or got, the user's approval (tool-approval.ts). */
+  approval?: { id: string; approved?: boolean }
 }
+
+/** States of a tool part that show the approval card instead of a chip. */
+const APPROVAL_STATES = ['approval-requested', 'approval-responded', 'output-denied']
 
 export type RenderItem =
   | { kind: 'text'; text: string }
@@ -60,7 +65,7 @@ export function buildRenderItems(parts: readonly unknown[]): RenderItem[] {
     }
     if (type === 'dynamic-tool' || type.startsWith('tool-')) {
       const tp = raw as ToolPartLike
-      if (INTERACTIVE_TOOLS.includes(toolNameOf(tp))) {
+      if (INTERACTIVE_TOOLS.includes(toolNameOf(tp)) || APPROVAL_STATES.includes(tp.state)) {
         items.push({ kind: 'interactive', part: tp })
       } else {
         const last = items[items.length - 1]

@@ -133,6 +133,6 @@ describe('exportGridAsPdf', () => {
 
     expect(mockSave).toHaveBeenCalledTimes(1)
     const filename = mockSave.mock.calls[0][0] as string
-    expect(filename).toMatch(/^blood-markers-report-\d{4}-\d{2}-\d{2}\.pdf$/)
+    expect(filename).toMatch(/^markerbook-report-\d{4}-\d{2}-\d{2}\.pdf$/)
   })
 })

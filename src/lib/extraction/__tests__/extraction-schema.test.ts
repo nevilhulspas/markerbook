@@ -18,3 +18,18 @@ describe('extractedMarkerSchema', () => {
     expect(r.loinc_code ?? null).toBeNull()
   })
 })
+
+describe('extractedMarkerSchema qualifier (regression: "<0.5" stored as a plain 0.5)', () => {
+  const base = { name: 'CRP', value: 0.5, unit: 'mg/L', confidence: 'high', catalog_match: 'CRP' }
+  it('keeps the printed sign, in any common spelling', () => {
+    expect(extractedMarkerSchema.parse({ ...base, qualifier: '<' }).qualifier).toBe('<')
+    expect(extractedMarkerSchema.parse({ ...base, qualifier: '≥' }).qualifier).toBe('>=')
+  })
+  it('drops an unknown sign instead of failing the import', () => {
+    expect(extractedMarkerSchema.parse({ ...base, qualifier: '~' }).qualifier).toBeNull()
+    expect(extractedMarkerSchema.parse({ ...base, qualifier: null }).qualifier).toBeNull()
+  })
+  it('accepts a negative value', () => {
+    expect(extractedMarkerSchema.parse({ ...base, value: -2.1 }).value).toBe(-2.1)
+  })
+})

@@ -3,7 +3,9 @@
 import { revalidatePath } from 'next/cache'
 
 import { getSessionUser } from '@/lib/supabase/session'
+import { isOwnedPath } from '@/lib/supabase/storage-path'
 import { supabaseAdmin } from '@/lib/supabase/admin'
+import { userErrorMessage } from '@/lib/supabase/errors'
 import {
   dutchTestSchema,
   dutchTestWithMarkersSchema,
@@ -44,7 +46,14 @@ export async function getDutchTests(): Promise<
     .order('test_date', { ascending: false })
 
   if (error) {
-    return { data: null, error: error.message }
+    return {
+      data: null,
+      error: userErrorMessage(
+        'getDutchTests',
+        error,
+        'Could not load your DUTCH tests. Please try again.'
+      ),
+    }
   }
 
   const testsWithCount: DutchTestWithCount[] = (data ?? []).map((test) => {
@@ -87,7 +96,14 @@ export async function deleteDutchTest(
     .eq('user_id', user.id)
 
   if (error) {
-    return { success: false, error: error.message }
+    return {
+      success: false,
+      error: userErrorMessage(
+        'deleteDutchTest',
+        error,
+        'Could not delete the test. Please try again.'
+      ),
+    }
   }
 
   revalidatePath('/dutch')
@@ -136,7 +152,14 @@ export async function updateDutchTest(
     .eq('user_id', user.id)
 
   if (error) {
-    return { success: false, error: error.message }
+    return {
+      success: false,
+      error: userErrorMessage(
+        'updateDutchTest',
+        error,
+        'Could not save the test. Please try again.'
+      ),
+    }
   }
 
   revalidatePath('/dutch')
@@ -167,6 +190,10 @@ export async function createDutchTest(
 
   if (!user) {
     return { success: false, testId: null, error: authError ?? 'Not authenticated' }
+  }
+
+  if (parsed.data.pdf_storage_path && !isOwnedPath(user.id, parsed.data.pdf_storage_path)) {
+    return { success: false, testId: null, error: 'This file is not authorized for your account.' }
   }
 
   // Deduplicate: same biomarker_id + same timepoint (or both null) = duplicate
@@ -203,7 +230,11 @@ export async function createDutchTest(
     return {
       success: false,
       testId: null,
-      error: testError?.message ?? 'Failed to create DUTCH test',
+      error: userErrorMessage(
+        'createDutchTest',
+        testError,
+        'Could not save the test. Please try again.'
+      ),
     }
   }
 
@@ -226,7 +257,11 @@ export async function createDutchTest(
     return {
       success: false,
       testId: null,
-      error: resultsError.message || 'Failed to save marker results',
+      error: userErrorMessage(
+        'createDutchTest results',
+        resultsError,
+        'Could not save the test results. Please try again.'
+      ),
     }
   }
 
@@ -296,7 +331,14 @@ export async function getDutchTestDetail(
     .single()
 
   if (error) {
-    return { data: null, error: error.message }
+    return {
+      data: null,
+      error: userErrorMessage(
+        'getDutchTestDetail',
+        error,
+        'Could not load this test. Please try again.'
+      ),
+    }
   }
 
   // Narrowing cast: the hand-written DUTCH types are stricter than the schema.

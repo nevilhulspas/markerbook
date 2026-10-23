@@ -2,6 +2,8 @@
 
 import { getSessionUser } from '@/lib/supabase/session'
 import { takeAiRequest } from '@/lib/ai/quota'
+import { aiFailureMessage, isAiConfigured } from '@/lib/ai/config'
+import { AI_NOT_CONFIGURED_MESSAGE } from '@/lib/ai/messages'
 import { supabaseAdmin } from '@/lib/supabase/admin'
 import type { DutchExtractionResponse } from '@/lib/dutch/types'
 import {
@@ -32,6 +34,7 @@ export async function extractDutchPdf(
   if (!user) {
     return { success: false, error: authError ?? 'Not authenticated' }
   }
+  if (!isAiConfigured()) return { success: false, error: AI_NOT_CONFIGURED_MESSAGE }
 
   // Verify the actual file type from its bytes before storing anything — the
   // client-supplied MIME is untrusted, and a file that is not a PDF or image
@@ -56,7 +59,8 @@ export async function extractDutchPdf(
     })
 
   if (uploadError) {
-    return { success: false, error: `Upload failed: ${uploadError.message}` }
+    console.error('extractDutchPdf upload failed:', uploadError.message)
+    return { success: false, error: 'Could not upload the file. Please try again.' }
   }
 
   // Send to Claude for extraction + matching via the shared DUTCH parse helper.
@@ -65,11 +69,9 @@ export async function extractDutchPdf(
     const { result, matchedMarkers } = await parseDutchBytes(Buffer.from(arrayBuffer), mediaType, supabase)
     return { success: true, data: result, matched_markers: matchedMarkers, storage_path: storagePath }
   } catch (err) {
-    const message =
-      err instanceof Error ? err.message : 'Extraction failed unexpectedly'
     return {
       success: false,
-      error: message,
+      error: aiFailureMessage('extractDutchPdf', err),
       storage_path: storagePath,
     }
   }

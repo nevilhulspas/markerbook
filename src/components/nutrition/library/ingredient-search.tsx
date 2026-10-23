@@ -113,25 +113,30 @@ export function IngredientSearch({ onPick }: IngredientSearchProps) {
               <p className="px-3 py-1 text-xs font-semibold text-muted-foreground bg-muted/40">
                 NEVO
               </p>
-              {results.nevo.map((item) => (
-                <button
-                  key={item.nevo_code}
-                  type="button"
-                  className="w-full text-left px-3 py-2 text-sm hover:bg-muted/50 flex justify-between"
-                  onClick={() =>
-                    pick({
-                      label: item.name_nl,
-                      nevo_code: item.nevo_code,
-                      per100g: item.per100g,
-                    })
-                  }
-                >
-                  <span>{item.name_nl}</span>
-                  <span className="text-muted-foreground">
-                    {Math.round(item.per100g.kcal)} kcal/100g
-                  </span>
-                </button>
-              ))}
+              {results.nevo.map((item) => {
+                // NEVO is a Dutch database: show the English name, Dutch when a
+                // food has no translation.
+                const name = item.name_en || item.name_nl
+                return (
+                  <button
+                    key={item.nevo_code}
+                    type="button"
+                    className="w-full text-left px-3 py-2 text-sm hover:bg-muted/50 flex justify-between"
+                    onClick={() =>
+                      pick({
+                        label: name,
+                        nevo_code: item.nevo_code,
+                        per100g: item.per100g,
+                      })
+                    }
+                  >
+                    <span>{name}</span>
+                    <span className="text-muted-foreground">
+                      {Math.round(item.per100g.kcal)} kcal/100g
+                    </span>
+                  </button>
+                )
+              })}
             </div>
           )}
           {results.off.length > 0 && (

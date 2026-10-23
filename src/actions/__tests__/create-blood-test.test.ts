@@ -15,12 +15,14 @@ let testResultsInserts: Array<Record<string, unknown>[]> = []
 let testResultsDeletes: string[] = []
 let bloodTestDeletes: string[] = []
 let bloodTestUpdates: Array<Record<string, unknown>> = []
+let rpcCalls: Array<{ fn: string; args: Record<string, unknown> }> = []
 
 function reset() {
   testResultsInserts = []
   testResultsDeletes = []
   bloodTestDeletes = []
   bloodTestUpdates = []
+  rpcCalls = []
 }
 
 vi.mock('next/cache', () => ({ revalidatePath: mockRevalidatePath }))
@@ -45,6 +47,10 @@ vi.mock('@/lib/loinc/resolve', () => ({
 
 vi.mock('@/lib/supabase/admin', () => ({
   supabaseAdmin: {
+    rpc: vi.fn((fn: string, args: Record<string, unknown>) => {
+      rpcCalls.push({ fn, args })
+      return Promise.resolve({ data: null, error: null })
+    }),
     from: vi.fn((table: string) => {
       if (table === 'blood_tests') {
         return {
@@ -135,22 +141,21 @@ describe('createBloodTest — capture commit at save time', () => {
     expect(res.success).toBe(true)
     if (res.success) expect(res.testId).toBe('test-1')
 
-    // commitCapture was invoked with the LOINC code, the raw name (for aliasing),
-    // and the report-printed range so it can be preferred over the AI estimate.
+    // commitCapture was invoked with the LOINC code, the raw name and unit, and
+    // the saving user. The report-printed range stays out of the shared row.
     expect(mockCommitCapture).toHaveBeenCalledTimes(1)
-    const [code, marker] = mockCommitCapture.mock.calls[0]
+    const [code, marker, deps] = mockCommitCapture.mock.calls[0]
     expect(code).toBe('30248-9')
-    expect(marker).toMatchObject({
+    expect(marker).toEqual({
       name: 'S-Transferrine receptor',
       unit: 'mg/L',
-      ref_range_low: 0.8,
-      ref_range_high: 2.2,
     })
+    expect(deps).toMatchObject({ createdBy: 'u1' })
 
     // The biomarker_id returned by commitCapture is what gets written.
     expect(testResultsInserts).toHaveLength(1)
     expect(testResultsInserts[0]).toEqual([
-      { blood_test_id: 'test-1', biomarker_id: 'bm-captured', value: 1.5, unit: 'mg/L' },
+      { blood_test_id: 'test-1', biomarker_id: 'bm-captured', value: 1.5, qualifier: null, unit: 'mg/L' },
     ])
   })
 
@@ -175,6 +180,7 @@ describe('createBloodTest — capture commit at save time', () => {
         blood_test_id: 'test-1',
         biomarker_id: '11111111-1111-4111-8111-111111111111',
         value: 120,
+        qualifier: null,
         unit: 'ng/mL',
       },
     ])
@@ -264,7 +270,7 @@ describe('updateBloodTest — capture commit before mutating', () => {
     expect(mockCommitCapture.mock.calls[0][0]).toBe('30248-9')
   })
 
-  it('updates metadata and inserts results on a clean capture', async () => {
+  it('updates metadata and results in one transaction on a clean capture', async () => {
     mockCommitCapture.mockResolvedValue('bm-captured')
 
     const res = await updateBloodTest('test-1', {
@@ -276,11 +282,14 @@ describe('updateBloodTest — capture commit before mutating', () => {
 
     expect(res.success).toBe(true)
     expect(mockCommitCapture).toHaveBeenCalledTimes(1)
-    expect(bloodTestUpdates).toHaveLength(1)
-    expect(bloodTestUpdates[0]).toMatchObject({ name: 'Updated report', test_date: '2026-05-02' })
-    expect(testResultsDeletes).toEqual(['test-1'])
-    expect(testResultsInserts).toEqual([
-      [{ blood_test_id: 'test-1', biomarker_id: 'bm-captured', value: 1.5, unit: 'mg/L' }],
-    ])
+    expect(rpcCalls).toHaveLength(1)
+    expect(rpcCalls[0].args).toMatchObject({
+      p_name: 'Updated report',
+      p_test_date: '2026-05-02',
+      p_results: [{ biomarker_id: 'bm-captured', value: 1.5, qualifier: null, unit: 'mg/L' }],
+    })
+    // Never the old delete-all + re-insert.
+    expect(testResultsDeletes).toHaveLength(0)
+    expect(testResultsInserts).toHaveLength(0)
   })
 })

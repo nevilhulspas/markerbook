@@ -2,6 +2,7 @@ import 'server-only'
 
 import { z } from 'zod'
 import { getAnthropic } from '@/lib/ai/client'
+import { chargeAiCall } from '@/lib/ai/charge'
 import { FAST_MODEL, FAST_THINKING } from '@/lib/ai/models'
 import { extractArrayObjects, extractJsonObject, extractKeyedObject } from '@/lib/ai/json'
 
@@ -191,6 +192,7 @@ Rules:
 export async function extractLabDataFromText(
   siteText: string
 ): Promise<ScrapedLabData> {
+  await chargeAiCall()
   const response = await getAnthropic().messages.create({
     // Haiku: extracting structured data from page text is a
     // pattern-recognition task, not deep reasoning. Haiku is fast (Opus was

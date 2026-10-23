@@ -4,6 +4,7 @@ import { ArrowLeft } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { MicrobiomeImportClient } from '@/components/microbiome/microbiome-import-client'
+import { isAiConfigured } from '@/lib/ai/config'
 
 export const metadata: Metadata = {
   title: 'Import Microbiome Test | Markerbook',
@@ -30,7 +31,7 @@ export default function MicrobiomeImportPage() {
         </div>
       </div>
 
-      <MicrobiomeImportClient />
+      <MicrobiomeImportClient aiEnabled={isAiConfigured()} />
     </div>
   )
 }

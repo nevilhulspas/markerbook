@@ -1,6 +1,6 @@
 'use client'
 
-// V7 / OTH-77: the iPhone Shortcut logs meals to /api/nutrition/log with a
+// The iPhone Shortcut logs meals to /api/nutrition/log with a
 // personal token, but there was no place in the app to see or renew it.
 
 import { useState, useTransition } from 'react'

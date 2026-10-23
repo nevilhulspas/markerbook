@@ -17,15 +17,15 @@ interface SnpSummaryProps {
 function getZygosity(genotype: string, riskAllele: string): string {
   const alleles = genotype.split('')
   const riskCount = alleles.filter((a) => a === riskAllele).length
-  if (riskCount === 0) return 'Normal'
-  if (riskCount === 1) return 'Heterozygous'
-  return 'Homozygous'
+  if (riskCount === 0) return 'No variant'
+  if (riskCount === 1) return 'One copy'
+  return 'Two copies'
 }
 
 function zygosityColor(zyg: string): string {
-  if (zyg === 'Normal') return 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
-  if (zyg === 'Heterozygous') return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400'
-  return 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'
+  if (zyg === 'No variant') return 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
+  if (zyg === 'One copy') return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400'
+  return 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400'
 }
 
 export function SnpSummary({ snps }: SnpSummaryProps) {
@@ -56,17 +56,23 @@ export function SnpSummary({ snps }: SnpSummaryProps) {
       <div className="flex flex-wrap gap-4 text-xs text-muted-foreground">
         <div className="flex items-center gap-1.5">
           <span className="inline-block size-2 rounded-full bg-green-500" />
-          <span><strong>Normal</strong> — no variant detected</span>
+          <span><strong>No variant</strong> — the common version</span>
         </div>
         <div className="flex items-center gap-1.5">
           <span className="inline-block size-2 rounded-full bg-yellow-500" />
-          <span><strong>Heterozygous</strong> — one copy of variant (partial effect)</span>
+          <span><strong>One copy</strong> of the variant (heterozygous)</span>
         </div>
         <div className="flex items-center gap-1.5">
-          <span className="inline-block size-2 rounded-full bg-red-500" />
-          <span><strong>Homozygous</strong> — two copies of variant (full effect)</span>
+          <span className="inline-block size-2 rounded-full bg-orange-500" />
+          <span><strong>Two copies</strong> of the variant (homozygous)</span>
         </div>
       </div>
+      <p className="text-xs text-muted-foreground">
+        Each line says what a variant is associated with in studies. Having a variant
+        does not mean you have or will get a condition: genetics is one factor among
+        many, next to lifestyle, environment and your test results. Talk to your doctor
+        before you act on it.
+      </p>
       {categories.map(([category, categorySnps]) => (
         <Card key={category}>
           <CardHeader className="pb-3">

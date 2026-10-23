@@ -1,6 +1,6 @@
 'use client'
 
-// AUT-864: client wrapper around the /next-to-test table that owns row-
+// Client wrapper around the /next-to-test table that owns row-
 // selection state and feeds the BulkActionsBar. Keeps the page server
 // component lean — all data fetching + filtering + sorting happens server-
 // side and is passed down as plain props.
@@ -58,7 +58,7 @@ interface Props {
   headerParamsString: string
 }
 
-// AUT-864: localStorage key for the per-user saved sort preference. The
+// LocalStorage key for the per-user saved sort preference. The
 // page defaults to name/asc; this key records what the user last actively
 // chose (via column-header clicks) so a return visit restores that view
 // instead of always snapping back to A→Z.
@@ -91,7 +91,7 @@ function writeSavedSort(sort: string, order: string) {
   }
 }
 
-// AUT-864: localStorage key for the per-user collapsed-group preference.
+// LocalStorage key for the per-user collapsed-group preference.
 // Scoped by list so different lists remember independently — collapsing
 // "Blood markers" on the Checkup list shouldn't hide it on the full panel.
 const COLLAPSED_GROUPS_STORAGE_KEY = 'next-to-test:collapsed-groups'
@@ -142,7 +142,7 @@ export function EntryTable({
   const params = useSearchParams()
   const [selected, setSelected] = useState<Set<string>>(new Set())
 
-  // AUT-864: sort persistence.
+  // Sort persistence.
   // - Whenever the URL has an explicit ?sort= (i.e. the user clicked a
   //   column header — SortableHeaderLink now always sets sort + order),
   //   mirror it to localStorage.
@@ -168,7 +168,7 @@ export function EntryTable({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params])
 
-  // AUT-864: collapsed category groups, persisted to localStorage so a
+  // Collapsed category groups, persisted to localStorage so a
   // refresh (including the `router.refresh()` after every bulk action)
   // keeps the user's collapse state. Starts empty on SSR to avoid hydration
   // mismatch — useEffect hydrates from storage post-mount. The "set state

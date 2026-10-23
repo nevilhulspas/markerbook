@@ -1,5 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
+vi.stubEnv('ANTHROPIC_API_KEY', 'test-key')
+
 const { mockGetUser, mockRunScrapeJob, mockRevalidatePath } = vi.hoisted(() => ({
   mockGetUser: vi.fn(),
   mockRunScrapeJob: vi.fn(),
@@ -104,10 +106,22 @@ describe('submitLab', () => {
     expect(labInsertCalls).toHaveLength(0)
   })
 
+  it('refuses when the server has no Anthropic key (the import needs AI)', async () => {
+    vi.stubEnv('ANTHROPIC_API_KEY', '')
+    try {
+      const r = await submitLab({ name: 'Acme', website: 'https://acme.example' })
+      expect(r.error).toMatch(/needs AI/)
+      expect(labInsertCalls).toHaveLength(0)
+      expect(mockRunScrapeJob).not.toHaveBeenCalled()
+    } finally {
+      vi.stubEnv('ANTHROPIC_API_KEY', 'test-key')
+    }
+  })
+
   it('enforces the pending rate limit', async () => {
     pendingCount = 5
     const r = await submitLab({ name: 'Acme', website: 'https://acme.example' })
-    expect(r.error).toMatch(/still importing/i)
+    expect(r.error).toMatch(/waiting for review/i)
     expect(labInsertCalls).toHaveLength(0)
     expect(mockRunScrapeJob).not.toHaveBeenCalled()
   })
@@ -130,7 +144,7 @@ describe('submitLab', () => {
     labInsertError = { code: '23505', message: 'duplicate key value violates unique constraint' }
     const r = await submitLab({ name: 'Acme', website: 'https://acme.example' })
     expect(r.data).toBeNull()
-    expect(r.error).toMatch(/already listed or still importing/i)
+    expect(r.error).toMatch(/already listed or waiting for review/i)
     // No scrape should be enqueued when the lab insert failed.
     expect(jobInsertCalls).toHaveLength(0)
     expect(mockRunScrapeJob).not.toHaveBeenCalled()

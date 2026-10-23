@@ -57,11 +57,20 @@ const OPAQUE_ALIASES: Record<string, string> = {
   'fl': 'fl',
 }
 
-/** Count prefixes written as powers of ten ("10^9", "10e9", "x10^3"). */
+/**
+ * Count prefixes written as powers of ten: "10^9", "10e9", "x10^3", and UCUM's
+ * "10*9" (the '*' is 'x' after normalising, so "10x9" and "10xx9" too).
+ */
 function powerOfTen(s: string): number | null {
-  const m = s.match(/^x?10(?:\^|e)?(\d{1,2})$/)
+  const m = s.match(/^x?10(?:\^|e|xx|x)?(\d{1,2})$/)
   return m ? 10 ** Number(m[1]) : null
 }
+
+/**
+ * Count words German and Dutch labs use: "Tsd/µl" (Tausend), "Mio/µl"
+ * (Millionen), "Gpt/l" / "Tpt/l" (Giga- / Tera-Partikel).
+ */
+const COUNT_WORDS: Record<string, number> = { k: 1e3, thou: 1e3, tsd: 1e3, mio: 1e6, gpt: 1e9, tpt: 1e12 }
 
 export function parseUnit(raw: string | null | undefined): ParsedUnit {
   const original = (raw ?? '').trim()
@@ -85,7 +94,7 @@ export function parseUnit(raw: string | null | undefined): ParsedUnit {
       if (num === '' || num === 'cells') return { kind: 'count', scale: 1 / vol, key: `/${den}` }
       const p = powerOfTen(num)
       if (p !== null) return { kind: 'count', scale: p / vol, key: `${num}/${den}` }
-      if (num === 'k' || num === 'thou') return { kind: 'count', scale: 1e3 / vol, key: `${num}/${den}` }
+      if (COUNT_WORDS[num] !== undefined) return { kind: 'count', scale: COUNT_WORDS[num] / vol, key: `${num}/${den}` }
       if (MASS[num] !== undefined) return { kind: 'mass', scale: MASS[num] / vol, key: s }
       if (AMOUNT[num] !== undefined) return { kind: 'amount', scale: AMOUNT[num] / vol, key: s }
       if (UNITS[num] !== undefined) return { kind: 'units', scale: UNITS[num] / vol, key: s }

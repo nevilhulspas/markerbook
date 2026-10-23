@@ -4,16 +4,18 @@ import { redirect } from 'next/navigation'
 import { ArrowLeft } from 'lucide-react'
 
 import { createClient } from '@/lib/supabase/server'
+import { isAiConfigured } from '@/lib/ai/config'
 import type {
   Biomarker,
   BiomarkerUnit,
   PanelWithSystem,
   ReferenceRange,
 } from '@/lib/database.types'
-import { findReferenceRange } from '@/lib/grid/reference-range'
+import { findReferenceRange, rangesWithInline } from '@/lib/grid/reference-range'
 import type { TrendDataPoint } from '@/lib/analytics/marker-trends'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { PageContainer } from '@/components/layout/page-container'
 import {
   Card,
   CardContent,
@@ -49,6 +51,7 @@ interface TestResultRow {
   id: string
   value: number
   unit: string
+  qualifier: string | null
   blood_tests: {
     id: string
     test_date: string
@@ -93,7 +96,7 @@ export default async function BiomarkerDetailPage({
         .single(),
       supabase
         .from('test_results')
-        .select('id, value, unit, blood_tests!inner(id, test_date, name)')
+        .select('id, value, unit, qualifier, blood_tests!inner(id, test_date, name)')
         .eq('biomarker_id', id)
         .eq('blood_tests.user_id', user.id)
         .order('blood_tests(test_date)', { ascending: true }),
@@ -176,13 +179,12 @@ export default async function BiomarkerDetailPage({
     testName: r.blood_tests.name,
     unit: r.unit,
     bloodTestId: r.blood_tests.id,
+    qualifier: r.qualifier,
   }))
 
-  const { low: refLow, high: refHigh } = findReferenceRange(
-    biomarker.reference_ranges,
-    biomarker.unit,
-    sex
-  )
+  // Same ranges as the grid: the range rows, else the inline columns.
+  const ranges = rangesWithInline(biomarker, biomarker.reference_ranges)
+  const { low: refLow, high: refHigh } = findReferenceRange(ranges, biomarker.unit, sex)
 
   const latestResult = testResults.length > 0 ? testResults[testResults.length - 1] : null
   const latestDate = latestResult?.blood_tests.test_date ?? null
@@ -245,17 +247,17 @@ export default async function BiomarkerDetailPage({
   }
 
   return (
-    <div className="space-y-6">
+    <PageContainer width="narrow" className="space-y-6">
       {/* Header */}
       <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" asChild>
+        <Button variant="ghost" size="icon" className="shrink-0" asChild>
           <Link href="/grid">
             <ArrowLeft className="size-4" />
             <span className="sr-only">Back to grid</span>
           </Link>
         </Button>
-        <div className="flex-1">
-          <h1 className="text-3xl font-bold tracking-tight">
+        <div className="min-w-0 flex-1">
+          <h1 className="break-words text-3xl font-bold tracking-tight">
             {biomarker.short_name ?? biomarker.name}
           </h1>
           {(systemName || panelName) && (
@@ -279,7 +281,7 @@ export default async function BiomarkerDetailPage({
         typicalUnits={typicalUnitsFor(biomarker)}
         availableUnits={biomarker.biomarker_units}
         initialPreference={unitPrefs.get(id) ?? null}
-        ranges={biomarker.reference_ranges}
+        ranges={ranges}
         sex={sex}
         points={points}
         markerName={biomarker.short_name ?? biomarker.name}
@@ -310,6 +312,7 @@ export default async function BiomarkerDetailPage({
         refRangeHigh={refHigh}
         profile={profileContext}
         allMarkerContextForLatestTest={allMarkersForLatestTest}
+        aiEnabled={isAiConfigured()}
       />
 
       {/* Related Markers */}
@@ -385,6 +388,6 @@ export default async function BiomarkerDetailPage({
           </CardContent>
         </Card>
       )}
-    </div>
+    </PageContainer>
   )
 }

@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 // The per-user AI limit has its own tests (src/lib/ai/__tests__/quota.test.ts).
 vi.mock('@/lib/ai/quota', () => ({
   takeAiRequest: async () => ({ ok: true }),
+  countedAiCall: (_userId: string, fn: unknown) => fn,
   aiLimitResponse: (error: string) => Response.json({ error }, { status: 429 }),
   AI_LIMIT_REACHED: 'limit',
 }))
@@ -48,9 +49,32 @@ describe('POST /api/nutrition/transcribe', () => {
     // An explicit (bad) token must not silently fall back to cookie auth.
     mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } } })
     const res = await POST(
-      new Request('http://localhost/api/nutrition/transcribe?token=wrong', { method: 'POST' })
+      new Request('http://localhost/api/nutrition/transcribe', {
+        method: 'POST',
+        headers: { authorization: 'Bearer wrong' },
+      })
     )
     expect(res.status).toBe(401)
+  })
+
+  it('ignores a token in the URL (it would end up in logs)', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: null } })
+    const res = await POST(
+      new Request('http://localhost/api/nutrition/transcribe?token=tok-1', { method: 'POST' })
+    )
+    expect(res.status).toBe(401)
+  })
+
+  it('refuses an upload larger than 25 MB before reading it', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } } })
+    process.env.OPENAI_API_KEY = 'sk-test'
+    const res = await POST(
+      new Request('http://localhost/api/nutrition/transcribe', {
+        method: 'POST',
+        headers: { 'content-length': String(30 * 1024 * 1024) },
+      })
+    )
+    expect(res.status).toBe(413)
   })
 
   it('accepts a logged-in session without a token (in-app recorder)', async () => {

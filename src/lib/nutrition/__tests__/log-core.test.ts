@@ -14,6 +14,7 @@ import { describe, it, expect, beforeEach } from 'vitest'
 import { logSubmission, resolveEntryDate, type LogDeps, type FoodLogInsertRow } from '../log-core'
 import type { ExtractionV2 } from '../types'
 import type { Macros100, MatchedItem } from '../match'
+import { appHour, appMinute, appTodayISO, appWallTime } from '@/lib/dates/today'
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -274,7 +275,7 @@ describe('logSubmission', () => {
         return { error: null }
       },
       // Provide a fixed "now" at 18:00 → should bucket to 'dinner'
-      { now: () => new Date('2024-01-15T18:00:00') }
+      { now: () => appWallTime('2024-01-15', 18) }
     )
 
     await logSubmission(deps, {
@@ -312,12 +313,9 @@ describe('logSubmission', () => {
     })
 
     const entryDate = new Date(capturedRows[0].entry_date)
-    // Day should be 2024-01-01
-    expect(entryDate.getFullYear()).toBe(2024)
-    expect(entryDate.getMonth()).toBe(0) // January = 0
-    expect(entryDate.getDate()).toBe(1)
-    // Hour should be 19:00 (dinner slot)
-    expect(entryDate.getHours()).toBe(19)
+    // Day 2024-01-01 at 19:00 (dinner slot), on the app's clock
+    expect(appTodayISO(entryDate)).toBe('2024-01-01')
+    expect(appHour(entryDate)).toBe(19)
   })
 
   it('propagates insert error as Error', async () => {
@@ -346,35 +344,34 @@ describe('logSubmission', () => {
 // ---------------------------------------------------------------------------
 
 describe('resolveEntryDate', () => {
+  // All hours are on the app's clock (APP_TIME_ZONE), not the machine's.
   it('applies slot hour to dateOverride calendar day', () => {
     const d = resolveEntryDate('breakfast', '2024-06-15', null)
-    expect(d.getFullYear()).toBe(2024)
-    expect(d.getMonth()).toBe(5) // June = 5
-    expect(d.getDate()).toBe(15)
-    expect(d.getHours()).toBe(8)
+    expect(appTodayISO(d)).toBe('2024-06-15')
+    expect(appHour(d)).toBe(8)
   })
 
   it('applies lunch slot hour', () => {
     const d = resolveEntryDate('lunch', '2024-06-15', null)
-    expect(d.getHours()).toBe(12)
-    expect(d.getMinutes()).toBe(30)
+    expect(appHour(d)).toBe(12)
+    expect(appMinute(d)).toBe(30)
   })
 
   it('applies snack slot hour', () => {
     const d = resolveEntryDate('snack', '2024-06-15', null)
-    expect(d.getHours()).toBe(15)
+    expect(appHour(d)).toBe(15)
   })
 
   it('applies dinner slot hour', () => {
     const d = resolveEntryDate('dinner', '2024-06-15', null)
-    expect(d.getHours()).toBe(19)
+    expect(appHour(d)).toBe(19)
   })
 
   it('uses computeEntryDate when no dateOverride', () => {
-    const now = new Date('2024-06-15T10:00:00')
+    const now = appWallTime('2024-06-15', 10)
     const d = resolveEntryDate('dinner', null, -1, now)
     // date_offset_days = -1 → yesterday
-    expect(d.getDate()).toBe(14)
-    expect(d.getHours()).toBe(19)
+    expect(appTodayISO(d)).toBe('2024-06-14')
+    expect(appHour(d)).toBe(19)
   })
 })

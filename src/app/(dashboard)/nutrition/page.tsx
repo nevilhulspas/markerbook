@@ -1,3 +1,4 @@
+import type { Metadata } from 'next'
 import Link from 'next/link'
 import { BookOpenIcon } from 'lucide-react'
 
@@ -16,6 +17,10 @@ import { Button } from '@/components/ui/button'
 import type { LibrarySuggestion } from '@/components/nutrition/suggestion-dropdown'
 
 export const dynamic = 'force-dynamic'
+
+export const metadata: Metadata = {
+  title: 'Nutrition | Markerbook',
+}
 
 export default async function NutritionPage({
   searchParams,

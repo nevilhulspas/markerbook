@@ -1,6 +1,12 @@
+import type { Metadata } from 'next'
+
 import { CaptureClient } from '@/components/nutrition/capture-client'
 
 export const dynamic = 'force-dynamic'
+
+export const metadata: Metadata = {
+  title: 'Log food | Markerbook',
+}
 
 export default async function CapturePage({
   searchParams,

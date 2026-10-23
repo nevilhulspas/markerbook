@@ -9,6 +9,7 @@ import {
 import { getAnthropic } from '@/lib/ai/client'
 import { EXTRACTION_MODEL } from '@/lib/ai/models'
 import { stripFences } from '@/lib/ai/json'
+import { addDaysISO, appHour, appMinute, appTodayISO, appWallTime } from '@/lib/dates/today'
 
 /**
  * Cheap model — runs once per logged meal. Sonnet 5.5 runs adaptive thinking
@@ -59,30 +60,31 @@ export function isUndoCommand(text: string): boolean {
   return UNDO_KEYWORDS.some((k) => lower.includes(k))
 }
 
+/** Wall-clock time a meal is logged at when only its kind is known. */
+export const MEAL_CLOCK: Record<MealType, [number, number]> = {
+  breakfast: [8, 0],
+  lunch: [12, 30],
+  snack: [15, 0],
+  dinner: [19, 0],
+}
+
+/**
+ * The entry time for a meal: `now`, moved by `dateOffsetDays` calendar days
+ * and set to the meal's usual hour. Days and hours follow the app's calendar
+ * (APP_TIME_ZONE), not the server's UTC clock: "yesterday's dinner" logged
+ * just after midnight in Amsterdam must land on yesterday at 19:00 there.
+ */
 export function computeEntryDate(
   dateOffsetDays: number | null,
   mealTime: MealType | null,
   now: Date = new Date()
 ): Date {
-  const date = new Date(now)
-  if (dateOffsetDays != null && dateOffsetDays !== 0) {
-    date.setDate(date.getDate() + dateOffsetDays)
-  }
-  switch (mealTime) {
-    case 'breakfast':
-      date.setHours(8, 0, 0, 0)
-      break
-    case 'lunch':
-      date.setHours(12, 30, 0, 0)
-      break
-    case 'dinner':
-      date.setHours(19, 0, 0, 0)
-      break
-    case 'snack':
-      date.setHours(15, 0, 0, 0)
-      break
-  }
-  return date
+  const offset = dateOffsetDays ?? 0
+  if (offset === 0 && !mealTime) return new Date(now)
+  const day = addDaysISO(appTodayISO(now), offset)
+  if (mealTime) return appWallTime(day, ...MEAL_CLOCK[mealTime])
+  // The same clock time on another day.
+  return appWallTime(day, appHour(now), appMinute(now))
 }
 
 /** Calls Claude to estimate macros for a free-text meal. Throws on bad output. */
@@ -215,11 +217,12 @@ export async function parseFoodTextV2(
 
 /**
  * Infers a meal time bucket from the local hour of a Date.
- * Mirrors caltrack's dashboard boundaries: <11 breakfast, <14 lunch,
+ * Boundaries: <11 breakfast, <14 lunch,
  * <17 snack, else dinner.
  */
 export function bucketMealTime(d: Date): MealType {
-  const h = d.getHours()
+  // The app's clock, not the server's UTC one: 09:30 in Amsterdam is breakfast.
+  const h = appHour(d)
   if (h < 11) return 'breakfast'
   if (h < 14) return 'lunch'
   if (h < 17) return 'snack'
@@ -227,7 +230,7 @@ export function bucketMealTime(d: Date): MealType {
 }
 
 /**
- * Caltrack-compatible save-command detector.
+ * Save-command detector.
  * Recognises "save this/that/it as <name>", "save as <name>",
  * "save the last meal/entry/recipe as <name>", and the Dutch equivalents.
  *

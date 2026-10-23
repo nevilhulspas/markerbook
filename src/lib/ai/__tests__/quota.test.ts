@@ -4,7 +4,7 @@ vi.mock('server-only', () => ({}))
 const rpc = vi.fn()
 vi.mock('@/lib/supabase/admin', () => ({ supabaseAdmin: { rpc: (...a: unknown[]) => rpc(...a) } }))
 
-import { AI_LIMIT_REACHED, aiLimits, takeAiRequest } from '@/lib/ai/quota'
+import { AI_LIMIT_REACHED, aiLimits, countedAiCall, takeAiRequest } from '@/lib/ai/quota'
 
 describe('takeAiRequest', () => {
   beforeEach(() => {
@@ -43,5 +43,25 @@ describe('takeAiRequest', () => {
     process.env.AI_REQUESTS_PER_HOUR = '5'
     process.env.AI_REQUESTS_PER_DAY = 'abc'
     expect(aiLimits()).toEqual({ perHour: 5, perDay: 300 })
+  })
+})
+
+describe('countedAiCall', () => {
+  beforeEach(() => rpc.mockReset())
+
+  it('takes one request per call and runs the call', async () => {
+    rpc.mockResolvedValue({ data: true, error: null })
+    const fn = vi.fn(async (x: number) => x * 2)
+    const counted = countedAiCall('u1', fn, -1)
+    expect(await counted(2)).toBe(4)
+    expect(await counted(3)).toBe(6)
+    expect(rpc).toHaveBeenCalledTimes(2)
+  })
+
+  it('skips the call and returns the fallback over the limit', async () => {
+    rpc.mockResolvedValue({ data: false, error: null })
+    const fn = vi.fn(async () => 1)
+    expect(await countedAiCall('u1', fn, null)()).toBeNull()
+    expect(fn).not.toHaveBeenCalled()
   })
 })

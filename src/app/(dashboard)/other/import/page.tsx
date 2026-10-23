@@ -5,6 +5,7 @@ import { ArrowLeft } from 'lucide-react'
 import { PageContainer } from '@/components/layout/page-container'
 import { Button } from '@/components/ui/button'
 import { OtherImportClient } from '@/components/other/other-import-client'
+import { isAiConfigured } from '@/lib/ai/config'
 
 export const metadata: Metadata = { title: 'Import test | Markerbook' }
 
@@ -27,7 +28,7 @@ export default function OtherImportPage() {
         </div>
       </div>
 
-      <OtherImportClient />
+      <OtherImportClient aiEnabled={isAiConfigured()} />
     </PageContainer>
   )
 }

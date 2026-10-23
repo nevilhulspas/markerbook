@@ -1,6 +1,6 @@
 'use client'
 
-// AUT-854 follow-up: list-with-per-row-delete for the Health AI's saved
+// List-with-per-row-delete for the chat's saved
 // memory files. Replaces the bare "Clear AI memory" button — users can now
 // see what the AI remembers and remove individual entries instead of
 // nuking everything to fix one stale note.
@@ -89,8 +89,8 @@ function MemoryRow({ file }: { file: MemoryFile }) {
             <AlertDialogHeader>
               <AlertDialogTitle>Remove this memory?</AlertDialogTitle>
               <AlertDialogDescription>
-                The Health AI will forget this entry. It may re-learn similar
-                facts from future conversations.
+                Chat will forget this entry. It may re-learn similar facts
+                from future conversations.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
@@ -137,8 +137,8 @@ export function MemoryManager({ files }: { files: MemoryFile[] }) {
   if (files.length === 0) {
     return (
       <p className="bg-muted/30 rounded-lg border p-6 text-center text-sm text-muted-foreground">
-        The Health AI hasn&apos;t saved anything yet. It will record notes here
-        as you chat — things like preferences or recurring concerns.
+        Chat hasn&apos;t saved anything yet. It will record notes here as you
+        chat — things like preferences or recurring concerns.
       </p>
     )
   }
@@ -163,10 +163,9 @@ export function MemoryManager({ files }: { files: MemoryFile[] }) {
           </AlertDialogTrigger>
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>Clear all AI memory?</AlertDialogTitle>
+              <AlertDialogTitle>Clear all Chat memory?</AlertDialogTitle>
               <AlertDialogDescription>
-                The Health AI will forget every saved note. This cannot be
-                undone.
+                Chat will forget every saved note. This cannot be undone.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>

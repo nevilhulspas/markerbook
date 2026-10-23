@@ -374,7 +374,7 @@ describe('matchItem', () => {
 
     expect(result.source).toBe('nevo')
     expect(result.ref).toBe('F001')
-    expect(result.name).toBe('Kipfilet')
+    expect(result.name).toBe('Chicken breast')
     expect(result.grams).toBe(200)
     expect(result.macros.kcal).toBeCloseTo(330) // 165 * 2
   })

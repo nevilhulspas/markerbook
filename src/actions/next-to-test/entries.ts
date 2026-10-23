@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache'
 
 import { getSessionUser } from '@/lib/supabase/session'
-import { isUniqueViolation } from '@/lib/supabase/errors'
+import { isUniqueViolation, userErrorMessage } from '@/lib/supabase/errors'
 import type { NextToTest, NextToTestStatus } from '@/lib/database.types'
 import type { TableUpdate } from '@/lib/supabase/database'
 import { NOT_SIGNED_IN, type Err } from '@/lib/next-to-test/errors'
@@ -16,6 +16,23 @@ export interface NextToTestEntry extends NextToTest {
 }
 
 // ---------- ENTRIES ----------
+
+type SessionClient = Awaited<ReturnType<typeof getSessionUser>>['supabase']
+
+/**
+ * The entry's list must be one of the caller's own lists. The insert policy
+ * only checks the entry's user_id, so without this a request could file an
+ * entry under another user's list id.
+ */
+async function ownsList(supabase: SessionClient, userId: string, listId: string): Promise<boolean> {
+  const { data } = await supabase
+    .from('next_to_test_lists')
+    .select('id')
+    .eq('id', listId)
+    .eq('user_id', userId)
+    .maybeSingle()
+  return data !== null
+}
 
 export async function getNextToTestEntries(
   listId: string,
@@ -83,6 +100,7 @@ export async function addBiomarkerToList(input: {
 }): Promise<{ entry: NextToTest } | Err> {
   const { supabase, user, authError } = await getSessionUser()
   if (!user) return { error: authError ?? NOT_SIGNED_IN }
+  if (!(await ownsList(supabase, user.id, input.listId))) return { error: 'list_not_found' }
   const insert = await supabase
     .from('next_to_test')
     .insert({
@@ -99,7 +117,13 @@ export async function addBiomarkerToList(input: {
     .single()
   if (insert.error) {
     if (isUniqueViolation(insert.error)) return { error: 'duplicate' }
-    return { error: insert.error.message }
+    return {
+      error: userErrorMessage(
+        'addBiomarkerToList',
+        insert.error,
+        'Could not add the marker to the list. Please try again.'
+      ),
+    }
   }
   revalidatePath('/next-to-test')
   return { entry: insert.data as NextToTest }
@@ -113,6 +137,7 @@ export async function addLabTestToList(input: {
 }): Promise<{ entry: NextToTest } | Err> {
   const { supabase, user, authError } = await getSessionUser()
   if (!user) return { error: authError ?? NOT_SIGNED_IN }
+  if (!(await ownsList(supabase, user.id, input.listId))) return { error: 'list_not_found' }
   const insert = await supabase
     .from('next_to_test')
     .insert({
@@ -129,7 +154,13 @@ export async function addLabTestToList(input: {
     .single()
   if (insert.error) {
     if (isUniqueViolation(insert.error)) return { error: 'duplicate' }
-    return { error: insert.error.message }
+    return {
+      error: userErrorMessage(
+        'addLabTestToList',
+        insert.error,
+        'Could not add the test to the list. Please try again.'
+      ),
+    }
   }
   revalidatePath('/next-to-test')
   return { entry: insert.data as NextToTest }
@@ -160,6 +191,7 @@ export async function addCategoryToList(input: {
   }
   const { supabase, user, authError } = await getSessionUser()
   if (!user) return { error: authError ?? NOT_SIGNED_IN }
+  if (!(await ownsList(supabase, user.id, input.listId))) return { error: 'list_not_found' }
   const insert = await supabase
     .from('next_to_test')
     .insert({
@@ -175,7 +207,15 @@ export async function addCategoryToList(input: {
     })
     .select()
     .single()
-  if (insert.error) return { error: insert.error.message }
+  if (insert.error) {
+    return {
+      error: userErrorMessage(
+        'addCategoryToList',
+        insert.error,
+        'Could not add the markers to the list. Please try again.'
+      ),
+    }
+  }
   revalidatePath('/next-to-test')
   return { entry: insert.data as NextToTest }
 }
@@ -194,7 +234,10 @@ export async function updateEntry(input: {
   if ('note' in input) patch.note = input.note
   if ('dueDate' in input) patch.due_date = input.dueDate
   if (input.status) patch.status = input.status
-  if (input.listId) patch.list_id = input.listId
+  if (input.listId) {
+    if (!(await ownsList(supabase, user.id, input.listId))) return { error: 'list_not_found' }
+    patch.list_id = input.listId
+  }
 
   const { data, error } = await supabase
     .from('next_to_test')
@@ -205,7 +248,9 @@ export async function updateEntry(input: {
     .single()
   if (error) {
     if (isUniqueViolation(error)) return { error: 'duplicate' }
-    return { error: error.message }
+    return {
+      error: userErrorMessage('updateEntry', error, 'Could not save the entry. Please try again.'),
+    }
   }
   revalidatePath('/next-to-test')
   return { entry: data as NextToTest }
@@ -221,7 +266,15 @@ export async function deleteEntry(
     .delete()
     .eq('id', id)
     .eq('user_id', user.id)
-  if (error) return { error: error.message }
+  if (error) {
+    return {
+      error: userErrorMessage(
+        'deleteEntry',
+        error,
+        'Could not remove the entry. Please try again.'
+      ),
+    }
+  }
   revalidatePath('/next-to-test')
   return { error: null }
 }
@@ -259,7 +312,13 @@ export async function pinEntryToLab(
     if (isUniqueViolation(error as { code?: string })) {
       return { error: 'duplicate' }
     }
-    return { error: error.message }
+    return {
+      error: userErrorMessage(
+        'pinEntryToLab',
+        error,
+        'Could not pin the entry to the lab. Please try again.'
+      ),
+    }
   }
   revalidatePath('/next-to-test')
   return { ok: true }
@@ -293,7 +352,13 @@ export async function unpinEntryToBiomarker(
     if (isUniqueViolation(error as { code?: string })) {
       return { error: 'duplicate' }
     }
-    return { error: error.message }
+    return {
+      error: userErrorMessage(
+        'unpinEntryToBiomarker',
+        error,
+        'Could not unpin the entry. Please try again.'
+      ),
+    }
   }
   revalidatePath('/next-to-test')
   return { ok: true }

@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 
 import { resolveOrigin } from '../site-origin'
 
@@ -14,6 +14,7 @@ describe('resolveOrigin', () => {
   })
   afterEach(() => {
     process.env.NEXT_PUBLIC_SITE_URL = prev
+    vi.unstubAllEnvs()
   })
 
   it('uses x-forwarded-host (the public prod domain) when present', () => {
@@ -22,10 +23,18 @@ describe('resolveOrigin', () => {
     ).toBe('https://health.example.com')
   })
 
-  it('keeps a portless dev host (subdomain ...localhost:1355 is NOT bare localhost)', () => {
+  it('keeps a named dev host in development (subdomain ...localhost:1355 is NOT bare localhost)', () => {
+    vi.stubEnv('NODE_ENV', 'development')
     expect(
-      resolveOrigin(hdrs({ 'x-forwarded-host': 'aut-889.bloodmarkers-tracker.localhost:1355' }))
-    ).toBe('https://aut-889.bloodmarkers-tracker.localhost:1355')
+      resolveOrigin(hdrs({ 'x-forwarded-host': 'feature-x.markerbook.localhost:1355' }))
+    ).toBe('https://feature-x.markerbook.localhost:1355')
+  })
+
+  it('does not trust a *.localhost host outside development', () => {
+    vi.stubEnv('NODE_ENV', 'production')
+    expect(
+      resolveOrigin(hdrs({ 'x-forwarded-host': 'feature-x.markerbook.localhost:1355' }))
+    ).toBe('https://health.example.com')
   })
 
   it('falls back to NEXT_PUBLIC_SITE_URL when the only host is the bare-localhost internal one (the prod-proxy bug)', () => {

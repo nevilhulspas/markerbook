@@ -4,6 +4,7 @@ const { mockResolve, mockLog, mockUpload, mockInsert, mockRemove } = vi.hoisted(
   mockResolve: vi.fn(), mockLog: vi.fn(), mockUpload: vi.fn(), mockInsert: vi.fn(), mockRemove: vi.fn(),
 }))
 vi.mock('@/lib/nutrition/log-token', () => ({ resolveUserIdByToken: mockResolve }))
+vi.mock('server-only', () => ({}))
 vi.mock('@/lib/nutrition/log-core', async (orig) => {
   const actual = (await orig()) as object
   return { ...actual, logConfirmedItems: mockLog }

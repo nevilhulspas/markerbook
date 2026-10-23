@@ -7,7 +7,8 @@ needs a `webDir`.
 
 ## Server URL
 
-Set via `CAPACITOR_SERVER_URL` (see `capacitor.config.ts`):
+Set via `CAPACITOR_SERVER_URL` (see `capacitor.config.ts`). There is no default:
+`npx cap` stops with an error when it or `CAPACITOR_APP_ID` is missing.
 
 ```bash
 CAPACITOR_SERVER_URL="https://health.example.com" CAPACITOR_APP_ID="com.example.markerbook" npx cap sync ios
@@ -20,10 +21,10 @@ The host is added to `server.allowNavigation` automatically.
 1. Open `ios/App/App.xcodeproj` in Xcode (Swift Package Manager, no workspace).
 2. **App** target → **Signing & Capabilities**: pick your team and set your
    bundle ID (the same as `CAPACITOR_APP_ID`).
-3. Change the URL scheme in `ios/App/App/Info.plist`, the deep links and log
-   endpoint in `ios/App/App/AppShortcuts.swift`, and `NATIVE_URL_SCHEME` in
-   `src/lib/capacitor.ts` to match. Add `<scheme>://auth/callback` to the
-   Supabase Auth redirect URLs.
+3. Change the URL scheme in `ios/App/App/Info.plist` and `NATIVE_URL_SCHEME`
+   in `src/lib/capacitor.ts` to match. Add `<scheme>://auth/callback` to the
+   Supabase Auth redirect URLs. The full list is in `docs/SELF_HOSTING.md`
+   ("The iOS app").
 4. **Product → Archive → Distribute App**. The command-line steps are in
    `CLAUDE.md` ("Releasing a new TestFlight build").
 

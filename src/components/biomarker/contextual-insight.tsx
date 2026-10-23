@@ -16,6 +16,8 @@ import {
 import { InterpretationContent } from '@/components/interpretation/interpretation-content'
 import { ThinkingIndicator } from '@/components/ui/thinking-indicator'
 import { useInterpretation } from '@/hooks/use-interpretation'
+import { isAiNotConfiguredMessage } from '@/lib/ai/messages'
+import { AiUnavailableNote } from '@/components/interpretation/ai-unavailable-note'
 import { hashProfile, hashMarkerContext } from '@/lib/interpretation/cache'
 import type {
   InterpretationRequest,
@@ -39,6 +41,8 @@ interface ContextualInsightProps {
   refRangeHigh: number | null
   profile: ProfileContext
   allMarkerContextForLatestTest: MarkerContext[]
+  /** False when the server has no Anthropic API key: only a cached insight shows. */
+  aiEnabled?: boolean
 }
 
 function formatRelativeTime(dateStr: string): string {
@@ -73,6 +77,7 @@ export function ContextualInsight({
   refRangeHigh,
   profile,
   allMarkerContextForLatestTest,
+  aiEnabled = true,
 }: ContextualInsightProps) {
   const {
     content,
@@ -83,7 +88,7 @@ export function ContextualInsight({
     isStale,
     interpret,
     regenerate,
-  } = useInterpretation()
+  } = useInterpretation({ aiEnabled })
 
   const hasTriggered = useRef(false)
 
@@ -173,7 +178,7 @@ export function ContextualInsight({
             <Brain className="size-5" />
             Your Insight
           </CardTitle>
-          {cachedAt && !isStale && !isStreaming && (
+          {cachedAt && !isStale && !isStreaming && aiEnabled && (
             <div className="flex items-center gap-2">
               <Badge variant="secondary">
                 Cached {formatRelativeTime(cachedAt)}
@@ -193,7 +198,7 @@ export function ContextualInsight({
       </CardHeader>
       <CardContent>
         {/* Stale cache banner */}
-        {isStale && !isStreaming && (
+        {isStale && !isStreaming && aiEnabled && (
           <div className="mb-4 flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 dark:border-amber-900/50 dark:bg-amber-950/30">
             <p className="flex-1 text-sm text-amber-700 dark:text-amber-300">
               Your profile or markers have changed since this insight was
@@ -206,8 +211,13 @@ export function ContextualInsight({
           </div>
         )}
 
+        {/* Not set up: a note, not an error */}
+        {error && isAiNotConfiguredMessage(error) && (
+          <AiUnavailableNote message="Personal insights need AI, which is not set up on this server." />
+        )}
+
         {/* Error state */}
-        {error && (
+        {error && !isAiNotConfiguredMessage(error) && (
           <div className="space-y-3 rounded-lg border border-destructive/50 bg-destructive/10 p-4">
             <p className="text-sm text-destructive">{error}</p>
             <Button size="sm" variant="outline" onClick={regenerate}>
@@ -229,7 +239,12 @@ export function ContextualInsight({
 
         {/* Content (cached or streaming) */}
         {content && (
-          <InterpretationContent content={content} isStreaming={isStreaming} />
+          <>
+            <InterpretationContent content={content} isStreaming={isStreaming} />
+            <p className="mt-3 text-xs text-muted-foreground">
+              Not medical advice. Talk to your doctor before you change treatment.
+            </p>
+          </>
         )}
       </CardContent>
     </Card>

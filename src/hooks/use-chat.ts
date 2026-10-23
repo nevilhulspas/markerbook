@@ -2,7 +2,6 @@
 
 import { useCallback, useLayoutEffect, useRef, useState } from 'react'
 
-import type { MarkerContext, ProfileContext } from '@/lib/interpretation/types'
 import { readTextStream } from '@/lib/ai/text-stream'
 
 export interface ChatMessage {
@@ -22,14 +21,15 @@ interface UseChatReturn {
 }
 
 interface UseChatOptions {
-  allTestResults: MarkerContext[]
-  profile: ProfileContext
-  markerName?: string
+  /** The test (and, for a single marker, the result) the chat is about. The
+   *  server loads the markers and profile for it from the user's own data. */
+  bloodTestId?: string
+  testResultId?: string
   initialInterpretation?: string
 }
 
 export function useChat(options: UseChatOptions): UseChatReturn {
-  const { allTestResults, profile, markerName, initialInterpretation } = options
+  const { bloodTestId, testResultId, initialInterpretation } = options
 
   const [messages, setMessages] = useState<ChatMessage[]>(() => {
     if (initialInterpretation) {
@@ -101,10 +101,8 @@ export function useChat(options: UseChatOptions): UseChatReturn {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             messages: apiMessages,
-            allTestResults,
-            profile,
-            markerName,
-            interpretationContent: optionsRef.current.initialInterpretation,
+            bloodTestId,
+            testResultId,
           }),
           signal: controller.signal,
         })
@@ -161,7 +159,7 @@ export function useChat(options: UseChatOptions): UseChatReturn {
         setIsStreaming(false)
       }
     },
-    [allTestResults, profile, markerName]
+    [bloodTestId, testResultId]
   )
 
   const abort = useCallback(() => {

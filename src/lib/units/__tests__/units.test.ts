@@ -158,3 +158,14 @@ describe('convertUnit via molar mass', () => {
     expect(convertUnit(1, 'mEq/L', 'mg/dL', cortisol)).toBeNull()
   })
 })
+
+describe('count unit spellings from German / UCUM reports (regression)', () => {
+  it('reads Tsd/µl, Mio/µl, Gpt/l and 10*9/L as counts', () => {
+    expect(sameUnit('Tsd/µl', '10^9/L')).toBe(true)
+    expect(sameUnit('Mio/µl', '10^12/L')).toBe(true)
+    expect(sameUnit('Gpt/l', '10^9/L')).toBe(true)
+    expect(sameUnit('Tpt/l', '10^12/L')).toBe(true)
+    expect(sameUnit('10*9/L', 'x10^3/uL')).toBe(true)
+    expect(sameUnit('10*12/L', '10^12/L')).toBe(true)
+  })
+})
